@@ -1,0 +1,42 @@
+{{define "admin_content"}}
+<div class="admin-page-header">
+    <div>
+        <p class="admin-kicker">Comercial</p>
+        <h1>Lojas</h1>
+    </div>
+    <a href="{{.AdminPath}}/stores/new" class="btn btn-primary">+ Nova Loja</a>
+</div>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>Nome</th>
+            <th>Categoria</th>
+            <th>Status</th>
+            <th>Acoes</th>
+        </tr>
+    </thead>
+    <tbody>
+        {{range .Stores}}
+        <tr>
+            <td>
+                {{.Name}}
+                {{if .IsSponsored}}<span class="sponsored-badge">Patrocinado</span>{{end}}
+                {{if .IsFeatured}}<span class="sponsored-badge sponsored-badge-success">Destaque</span>{{end}}
+            </td>
+            <td>{{.Category}}</td>
+            <td>{{if .Active}}<span class="status-pill status-published">Ativo</span>{{else}}<span class="status-pill status-muted">Inativo</span>{{end}}</td>
+            <td class="admin-row-actions">
+                <a href="{{$.AdminPath}}/stores/{{.ID}}/edit?slug={{.Slug}}" class="btn btn-sm btn-primary">Editar</a>
+                <form method="POST" action="{{$.AdminPath}}/stores/{{.ID}}/delete" onsubmit="return confirm('Tem certeza?')">
+    <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+                    <button type="submit" class="btn btn-sm btn-danger">Excluir</button>
+                </form>
+            </td>
+        </tr>
+        {{else}}
+        <tr><td colspan="4" class="empty-state">Nenhuma loja cadastrada</td></tr>
+        {{end}}
+    </tbody>
+</table>
+{{end}}

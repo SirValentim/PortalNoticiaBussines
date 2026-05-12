@@ -1,0 +1,46 @@
+{{define "admin_content"}}
+<div class="admin-page-header">
+    <div>
+        <p class="admin-kicker">Comunidade</p>
+        <h1>Influencers</h1>
+    </div>
+    <a href="{{.AdminPath}}/influencers/new" class="btn btn-primary">+ Novo Influencer</a>
+</div>
+
+<div class="admin-table-wrap">
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Nome</th>
+                <th>Area</th>
+                <th>Redes</th>
+                <th>Status</th>
+                <th>Acoes</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range .Influencers}}
+            <tr>
+                <td>
+                    {{.Name}}
+                    {{if .IsSponsored}}<span class="sponsored-badge">Patrocinado</span>{{end}}
+                    {{if .IsFeatured}}<span class="sponsored-badge sponsored-badge-success">Destaque</span>{{end}}
+                </td>
+                <td>{{.CityArea}}</td>
+                <td>{{if .Instagram}}Instagram {{end}}{{if .TikTok}}TikTok {{end}}{{if .YouTube}}YouTube{{end}}</td>
+                <td>{{if .Active}}<span class="status-pill status-published">Ativo</span>{{else}}<span class="status-pill status-muted">Inativo</span>{{end}}</td>
+                <td class="admin-row-actions">
+                    <a href="{{$.AdminPath}}/influencers/{{.ID}}/edit" class="btn btn-sm btn-primary">Editar</a>
+                    <form method="POST" action="{{$.AdminPath}}/influencers/{{.ID}}/delete" onsubmit="return confirm('Tem certeza?')">
+                        <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+                        <button type="submit" class="btn btn-sm btn-danger">Excluir</button>
+                    </form>
+                </td>
+            </tr>
+            {{else}}
+            <tr><td colspan="5" class="empty-state">Nenhum influencer cadastrado</td></tr>
+            {{end}}
+        </tbody>
+    </table>
+</div>
+{{end}}

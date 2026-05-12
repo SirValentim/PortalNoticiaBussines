@@ -1,0 +1,114 @@
+{{define "admin_content"}}
+<div class="admin-page-header">
+    <div>
+        <p class="admin-kicker">Biblioteca</p>
+        <h1>Midia</h1>
+    </div>
+</div>
+
+<section class="admin-form-section">
+    <div class="admin-section-header">
+        <div>
+            <h3 class="admin-section-title">Enviar imagem</h3>
+            <p>Arquivos sao validados, convertidos para WebP e recebem thumbnail automaticamente.</p>
+        </div>
+    </div>
+    <form method="POST" action="{{.AdminPath}}/media" enctype="multipart/form-data" class="admin-form-grid">
+        <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+        <div class="form-group">
+            <label>Imagem</label>
+            <input type="file" name="file" class="form-control" accept="image/*" required>
+        </div>
+        <div class="form-group">
+            <label>Titulo interno</label>
+            <input type="text" name="title" class="form-control" placeholder="Ex: fachada da prefeitura">
+        </div>
+        <div class="form-group form-group-wide">
+            <label>Texto alternativo</label>
+            <input type="text" name="alt_text" class="form-control" required placeholder="Descreva a imagem para acessibilidade e SEO">
+            <small class="form-hint">Use uma descricao objetiva do que aparece na imagem.</small>
+        </div>
+        <div class="admin-form-actions form-group-wide">
+            <button type="submit" class="btn btn-primary">Enviar para biblioteca</button>
+        </div>
+    </form>
+</section>
+
+<section class="admin-form-section editorial-filter-panel">
+    <form method="GET" action="{{.AdminPath}}/media" class="admin-filter-form">
+        <div class="form-group">
+            <label>Buscar</label>
+            <input type="search" name="q" class="form-control" value="{{.FilterQuery}}" placeholder="Nome, titulo, alt text ou chave">
+        </div>
+        <div class="form-group">
+            <label>Mes</label>
+            <select name="month" class="form-control">
+                <option value="">Todos</option>
+                {{range .ArchiveMonths}}
+                <option value="{{.Month}}" {{if eq $.FilterMonth .Month}}selected{{end}}>{{.Label}} ({{.Count}})</option>
+                {{end}}
+            </select>
+        </div>
+        <div class="form-group">
+            <label>De</label>
+            <input type="date" name="date_from" class="form-control" value="{{.FilterDateFrom}}">
+        </div>
+        <div class="form-group">
+            <label>Ate</label>
+            <input type="date" name="date_to" class="form-control" value="{{.FilterDateTo}}">
+        </div>
+        <div class="admin-filter-actions">
+            <button type="submit" class="btn btn-primary">Filtrar</button>
+            <a href="{{.AdminPath}}/media" class="btn">Limpar</a>
+        </div>
+    </form>
+</section>
+
+<section class="admin-form-section">
+    {{if .Assets}}
+    <div class="media-library-grid">
+        {{range .Assets}}
+        <article class="media-asset-card">
+            <img src="{{imageURL .Key}}" alt="{{.AltText}}" loading="lazy">
+            <div class="media-asset-body">
+                <strong>{{if .Title}}{{.Title}}{{else}}{{.OriginalName}}{{end}}</strong>
+                <span>{{.OriginalName}}</span>
+                <small>{{formatBytes .SizeBytes}} | {{.ContentType}} | {{.UsageCount}} uso(s)</small>
+                <small>Organizado em {{.CreatedAt | formatDate}}</small>
+                <input class="form-control media-url-field" value="{{imageURL .Key}}" readonly>
+                <form method="POST" action="{{$.AdminPath}}/media/{{.ID}}" class="media-meta-form">
+                    <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+                    <label>Titulo</label>
+                    <input type="text" name="title" class="form-control" value="{{.Title}}">
+                    <label>Texto alternativo</label>
+                    <input type="text" name="alt_text" class="form-control" value="{{.AltText}}" required>
+                    <button type="submit" class="btn btn-sm btn-primary">Salvar</button>
+                </form>
+                <form method="POST" action="{{$.AdminPath}}/media/{{.ID}}/delete" onsubmit="return confirm('Remover esta midia?')">
+                    <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+                    <button type="submit" class="btn btn-sm btn-danger" {{if gt .UsageCount 0}}disabled title="Midia em uso"{{end}}>Excluir</button>
+                </form>
+            </div>
+        </article>
+        {{end}}
+    </div>
+    {{else}}
+    <div class="empty-state empty-state-rich">
+        <strong>Nenhuma midia encontrada</strong>
+        <span>Envie a primeira imagem para comecar a organizar os ativos editoriais e comerciais do portal.</span>
+    </div>
+    {{end}}
+</section>
+
+{{if gt .TotalPages 1}}
+<div class="admin-pagination">
+    {{if gt .Page 1}}
+    <a href="{{.AdminPath}}/media?page={{sub .Page 1}}{{.FilterQueryPath}}" class="btn btn-sm">Anterior</a>
+    {{end}}
+    <span class="pagination-label">Pagina {{.Page}} de {{.TotalPages}}</span>
+    {{if lt .Page .TotalPages}}
+    <a href="{{.AdminPath}}/media?page={{add .Page 1}}{{.FilterQueryPath}}" class="btn btn-sm">Proxima</a>
+    {{end}}
+</div>
+{{end}}
+{{end}}

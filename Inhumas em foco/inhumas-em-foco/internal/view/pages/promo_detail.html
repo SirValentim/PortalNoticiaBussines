@@ -1,0 +1,29 @@
+{{define "content"}}
+<section class="page-shell">
+    <div class="container promo-detail-layout">
+        <article class="promo-detail-card">
+            <img class="promo-detail-image" src="{{if .Promo.ImageKey}}{{imageURL .Promo.ImageKey}}{{else}}/static/images/inhumas-hero.png{{end}}" alt="{{.Promo.Title}}" loading="eager">
+            <div class="promo-detail-body">
+                <span class="badge">{{.Promo.StoreName}}</span>
+                <h1>{{.Promo.Title}}</h1>
+                {{if .Promo.IsSponsored}}<span class="sponsored-badge">Patrocinado</span>{{end}}
+                <strong class="promo-detail-price">{{.Promo.PriceDisplay}}</strong>
+                <div class="article-content">{{.Promo.Description | htmlSafe}}</div>
+                <div class="info-list">
+                    <p><strong>Validade</strong><span>{{.Promo.StartDate | formatDate}} ate {{.Promo.EndDate | formatDate}}</span></p>
+                    <p><strong>Loja</strong><span><a href="/loja/{{.Promo.StoreSlug}}">{{.Promo.StoreName}}</a></span></p>
+                </div>
+                {{if .Store.Whatsapp}}
+                <a href="https://wa.me/{{.Store.Whatsapp}}" target="_blank" class="btn btn-success btn-lg" onclick="trackMetric('promo_click','promotion','{{.Promo.ID}}')">Resgatar no WhatsApp</a>
+                {{end}}
+            </div>
+        </article>
+        <aside class="detail-panel side-ad">
+            <span class="badge badge-accent">Patrocinado</span>
+            <strong>Anuncie suas promocoes aqui!</strong>
+            <small>Mais visibilidade para ofertas locais.</small>
+            <a href="/contato" class="btn btn-primary">Quero anunciar</a>
+        </aside>
+    </div>
+</section>
+{{end}}

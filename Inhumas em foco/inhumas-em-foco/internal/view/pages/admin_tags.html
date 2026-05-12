@@ -1,0 +1,41 @@
+{{define "admin_content"}}
+<div class="admin-page-header">
+    <div>
+        <p class="admin-kicker">Editorial</p>
+        <h1>Tags</h1>
+    </div>
+    <a href="{{.AdminPath}}/tags/new" class="btn btn-primary">+ Nova Tag</a>
+</div>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>Tag</th>
+            <th>Slug</th>
+            <th>Status</th>
+            <th>Acoes</th>
+        </tr>
+    </thead>
+    <tbody>
+        {{range .Tags}}
+        <tr>
+            <td>
+                <strong>{{.Name}}</strong>
+                {{if .Description}}<br><small>{{.Description}}</small>{{end}}
+            </td>
+            <td>{{.Slug}}</td>
+            <td>{{if .Active}}<span class="status-pill status-published">Ativa</span>{{else}}<span class="status-pill status-muted">Inativa</span>{{end}}</td>
+            <td class="admin-row-actions">
+                <a href="{{$.AdminPath}}/tags/{{.ID}}/edit" class="btn btn-sm btn-primary">Editar</a>
+                <form method="POST" action="{{$.AdminPath}}/tags/{{.ID}}/delete" onsubmit="return confirm('Tem certeza?')">
+                    <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+                    <button type="submit" class="btn btn-sm btn-danger">Excluir</button>
+                </form>
+            </td>
+        </tr>
+        {{else}}
+        <tr><td colspan="4" class="empty-state">Nenhuma tag cadastrada</td></tr>
+        {{end}}
+    </tbody>
+</table>
+{{end}}

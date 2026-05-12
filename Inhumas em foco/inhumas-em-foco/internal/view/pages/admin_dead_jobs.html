@@ -1,0 +1,36 @@
+{{define "admin_content"}}
+<div class="admin-page-header">
+    <div>
+        <p class="admin-kicker">Operacao</p>
+        <h1>Jobs com Falha</h1>
+    </div>
+    <span class="sponsored-badge">{{.Count}} registros</span>
+</div>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Tipo</th>
+            <th>Tentativas</th>
+            <th>Erro</th>
+            <th>Criado em</th>
+        </tr>
+    </thead>
+    <tbody>
+        {{range .Jobs}}
+        <tr>
+            <td>#{{.ID}}</td>
+            <td>{{.Type}}</td>
+            <td>{{.Attempts}}/{{.MaxAttempts}}</td>
+            <td>{{.Error}}</td>
+            <td>{{.CreatedAt | formatDateTime}}</td>
+        </tr>
+        {{else}}
+        <tr>
+            <td colspan="5" class="empty-state">Nenhum job em dead_jobs</td>
+        </tr>
+        {{end}}
+    </tbody>
+</table>
+{{end}}

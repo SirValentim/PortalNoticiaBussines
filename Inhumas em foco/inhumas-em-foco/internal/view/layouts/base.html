@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{.SEO.Title}}</title>
+    <meta name="description" content="{{.SEO.Description}}">
+    {{if .SEO.Tags}}<meta name="keywords" content="{{range $i, $tag := .SEO.Tags}}{{if $i}}, {{end}}{{$tag}}{{end}}">{{end}}
+    <meta name="author" content="{{if .SEO.Author}}{{.SEO.Author}}{{else}}Inhumas em Foco{{end}}">
+    <meta name="theme-color" content="#1F7A63">
+    {{if .SEO.NoIndex}}<meta name="robots" content="noindex,nofollow">{{else}}<meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1">{{end}}
+    <link rel="canonical" href="{{.SEO.CanonicalURL}}">
+    <link rel="alternate" type="application/rss+xml" title="Inhumas em Foco RSS" href="/rss.xml">
+    <meta property="og:title" content="{{.SEO.Title}}">
+    <meta property="og:description" content="{{.SEO.Description}}">
+    <meta property="og:type" content="{{.SEO.Type}}">
+    <meta property="og:site_name" content="Inhumas em Foco">
+    <meta property="og:locale" content="pt_BR">
+    {{if .SEO.Image}}<meta property="og:image" content="{{.SEO.Image}}"><meta property="og:image:alt" content="{{.SEO.Title}}"><meta name="twitter:image" content="{{.SEO.Image}}">{{end}}
+    <meta property="og:url" content="{{.SEO.URL}}">
+    {{if .SEO.PublishedAt}}<meta property="article:published_time" content="{{.SEO.PublishedAt.Format "2006-01-02T15:04:05Z07:00"}}">{{end}}
+    {{if .SEO.ModifiedAt}}<meta property="article:modified_time" content="{{.SEO.ModifiedAt.Format "2006-01-02T15:04:05Z07:00"}}">{{end}}
+    {{range .SEO.Tags}}<meta property="article:tag" content="{{.}}">{{end}}
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="{{.SEO.Title}}">
+    <meta name="twitter:description" content="{{.SEO.Description}}">
+    {{if .JSONLD}}<script type="application/ld+json">{{.JSONLD}}</script>{{end}}
+    <link rel="stylesheet" href="/static/css/style.css?v=20260430-public-v1">
+    <script defer src="/static/js/htmx-lite.js?v=20260429-frontend-fix"></script>
+    <script>
+        function trackMetric(type, entityType, entityID) {
+            fetch('/api/metrics/' + type + '?entity_type=' + entityType + '&entity_id=' + entityID, {method: 'POST'});
+        }
+    </script>
+</head>
+<body>
+    {{template "header.html" .}}
+    
+    <main>
+        {{template "content" .}}
+    </main>
+    
+    {{template "footer.html" .}}
+    
+    {{if .StickyBanner}}
+    <div class="banner-sticky" id="stickyBanner">
+        <div style="position:relative;">
+            <a href="{{.StickyBanner.LinkURL}}" target="_blank" onclick="trackMetric('banner_click','banner','{{.StickyBanner.ID}}')">
+                <img src="{{imageURL .StickyBanner.ImageKey}}" alt="{{.StickyBanner.Name}}" style="width:100%;max-height:80px;object-fit:cover;">
+            </a>
+            <button onclick="document.getElementById('stickyBanner').style.display='none'" style="position:absolute;top:4px;right:4px;background:rgba(0,0,0,0.5);color:#fff;border:none;border-radius:50%;width:24px;height:24px;cursor:pointer;font-size:12px;">x</button>
+        </div>
+    </div>
+    {{end}}
+</body>
+</html>

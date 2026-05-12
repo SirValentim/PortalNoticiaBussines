@@ -1,0 +1,105 @@
+{{define "admin_content"}}
+<div class="admin-page-header">
+    <div>
+        <p class="admin-kicker">Comercial</p>
+        <h1>{{if .Store}}Editar{{else}}Nova{{end}} Loja</h1>
+    </div>
+    <a href="{{.AdminPath}}/stores" class="btn btn-sm">Voltar</a>
+</div>
+
+<form class="admin-form" method="POST" action="{{if .Store}}{{.AdminPath}}/stores/{{.Store.ID}}{{else}}{{.AdminPath}}/stores{{end}}" enctype="multipart/form-data">
+    <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+
+    <section class="admin-form-section">
+        <div class="admin-form-grid">
+            <div class="form-group">
+                <label>Nome</label>
+                <input type="text" name="name" class="form-control" value="{{if .Store}}{{.Store.Name}}{{end}}" required>
+            </div>
+            <div class="form-group">
+                <label>Categoria</label>
+                <input type="text" name="category" class="form-control" value="{{if .Store}}{{.Store.Category}}{{end}}">
+            </div>
+        </div>
+        <div class="form-group">
+            <label>Descricao</label>
+            <textarea name="description" class="form-control" rows="6">{{if .Store}}{{.Store.Description}}{{end}}</textarea>
+        </div>
+    </section>
+
+    <section class="admin-form-section">
+        <div class="admin-form-grid">
+            <div class="form-group">
+                <label>Endereco</label>
+                <input type="text" name="address" class="form-control" value="{{if .Store}}{{.Store.Address}}{{end}}">
+            </div>
+            <div class="form-group">
+                <label>Bairro</label>
+                <select name="neighborhood_id" class="form-control">
+                    <option value="">Selecione</option>
+                    {{range .Neighborhoods}}
+                    <option value="{{.ID}}" {{if and $.Store (idPtrEq $.Store.NeighborhoodID .ID)}}selected{{end}}>{{.Name}}</option>
+                    {{end}}
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Telefone</label>
+                <input type="text" name="phone" class="form-control" value="{{if .Store}}{{.Store.Phone}}{{end}}">
+            </div>
+            <div class="form-group">
+                <label>WhatsApp</label>
+                <input type="text" name="whatsapp" class="form-control" value="{{if .Store}}{{.Store.Whatsapp}}{{end}}">
+            </div>
+        </div>
+    </section>
+
+    <section class="admin-form-section">
+        <div class="admin-form-grid">
+            <div class="form-group">
+                <label>Logo</label>
+                {{if and .Store .Store.LogoKey}}
+                <img class="admin-cover-preview" src="{{imageURL .Store.LogoKey}}">
+                <label class="checkbox-control"><input type="checkbox" name="remove_logo"><span>Remover logo atual</span></label>
+                {{end}}
+                <input type="file" name="logo" class="form-control" accept="image/*">
+                {{if .MediaAssets}}
+                <label>Ou escolher da biblioteca</label>
+                <select name="logo_media_key" class="form-control">
+                    <option value="">Manter / nenhum</option>
+                    {{range .MediaAssets}}
+                    <option value="{{.Key}}" {{if and $.Store (eq $.Store.LogoKey .Key)}}selected{{end}}>{{if .Title}}{{.Title}}{{else}}{{.OriginalName}}{{end}}</option>
+                    {{end}}
+                </select>
+                {{end}}
+            </div>
+            <div class="form-group">
+                <label>Imagem de capa</label>
+                {{if and .Store .Store.CoverImageKey}}
+                <img class="admin-cover-preview" src="{{imageURL .Store.CoverImageKey}}">
+                <label class="checkbox-control"><input type="checkbox" name="remove_cover"><span>Remover capa atual</span></label>
+                {{end}}
+                <input type="file" name="cover" class="form-control" accept="image/*">
+                {{if .MediaAssets}}
+                <label>Ou escolher da biblioteca</label>
+                <select name="cover_media_key" class="form-control">
+                    <option value="">Manter / nenhuma</option>
+                    {{range .MediaAssets}}
+                    <option value="{{.Key}}" {{if and $.Store (eq $.Store.CoverImageKey .Key)}}selected{{end}}>{{if .Title}}{{.Title}}{{else}}{{.OriginalName}}{{end}}</option>
+                    {{end}}
+                </select>
+                {{end}}
+            </div>
+        </div>
+        <div class="admin-check-grid">
+            <label class="checkbox-control"><input type="checkbox" name="is_sponsored" {{if .Store}}{{if .Store.IsSponsored}}checked{{end}}{{end}}><span>Patrocinado</span></label>
+            <label class="checkbox-control"><input type="checkbox" name="is_featured" {{if .Store}}{{if .Store.IsFeatured}}checked{{end}}{{end}}><span>Destaque</span></label>
+            <label class="checkbox-control"><input type="checkbox" name="active" {{if .Store}}{{if .Store.Active}}checked{{end}}{{else}}checked{{end}}><span>Ativo</span></label>
+        </div>
+    </section>
+
+    <div class="admin-form-actions">
+        <a href="{{.AdminPath}}/stores" class="btn">Cancelar</a>
+        <button type="submit" class="btn btn-primary btn-lg">Salvar loja</button>
+    </div>
+</form>
+{{end}}

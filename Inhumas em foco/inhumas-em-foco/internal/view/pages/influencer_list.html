@@ -1,0 +1,37 @@
+{{define "content"}}
+<section class="page-shell">
+    <div class="container">
+        <div class="page-header">
+            <span class="page-kicker">Criadores locais</span>
+            <h1>Influencers da Cidade</h1>
+            <p>Conecte-se com influencers e vozes regionais de Inhumas.</p>
+        </div>
+        {{if .ListBanner}}
+        <a class="ad-banner ad-banner-list" href="{{.ListBanner.LinkURL}}" target="_blank" onclick="trackMetric('banner_click','banner','{{.ListBanner.ID}}')">
+            <span class="badge badge-accent">Patrocinado</span>
+            <strong>{{.ListBanner.Name}}</strong>
+            <img src="{{imageURL .ListBanner.ImageKey}}" alt="{{.ListBanner.Name}}" loading="lazy">
+        </a>
+        {{else}}
+        {{template "ad_placeholder_horizontal" .}}
+        {{end}}
+        <div class="influencer-grid">
+            {{range .Influencers}}
+            <article class="card influencer-card-v2">
+                <a href="/influencer/{{.Slug}}">
+                    <img src="{{if .AvatarKey}}{{imageURL .AvatarKey}}{{else}}/static/images/inhumas-hero.png{{end}}" alt="{{.Name}}" loading="lazy">
+                </a>
+                <div class="card-body">
+                    <h2><a href="/influencer/{{.Slug}}">{{.Name}}</a></h2>
+                    <span>{{.CityArea}}</span>
+                    <p>{{.Bio}}</p>
+                    {{if .IsSponsored}}<small>Patrocinado</small>{{end}}
+                </div>
+            </article>
+            {{else}}
+            <div class="empty-state">Nenhum influencer cadastrado ainda.</div>
+            {{end}}
+        </div>
+    </div>
+</section>
+{{end}}

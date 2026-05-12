@@ -1,0 +1,48 @@
+{{define "admin_content"}}
+<div class="admin-page-header">
+    <div>
+        <p class="admin-kicker">Editorial</p>
+        <h1>{{if .Tag}}Editar{{else}}Nova{{end}} Tag</h1>
+    </div>
+    <a href="{{.AdminPath}}/tags" class="btn btn-sm">Voltar</a>
+</div>
+
+<form class="admin-form" method="POST" action="{{if .Tag}}{{.AdminPath}}/tags/{{.Tag.ID}}{{else}}{{.AdminPath}}/tags{{end}}">
+    <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+
+    <section class="admin-form-section">
+        <div class="admin-form-grid">
+            <div class="form-group">
+                <label>Nome</label>
+                <input type="text" name="name" class="form-control" value="{{if .Tag}}{{.Tag.Name}}{{end}}" required>
+            </div>
+            <div class="form-group">
+                <label>Slug</label>
+                <input type="text" name="slug" class="form-control" value="{{if .Tag}}{{.Tag.Slug}}{{end}}" placeholder="automatico se ficar vazio">
+            </div>
+        </div>
+        <div class="form-group">
+            <label>Descricao</label>
+            <textarea name="description" class="form-control" rows="5">{{if .Tag}}{{.Tag.Description}}{{end}}</textarea>
+        </div>
+        <div class="admin-form-grid">
+            <div class="form-group">
+                <label>Titulo SEO</label>
+                <input type="text" name="meta_title" class="form-control" maxlength="70" value="{{if .Tag}}{{.Tag.MetaTitle}}{{end}}" placeholder="Opcional; se vazio, usa o nome">
+            </div>
+            <div class="form-group">
+                <label>Descricao SEO</label>
+                <textarea name="meta_description" class="form-control" maxlength="170" rows="3" placeholder="Opcional; se vazio, usa a descricao">{{if .Tag}}{{.Tag.MetaDescription}}{{end}}</textarea>
+            </div>
+        </div>
+        <div class="admin-check-grid">
+            <label class="checkbox-control"><input type="checkbox" name="active" {{if .Tag}}{{if .Tag.Active}}checked{{end}}{{else}}checked{{end}}><span>Ativa</span></label>
+        </div>
+    </section>
+
+    <div class="admin-form-actions">
+        <a href="{{.AdminPath}}/tags" class="btn">Cancelar</a>
+        <button type="submit" class="btn btn-primary btn-lg">Salvar tag</button>
+    </div>
+</form>
+{{end}}

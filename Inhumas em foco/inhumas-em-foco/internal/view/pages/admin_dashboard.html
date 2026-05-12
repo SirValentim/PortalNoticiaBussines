@@ -1,0 +1,56 @@
+{{define "admin_content"}}
+<div class="admin-page-header">
+    <div>
+        <p class="admin-kicker">Visao geral</p>
+        <h1>Dashboard</h1>
+    </div>
+</div>
+
+<div class="stats-grid">
+    <div class="stat-card"><h3>{{.PostCount}}</h3><p>Noticias publicadas</p></div>
+    <div class="stat-card"><h3>{{.StoreCount}}</h3><p>Lojas cadastradas</p></div>
+    <div class="stat-card"><h3>{{.PromoCount}}</h3><p>Promocoes ativas</p></div>
+    <div class="stat-card"><h3>{{.BannerCount}}</h3><p>Banners ativos</p></div>
+    <div class="stat-card"><h3>{{.BannerSummary.Expiring}}</h3><p>Banners vencendo</p></div>
+    <div class="stat-card"><h3>{{.BannerViews}}</h3><p>Impressoes de banner</p></div>
+    <div class="stat-card"><h3>{{.StoreViews}}</h3><p>Visualizacoes de lojas</p></div>
+    <div class="stat-card"><h3>{{.DeadJobCount}}</h3><p>Jobs com falha</p></div>
+</div>
+
+<div class="admin-panel-grid">
+    <section class="admin-form-section admin-commercial-panel">
+        <h3 class="admin-section-title">Inventario Comercial</h3>
+        <div class="commercial-slot-grid">
+            {{range .BannerSlots}}
+            <a class="commercial-slot-card {{if gt .ActiveCount 0}}slot-active{{else}}slot-open{{end}}" href="{{$.AdminPath}}/banners/new">
+                <span>{{.Label}}</span>
+                <strong>{{if gt .ActiveCount 0}}{{.ActiveCount}} ativo{{else}}Disponivel{{end}}</strong>
+                <small>{{.Spec}} - {{.TotalCount}} cadastro(s)</small>
+            </a>
+            {{end}}
+        </div>
+        <div class="commercial-mini-report">
+            <span>{{.BannerSummary.Paused}} pausados</span>
+            <span>{{.BannerSummary.Draft}} rascunhos</span>
+            <span>{{.BannerSummary.WithoutImage}} sem imagem</span>
+        </div>
+    </section>
+    <section class="admin-form-section">
+        <h3 class="admin-section-title">Acoes Rapidas</h3>
+        <div class="admin-quick-actions">
+            <a href="{{.AdminPath}}/posts/new" class="btn btn-primary">+ Nova Noticia</a>
+            <a href="{{.AdminPath}}/stores/new" class="btn btn-secondary">+ Nova Loja</a>
+            <a href="{{.AdminPath}}/banners/new" class="btn btn-success">+ Novo Banner</a>
+            <a href="{{.AdminPath}}/promotions/new" class="btn btn-primary">+ Nova Promocao</a>
+        </div>
+    </section>
+    <section class="admin-form-section">
+        <h3 class="admin-section-title">Status do Sistema</h3>
+        <div class="system-status-list">
+            <p><span class="status-dot status-ok"></span>Banco de dados: OK</p>
+            <p><span class="status-dot status-ok"></span>Uploads: OK</p>
+            <p><span class="status-dot status-ok"></span>Worker: OK</p>
+        </div>
+    </section>
+</div>
+{{end}}

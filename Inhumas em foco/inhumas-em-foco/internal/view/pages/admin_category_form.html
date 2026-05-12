@@ -1,0 +1,84 @@
+{{define "admin_content"}}
+<div class="admin-page-header">
+    <div>
+        <p class="admin-kicker">Editorial</p>
+        <h1>{{if .Category}}Editar{{else}}Nova{{end}} Categoria</h1>
+    </div>
+    <a href="{{.AdminPath}}/categories" class="btn btn-sm">Voltar</a>
+</div>
+
+<form class="admin-form" method="POST" action="{{if .Category}}{{.AdminPath}}/categories/{{.Category.ID}}{{else}}{{.AdminPath}}/categories{{end}}" enctype="multipart/form-data">
+    <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+
+    <section class="admin-form-section">
+        <div class="admin-form-grid">
+            <div class="form-group">
+                <label>Nome</label>
+                <input type="text" name="name" class="form-control" value="{{if .Category}}{{.Category.Name}}{{end}}" required>
+            </div>
+            <div class="form-group">
+                <label>Slug</label>
+                <input type="text" name="slug" class="form-control" value="{{if .Category}}{{.Category.Slug}}{{end}}" placeholder="automatico se ficar vazio">
+            </div>
+        </div>
+        <div class="form-group">
+            <label>Descricao</label>
+            <textarea name="description" class="form-control" rows="5">{{if .Category}}{{.Category.Description}}{{end}}</textarea>
+        </div>
+    </section>
+
+    <section class="admin-form-section">
+        <div class="admin-section-header">
+            <div>
+                <h3 class="admin-section-title">SEO da categoria</h3>
+                <p>Metas usadas na pagina publica da categoria e em compartilhamentos.</p>
+            </div>
+        </div>
+        <div class="admin-form-grid">
+            <div class="form-group">
+                <label>Titulo SEO</label>
+                <input type="text" name="meta_title" class="form-control" maxlength="70" value="{{if .Category}}{{.Category.MetaTitle}}{{end}}" placeholder="Opcional; se vazio, usa o nome">
+            </div>
+            <div class="form-group">
+                <label>Descricao SEO</label>
+                <textarea name="meta_description" class="form-control" maxlength="170" rows="3" placeholder="Opcional; se vazio, usa a descricao">{{if .Category}}{{.Category.MetaDescription}}{{end}}</textarea>
+            </div>
+        </div>
+    </section>
+
+    <section class="admin-form-section">
+        <div class="admin-form-grid">
+            <div class="form-group">
+                <label>Imagem da categoria</label>
+                {{if and .Category .Category.ImageKey}}
+                <img class="admin-cover-preview" src="{{imageURL .Category.ImageKey}}">
+                <label class="checkbox-control"><input type="checkbox" name="remove_image"><span>Remover imagem atual</span></label>
+                {{end}}
+                <input type="file" name="image" class="form-control" accept="image/*">
+                {{if .MediaAssets}}
+                <label>Ou escolher da biblioteca</label>
+                <select name="image_media_key" class="form-control">
+                    <option value="">Manter / nenhuma</option>
+                    {{range .MediaAssets}}
+                    <option value="{{.Key}}" {{if and $.Category (eq $.Category.ImageKey .Key)}}selected{{end}}>{{if .Title}}{{.Title}}{{else}}{{.OriginalName}}{{end}}</option>
+                    {{end}}
+                </select>
+                {{end}}
+            </div>
+            <div class="form-group">
+                <label>Ordem</label>
+                <input type="number" name="sort_order" class="form-control" value="{{if .Category}}{{.Category.SortOrder}}{{else}}0{{end}}">
+            </div>
+        </div>
+        <div class="admin-check-grid">
+            <label class="checkbox-control"><input type="checkbox" name="active" {{if .Category}}{{if .Category.Active}}checked{{end}}{{else}}checked{{end}}><span>Ativa</span></label>
+            <label class="checkbox-control"><input type="checkbox" name="requires_editorial_notes" {{if .Category}}{{if .Category.RequiresEditorialNotes}}checked{{end}}{{end}}><span>Exigir notas editoriais</span></label>
+        </div>
+    </section>
+
+    <div class="admin-form-actions">
+        <a href="{{.AdminPath}}/categories" class="btn">Cancelar</a>
+        <button type="submit" class="btn btn-primary btn-lg">Salvar categoria</button>
+    </div>
+</form>
+{{end}}

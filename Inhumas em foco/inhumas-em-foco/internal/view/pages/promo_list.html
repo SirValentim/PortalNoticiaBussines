@@ -1,0 +1,57 @@
+{{define "content"}}
+<section class="page-shell">
+    <div class="container">
+        <div class="page-header">
+            <span class="page-kicker">Ofertas locais</span>
+            <h1>Promocoes</h1>
+            <p>Aproveite as melhores ofertas em Inhumas.</p>
+        </div>
+        <div class="commercial-callout">
+            <div>
+                <span class="ad-label">Vendas locais</span>
+                <strong>Divulgue uma promocao da sua empresa</strong>
+                <p>Use o portal para levar ofertas, cupons e campanhas ate moradores de Inhumas.</p>
+            </div>
+            <a href="/contato" class="btn btn-primary">Anunciar promocao</a>
+        </div>
+        {{if .ListBanner}}
+        <a class="ad-banner ad-banner-list" href="{{.ListBanner.LinkURL}}" target="_blank" onclick="trackMetric('banner_click','banner','{{.ListBanner.ID}}')">
+            <span class="badge badge-accent">Patrocinado</span>
+            <strong>{{.ListBanner.Name}}</strong>
+            <img src="{{imageURL .ListBanner.ImageKey}}" alt="{{.ListBanner.Name}}" loading="lazy">
+        </a>
+        {{else}}
+        {{template "ad_placeholder_horizontal" .}}
+        {{end}}
+        <div class="filter-pills">
+            <a href="/promocoes">Todas</a>
+            <a href="/promocoes?categoria=Alimentacao">Alimentacao</a>
+            <a href="/promocoes?categoria=Saude">Saude</a>
+            <a href="/promocoes?categoria=Varejo">Varejo</a>
+            <a href="/promocoes?categoria=Servicos">Servicos</a>
+            <a href="/promocoes?categoria=Automotivo">Automotivo</a>
+        </div>
+        <div class="promo-grid promo-grid-page">
+            {{range .Promos}}
+            <article class="card promo-card">
+                <a href="/promocao/{{.Slug}}">
+                    <img src="{{if .ImageKey}}{{imageURL .ImageKey}}{{else}}/static/images/inhumas-hero.png{{end}}" alt="{{.Title}}" loading="lazy">
+                </a>
+                <div class="card-body">
+                    <span>{{.StoreName}}</span>
+                    <h3><a href="/promocao/{{.Slug}}">{{.Title}}</a></h3>
+                    <strong>{{.PriceDisplay}}</strong>
+                    <small>Valido ate {{.EndDate | formatDate}}</small>
+                </div>
+                {{if .IsSponsored}}<span class="promo-ribbon">20% OFF</span>{{end}}
+            </article>
+            {{else}}
+            <div class="empty-state empty-state-rich">
+                <strong>Nenhuma promocao ativa no momento.</strong>
+                <span>Novas ofertas entram aqui assim que forem publicadas.</span>
+            </div>
+            {{end}}
+        </div>
+    </div>
+</section>
+{{end}}

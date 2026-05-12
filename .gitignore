@@ -1,0 +1,29 @@
+# Local secrets and VPS access data
+dados do VPS/
+*.key
+*.pem
+*.p12
+*.pfx
+*.env
+!.env.example
+.deploy-tmp/
+
+# Local databases and runtime files
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+
+# Build outputs and temporary binaries
+bin/
+tmp-*
+*.exe~
+*.tmp
+*.log
+
+# Editor and OS files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

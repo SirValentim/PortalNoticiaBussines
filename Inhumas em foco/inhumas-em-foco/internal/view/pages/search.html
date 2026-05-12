@@ -1,0 +1,47 @@
+{{define "content"}}
+<section class="page-shell">
+    <div class="container">
+        <div class="page-header">
+            <span class="page-kicker">Busca</span>
+            <h1>Resultados da Busca</h1>
+            <p>Pesquise noticias, lojas e promocoes do portal.</p>
+        </div>
+        <form method="GET" action="/busca" class="search-bar">
+            <input type="text" name="q" class="form-control" value="{{.Query}}" placeholder="Buscar por assunto..." required>
+            <button type="submit" class="btn btn-primary">Buscar</button>
+        </form>
+        {{if .ListBanner}}
+        <a class="ad-banner ad-banner-list" href="{{.ListBanner.LinkURL}}" target="_blank" onclick="trackMetric('banner_click','banner','{{.ListBanner.ID}}')">
+            <span class="badge badge-accent">Patrocinado</span>
+            <strong>{{.ListBanner.Name}}</strong>
+            <img src="{{imageURL .ListBanner.ImageKey}}" alt="{{.ListBanner.Name}}" loading="lazy">
+        </a>
+        {{else}}
+        {{template "ad_placeholder_horizontal" .}}
+        {{end}}
+        {{if .Query}}
+        <p class="result-label">Voce buscou por: <strong>{{.Query}}</strong></p>
+        <div class="news-list">
+            {{range .Posts}}
+            <article class="news-row">
+                <a href="/noticia/{{.Slug}}">
+                    <img src="{{if .CoverImageKey}}{{imageURL .CoverImageKey}}{{else}}/static/images/inhumas-hero.png{{end}}" alt="{{.Title}}" loading="lazy">
+                </a>
+                <div>
+                    <span class="badge">{{.CategoryName}}</span>
+                    <h2><a href="/noticia/{{.Slug}}">{{.Title}}</a></h2>
+                    <p>{{.Excerpt}}</p>
+                    <small>{{.PublishedAt | formatDate}}</small>
+                </div>
+            </article>
+            {{else}}
+            <div class="empty-state empty-state-rich">
+                <strong>Nenhum resultado encontrado.</strong>
+                <span>Revise o termo pesquisado ou tente uma palavra mais curta.</span>
+            </div>
+            {{end}}
+        </div>
+        {{end}}
+    </div>
+</section>
+{{end}}

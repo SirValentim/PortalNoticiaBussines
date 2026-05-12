@@ -1,0 +1,52 @@
+{{define "content"}}
+<section class="page-shell">
+    <div class="container">
+        <div class="page-header">
+            <span class="page-kicker">Noticias</span>
+            <h1>{{.Category.Name}}</h1>
+            <p>{{.Category.Description}}</p>
+        </div>
+        <div class="filter-pills">
+            <a href="/noticias">Todas</a>
+            <a href="/categoria/noticias">Noticias</a>
+            <a href="/categoria/politica-bastidores">Politica & Bastidores</a>
+            <a href="/categoria/influencers">Influencers</a>
+            <a href="/eventos">Eventos</a>
+        </div>
+        {{if .ListBanner}}
+        <a class="ad-banner ad-banner-list" href="{{.ListBanner.LinkURL}}" target="_blank" onclick="trackMetric('banner_click','banner','{{.ListBanner.ID}}')">
+            <span class="badge badge-accent">Patrocinado</span>
+            <strong>{{.ListBanner.Name}}</strong>
+            <img src="{{imageURL .ListBanner.ImageKey}}" alt="{{.ListBanner.Name}}" loading="lazy">
+        </a>
+        {{else}}
+        {{template "ad_placeholder_horizontal" .}}
+        {{end}}
+        <div id="news-list" class="news-list" aria-live="polite">
+            {{range .Posts}}
+            <article class="news-row">
+                <a href="/noticia/{{.Slug}}">
+                    <img src="{{if .CoverImageKey}}{{imageURL .CoverImageKey}}{{else}}/static/images/inhumas-hero.png{{end}}" alt="{{.Title}}" loading="lazy">
+                </a>
+                <div>
+                    <span class="badge">{{.CategoryName}}</span>
+                    <h2><a href="/noticia/{{.Slug}}">{{.Title}}</a></h2>
+                    <p>{{.Excerpt}}</p>
+                    <small>{{.PublishedAt | formatDate}}</small>
+                </div>
+            </article>
+            {{else}}
+            <div class="empty-state empty-state-rich">
+                <strong>Nenhuma noticia nesta categoria.</strong>
+                <span>Assim que houver publicacoes, elas aparecem aqui automaticamente.</span>
+            </div>
+            {{end}}
+            {{if .HasMore}}
+            <div id="news-load-more" class="load-more-wrap">
+                <button class="btn btn-primary" hx-get="/noticias/mais?page={{.NextPage}}" hx-target="#news-load-more" hx-swap="outerHTML">Carregar mais</button>
+            </div>
+            {{end}}
+        </div>
+    </div>
+</section>
+{{end}}

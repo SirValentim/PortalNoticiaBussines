@@ -1,0 +1,55 @@
+{{define "admin_content"}}
+<div class="admin-page-header">
+    <div>
+        <p class="admin-kicker">Acesso</p>
+        <h1>Editar Usuario</h1>
+    </div>
+    <a href="{{.AdminPath}}/users" class="btn btn-sm">Voltar</a>
+</div>
+
+<section class="admin-form-section">
+    <h3 class="admin-section-title">Dados do Usuario</h3>
+    <form class="admin-form" method="POST" action="{{.AdminPath}}/users/{{.EditUser.ID}}/edit">
+        <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+        <div class="admin-form-grid">
+            <div class="form-group">
+                <label>Nome</label>
+                <input type="text" name="name" class="form-control" value="{{.EditUser.Name}}" required>
+            </div>
+            <div class="form-group">
+                <label>Email</label>
+                <input type="email" name="email" class="form-control" value="{{.EditUser.Email}}" required>
+            </div>
+            <div class="form-group">
+                <label>Perfil</label>
+                <select name="role" class="form-control">
+                    <option value="redator" {{if eq .EditUser.Role "redator"}}selected{{end}}>Redator</option>
+                    <option value="revisor" {{if eq .EditUser.Role "revisor"}}selected{{end}}>Revisor</option>
+                    <option value="editor" {{if eq .EditUser.Role "editor"}}selected{{end}}>Editor</option>
+                    <option value="comercial" {{if eq .EditUser.Role "comercial"}}selected{{end}}>Comercial</option>
+                    <option value="admin" {{if eq .EditUser.Role "admin"}}selected{{end}}>Admin</option>
+                    <option value="super_admin" {{if eq .EditUser.Role "super_admin"}}selected{{end}}>Super Admin</option>
+                </select>
+            </div>
+        </div>
+        <label class="checkbox-control">
+            <input type="checkbox" name="active" {{if .EditUser.Active}}checked{{end}}>
+            <span>Usuario ativo</span>
+        </label>
+        <div class="admin-form-actions">
+            <a href="{{.AdminPath}}/users" class="btn">Cancelar</a>
+            <button type="submit" class="btn btn-primary">Salvar usuario</button>
+        </div>
+    </form>
+</section>
+
+<section class="admin-form-section">
+    <h3 class="admin-section-title">Senha</h3>
+    <form class="admin-password-form" method="POST" action="{{.AdminPath}}/users/{{.EditUser.ID}}/password">
+        <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+        <input type="password" name="password" class="form-control" placeholder="Nova senha" minlength="8" required>
+        <input type="password" name="password_confirm" class="form-control" placeholder="Confirmar nova senha" minlength="8" required>
+        <button type="submit" class="btn btn-secondary">Alterar senha</button>
+    </form>
+</section>
+{{end}}

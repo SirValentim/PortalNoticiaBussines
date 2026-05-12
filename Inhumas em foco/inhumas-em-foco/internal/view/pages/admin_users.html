@@ -1,0 +1,75 @@
+{{define "admin_content"}}
+<div class="admin-page-header">
+    <div>
+        <p class="admin-kicker">Acesso</p>
+        <h1>Usuarios</h1>
+    </div>
+</div>
+
+<section class="admin-form-section">
+    <h3 class="admin-section-title">Novo Usuario</h3>
+    <form class="admin-form" method="POST" action="{{.AdminPath}}/users">
+        <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+        <div class="admin-form-grid admin-form-grid-three">
+            <div class="form-group">
+                <label>Nome</label>
+                <input type="text" name="name" class="form-control" required>
+            </div>
+            <div class="form-group">
+                <label>Email</label>
+                <input type="email" name="email" class="form-control" required>
+            </div>
+            <div class="form-group">
+                <label>Senha</label>
+                <input type="password" name="password" class="form-control" required>
+            </div>
+        </div>
+        <div class="admin-form-grid">
+            <div class="form-group">
+                <label>Perfil</label>
+                <select name="role" class="form-control">
+                    <option value="redator">Redator</option>
+                    <option value="revisor">Revisor</option>
+                    <option value="editor">Editor</option>
+                    <option value="comercial">Comercial</option>
+                    <option value="admin">Admin</option>
+                    <option value="super_admin">Super Admin</option>
+                </select>
+            </div>
+            <label class="checkbox-control"><input type="checkbox" name="active" checked><span>Ativo</span></label>
+        </div>
+        <button type="submit" class="btn btn-primary">Criar Usuario</button>
+    </form>
+</section>
+
+<div class="admin-table-wrap">
+    <table class="table">
+        <thead>
+            <tr><th>Nome</th><th>Email</th><th>Perfil</th><th>Status</th><th>Senha</th><th>Acoes</th></tr>
+        </thead>
+        <tbody>
+            {{range .Users}}
+            <tr>
+                <td>{{.Name}}</td>
+                <td>{{.Email}}</td>
+                <td>{{roleLabel .Role}}</td>
+                <td>{{if .Active}}<span class="status-pill status-published">Ativo</span>{{else}}<span class="status-pill status-muted">Inativo</span>{{end}}</td>
+                <td>
+                    <form class="admin-password-form" method="POST" action="{{$.AdminPath}}/users/{{.ID}}/password">
+                        <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+                        <input type="password" name="password" class="form-control" placeholder="Nova senha" minlength="8" required>
+                        <input type="password" name="password_confirm" class="form-control" placeholder="Confirmar" minlength="8" required>
+                        <button type="submit" class="btn btn-sm btn-secondary">Alterar</button>
+                    </form>
+                </td>
+                <td>
+                    <a href="{{$.AdminPath}}/users/{{.ID}}/edit" class="btn btn-sm btn-primary">Editar</a>
+                </td>
+            </tr>
+            {{else}}
+            <tr><td colspan="6" class="empty-state">Nenhum usuario cadastrado</td></tr>
+            {{end}}
+        </tbody>
+    </table>
+</div>
+{{end}}

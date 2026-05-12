@@ -1,0 +1,126 @@
+{{define "admin_content"}}
+<div class="admin-page-header">
+    <div>
+        <p class="admin-kicker">Publicidade</p>
+        <h1>{{if .Banner}}Editar{{else}}Novo{{end}} Banner</h1>
+    </div>
+    <a href="{{.AdminPath}}/banners" class="btn btn-sm">Voltar</a>
+</div>
+
+<form class="admin-form" method="POST" action="{{if .Banner}}{{.AdminPath}}/banners/{{.Banner.ID}}{{else}}{{.AdminPath}}/banners{{end}}" enctype="multipart/form-data">
+    <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+    <section class="admin-form-section">
+        <div class="admin-section-header">
+            <div>
+                <h3 class="admin-section-title">Dados comerciais</h3>
+                <p>Identificacao da campanha, cliente e contato para acompanhamento.</p>
+            </div>
+        </div>
+        <div class="admin-form-grid">
+            <div class="form-group">
+                <label>Nome da campanha</label>
+                <input type="text" name="name" class="form-control" value="{{if .Banner}}{{.Banner.Name}}{{end}}" required>
+            </div>
+            <div class="form-group">
+                <label>Cliente/anunciante</label>
+                <input type="text" name="advertiser_name" class="form-control" value="{{if .Banner}}{{.Banner.AdvertiserName}}{{end}}" required>
+            </div>
+            <div class="form-group">
+                <label>Responsavel</label>
+                <input type="text" name="contact_name" class="form-control" value="{{if .Banner}}{{.Banner.ContactName}}{{end}}">
+            </div>
+            <div class="form-group">
+                <label>Telefone</label>
+                <input type="text" name="contact_phone" class="form-control" value="{{if .Banner}}{{.Banner.ContactPhone}}{{end}}">
+            </div>
+            <div class="form-group">
+                <label>WhatsApp comercial</label>
+                <input type="text" name="contact_whatsapp" class="form-control" value="{{if .Banner}}{{.Banner.ContactWhatsapp}}{{end}}">
+            </div>
+            <div class="form-group">
+                <label>Valor/plano</label>
+                <input type="text" name="price_display" class="form-control" value="{{if .Banner}}{{.Banner.PriceDisplay}}{{end}}" placeholder="Ex: R$ 300/mes">
+            </div>
+        </div>
+    </section>
+
+    <section class="admin-form-section">
+        <div class="admin-section-header">
+            <div>
+                <h3 class="admin-section-title">Veiculacao</h3>
+                <p>Defina onde o banner aparece e por quanto tempo fica contratado.</p>
+            </div>
+        </div>
+        <div class="admin-form-grid">
+            <div class="form-group">
+                <label>Posicao</label>
+                <select name="position" class="form-control" required>
+                    <option value="hero" {{if .Banner}}{{if eq .Banner.Position "hero"}}selected{{end}}{{end}}>Topo da home - 1200 x 220</option>
+                    <option value="in_feed" {{if .Banner}}{{if eq .Banner.Position "in_feed"}}selected{{end}}{{end}}>In-feed - 1200 x 180</option>
+                    <option value="sidebar_top" {{if .Banner}}{{if eq .Banner.Position "sidebar_top"}}selected{{end}}{{end}}>Sidebar topo - 320 x 250</option>
+                    <option value="sidebar_bottom" {{if .Banner}}{{if eq .Banner.Position "sidebar_bottom"}}selected{{end}}{{end}}>Sidebar rodape - 320 x 250</option>
+                    <option value="sticky_footer" {{if .Banner}}{{if eq .Banner.Position "sticky_footer"}}selected{{end}}{{end}}>Rodape mobile - 720 x 120</option>
+                </select>
+                <small class="form-hint">O sistema bloqueia sobreposicao de banners ativos na mesma posicao e periodo.</small>
+            </div>
+            <div class="form-group">
+                <label>Link URL</label>
+                <input type="url" name="link_url" class="form-control" value="{{if .Banner}}{{.Banner.LinkURL}}{{end}}" required>
+            </div>
+            <div class="form-group">
+                <label>Status</label>
+                <select name="status" class="form-control" required>
+                    <option value="active" {{if .Banner}}{{if eq .Banner.Status "active"}}selected{{end}}{{else}}selected{{end}}>Ativo</option>
+                    <option value="paused" {{if .Banner}}{{if eq .Banner.Status "paused"}}selected{{end}}{{end}}>Pausado</option>
+                    <option value="draft" {{if .Banner}}{{if eq .Banner.Status "draft"}}selected{{end}}{{end}}>Rascunho</option>
+                    <option value="expired" {{if .Banner}}{{if eq .Banner.Status "expired"}}selected{{end}}{{end}}>Expirado</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Prioridade</label>
+                <input type="number" name="priority" class="form-control" value="{{if .Banner}}{{.Banner.Priority}}{{else}}0{{end}}">
+            </div>
+            <div class="form-group">
+                <label>Data Inicio</label>
+                <input type="date" name="start_date" class="form-control" value="{{if .Banner}}{{.Banner.StartDate.Format "2006-01-02"}}{{end}}" required>
+            </div>
+            <div class="form-group">
+                <label>Data Fim</label>
+                <input type="date" name="end_date" class="form-control" value="{{if .Banner}}{{.Banner.EndDate.Format "2006-01-02"}}{{end}}" required>
+            </div>
+        </div>
+    </section>
+
+    <section class="admin-form-section">
+        <div class="admin-form-grid">
+            <div class="form-group">
+                <label>Imagem</label>
+                {{if and .Banner .Banner.ImageKey}}<img class="admin-cover-preview" src="{{imageURL .Banner.ImageKey}}">{{end}}
+                <input type="file" name="image" class="form-control" accept="image/*">
+                {{if .MediaAssets}}
+                <label>Ou escolher da biblioteca</label>
+                <select name="image_media_key" class="form-control">
+                    <option value="">Manter / nenhuma</option>
+                    {{range .MediaAssets}}
+                    <option value="{{.Key}}" {{if and $.Banner (eq $.Banner.ImageKey .Key)}}selected{{end}}>{{if .Title}}{{.Title}}{{else}}{{.OriginalName}}{{end}}</option>
+                    {{end}}
+                </select>
+                {{end}}
+                {{if and .Banner .Banner.ImageKey}}
+                <label class="checkbox-control"><input type="checkbox" name="remove_image"><span>Remover imagem atual</span></label>
+                {{end}}
+                <small class="form-hint">Banner ativo precisa de imagem. Rascunhos podem ser salvos sem arte.</small>
+            </div>
+            <div class="form-group">
+                <label>Observacoes internas</label>
+                <textarea name="notes" class="form-control" rows="7" placeholder="Negociacao, validade comercial, combinados e pendencias">{{if .Banner}}{{.Banner.Notes}}{{end}}</textarea>
+            </div>
+        </div>
+    </section>
+
+    <div class="admin-form-actions">
+        <a href="{{.AdminPath}}/banners" class="btn">Cancelar</a>
+        <button type="submit" class="btn btn-primary btn-lg">Salvar banner</button>
+    </div>
+</form>
+{{end}}

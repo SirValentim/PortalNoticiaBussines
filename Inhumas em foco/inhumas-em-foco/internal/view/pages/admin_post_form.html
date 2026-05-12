@@ -1,0 +1,253 @@
+{{define "admin_content"}}
+<div class="admin-page-header">
+    <div>
+        <p class="admin-kicker">Editorial</p>
+        <h1>{{if .IsEditing}}Editar{{else}}Nova{{end}} Noticia</h1>
+    </div>
+    <div class="admin-row-actions">
+        {{if .IsEditing}}<a href="{{.AdminPath}}/posts/{{.Post.ID}}/preview" class="btn btn-sm">Preview</a>{{end}}
+        <a href="{{.AdminPath}}/posts" class="btn btn-sm">Voltar</a>
+    </div>
+</div>
+
+{{if .LockWarning}}
+<div class="alert alert-error">{{.LockWarning}}</div>
+{{end}}
+
+<form class="admin-form admin-post-editor" method="POST" action="{{if .IsEditing}}{{.AdminPath}}/posts/{{.Post.ID}}{{else}}{{.AdminPath}}/posts{{end}}" enctype="multipart/form-data">
+    <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+
+    <section class="admin-form-section admin-form-section-main">
+        <div class="form-group form-group-title">
+            <label>Titulo</label>
+            <input type="text" name="title" class="form-control form-control-title" value="{{if .Post}}{{.Post.Title}}{{end}}" required>
+        </div>
+
+        <div class="form-group">
+            <label>Resumo</label>
+            <textarea name="excerpt" class="form-control" rows="4">{{if .Post}}{{.Post.Excerpt}}{{end}}</textarea>
+            <small class="form-hint">Tambem e usado como descricao de SEO quando a descricao especifica estiver vazia.</small>
+        </div>
+
+        <div class="form-group">
+            <label>Conteudo (HTML permitido)</label>
+            <textarea name="content" class="form-control form-control-editor" rows="20" required>{{if .Post}}{{.Post.Content}}{{end}}</textarea>
+        </div>
+    </section>
+
+    <section class="admin-form-section">
+        <div class="admin-section-header">
+            <div>
+                <h3 class="admin-section-title">SEO editorial</h3>
+                <p>Campos usados no Google, compartilhamento e organizacao interna da pauta.</p>
+            </div>
+        </div>
+        <div class="admin-form-grid">
+            <div class="form-group">
+                <label>Titulo SEO</label>
+                <input type="text" name="meta_title" class="form-control" maxlength="70" value="{{if .Post}}{{.Post.MetaTitle}}{{end}}" placeholder="Opcional; se vazio, usa o titulo da noticia">
+                <small class="form-hint">Ideal entre 45 e 65 caracteres.</small>
+            </div>
+            <div class="form-group">
+                <label>Palavra-chave principal</label>
+                <input type="text" name="seo_keyword" class="form-control" value="{{if .Post}}{{.Post.SEOKeyword}}{{end}}" placeholder="Ex: noticias de Inhumas">
+            </div>
+            <div class="form-group">
+                <label>Canonical URL</label>
+                <input type="url" name="canonical_url" class="form-control" value="{{if .Post}}{{.Post.CanonicalURL}}{{end}}" placeholder="Opcional; se vazio, usa a URL da noticia">
+            </div>
+            <div class="form-group form-group-wide">
+                <label>Descricao SEO</label>
+                <textarea name="meta_description" class="form-control" maxlength="170" rows="3" placeholder="Opcional; se vazio, usa o resumo">{{if .Post}}{{.Post.MetaDescription}}{{end}}</textarea>
+                <small class="form-hint">Ideal entre 120 e 160 caracteres, com contexto local de Inhumas GO.</small>
+            </div>
+        </div>
+        {{if .Post}}
+        <div class="admin-check-grid">
+            {{if .SEOChecklist}}
+            {{range .SEOChecklist}}<span class="status-pill status-scheduled">{{.}}</span>{{end}}
+            {{else}}
+            <span class="status-pill status-approved">Checklist SEO completo</span>
+            {{end}}
+            <span class="status-pill status-muted">{{.Post.ReadingTimeMinutes}} min de leitura</span>
+        </div>
+        {{end}}
+    </section>
+
+    <section class="admin-form-section">
+        <div class="admin-form-grid">
+            <div class="form-group">
+                <label>Categoria</label>
+                <select name="category_id" class="form-control" required>
+                    {{range .Categories}}
+                    <option value="{{.ID}}" {{if and $.Post (idPtrEq $.Post.CategoryID .ID)}}selected{{end}}>{{.Name}}</option>
+                    {{end}}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Status</label>
+                <select name="status" class="form-control">
+                    <option value="draft" {{if .Post}}{{if eq .Post.Status "draft"}}selected{{end}}{{end}}>Rascunho</option>
+                    <option value="review" {{if .Post}}{{if eq .Post.Status "review"}}selected{{end}}{{end}}>Em revisao</option>
+                    {{if .CanApprove}}
+                    <option value="approved" {{if .Post}}{{if eq .Post.Status "approved"}}selected{{end}}{{end}}>Aprovado</option>
+                    {{end}}
+                    {{if .CanPublish}}
+                    <option value="scheduled" {{if .Post}}{{if eq .Post.Status "scheduled"}}selected{{end}}{{end}}>Agendado</option>
+                    <option value="published" {{if .Post}}{{if eq .Post.Status "published"}}selected{{end}}{{end}}>Publicado</option>
+                    {{end}}
+                    {{if .CanArchive}}
+                    <option value="archived" {{if .Post}}{{if eq .Post.Status "archived"}}selected{{end}}{{end}}>Arquivado</option>
+                    {{end}}
+                </select>
+            </div>
+
+            <div class="form-group form-group-wide">
+                <label>Tags</label>
+                <div class="admin-check-grid">
+                    {{range .Tags}}
+                    <label class="checkbox-control">
+                        <input type="checkbox" name="tag_ids" value="{{.ID}}" {{if index $.SelectedTagIDs .ID}}checked{{end}}>
+                        <span>{{.Name}}</span>
+                    </label>
+                    {{else}}
+                    <small class="form-hint">Nenhuma tag cadastrada ainda.</small>
+                    {{end}}
+                </div>
+                <small class="form-hint">Use tags para temas recorrentes, SEO e agrupamento editorial.</small>
+            </div>
+
+            <div class="form-group">
+                <label>Data de publicacao</label>
+                <input type="datetime-local" name="publish_at" class="form-control" value="{{if and .Post .Post.PublishAt}}{{.Post.PublishAt.Format "2006-01-02T15:04"}}{{end}}">
+            </div>
+
+            <div class="form-group">
+                <label>Imagem de capa</label>
+                {{if and .Post .Post.CoverImageKey}}
+                <img class="admin-cover-preview" src="{{imageURL .Post.CoverImageKey}}">
+                <label class="checkbox-control">
+                    <input type="checkbox" name="remove_cover_image">
+                    <span>Remover imagem atual</span>
+                </label>
+                {{end}}
+                <input type="file" name="cover_image" class="form-control" accept="image/*">
+                {{if .MediaAssets}}
+                <label>Ou escolher da biblioteca</label>
+                <select name="cover_image_media_key" class="form-control">
+                    <option value="">Manter / nenhum</option>
+                    {{range .MediaAssets}}
+                    <option value="{{.Key}}" {{if and $.Post (eq $.Post.CoverImageKey .Key)}}selected{{end}}>{{if .Title}}{{.Title}}{{else}}{{.OriginalName}}{{end}}</option>
+                    {{end}}
+                </select>
+                {{end}}
+            </div>
+            <div class="form-group form-group-wide">
+                <label>Galeria</label>
+                {{if and .Post .Post.GalleryImageKeys}}
+                <div class="admin-check-grid">
+                    {{range .Post.GalleryImageKeys}}
+                    <label class="checkbox-control">
+                        <img class="admin-cover-preview" src="{{imageURL .}}">
+                        <input type="checkbox" name="remove_gallery" value="{{.}}">
+                        <span>Remover imagem</span>
+                    </label>
+                    {{end}}
+                </div>
+                {{end}}
+                <input type="file" name="gallery_images" class="form-control" accept="image/*" multiple>
+                {{if .MediaAssets}}
+                <label>Adicionar imagens da biblioteca</label>
+                <div class="media-picker-grid">
+                    {{range .MediaAssets}}
+                    <label class="media-picker-item">
+                        <input type="checkbox" name="gallery_media_keys" value="{{.Key}}">
+                        <img src="{{imageURL .Key}}" alt="{{.AltText}}" loading="lazy">
+                        <span>{{if .Title}}{{.Title}}{{else}}{{.OriginalName}}{{end}}</span>
+                    </label>
+                    {{end}}
+                </div>
+                {{end}}
+            </div>
+        </div>
+    </section>
+
+    <section class="admin-form-section">
+        <div class="admin-form-grid">
+            <div class="form-group">
+                <label>Notas Editoriais (obrigatorio para Politica & Bastidores)</label>
+                <textarea name="editorial_notes" class="form-control" rows="5">{{if .Post}}{{.Post.EditorialNotes}}{{end}}</textarea>
+            </div>
+
+            <div class="form-group">
+                <label>Responsavel Editorial</label>
+                <input type="text" name="editor_responsible" class="form-control" value="{{if .Post}}{{.Post.EditorResponsible}}{{end}}">
+                <label>Fonte</label>
+                <input type="text" name="source_name" class="form-control" value="{{if .Post}}{{.Post.SourceName}}{{end}}" placeholder="Ex: Prefeitura de Inhumas">
+                <label>URL da fonte</label>
+                <input type="url" name="source_url" class="form-control" value="{{if .Post}}{{.Post.SourceURL}}{{end}}" placeholder="https://...">
+                <label class="checkbox-control">
+                    <input type="checkbox" name="is_sponsored" {{if .Post}}{{if .Post.IsSponsored}}checked{{end}}{{end}}>
+                    <span>Conteudo Patrocinado</span>
+                </label>
+                <label class="checkbox-control">
+                    <input type="checkbox" name="is_featured" {{if .Post}}{{if .Post.IsFeatured}}checked{{end}}{{end}}>
+                    <span>Destaque principal da home</span>
+                </label>
+                <label class="checkbox-control">
+                    <input type="checkbox" name="is_pinned" {{if .Post}}{{if .Post.IsPinned}}checked{{end}}{{end}}>
+                    <span>Fixar no topo</span>
+                </label>
+            </div>
+        </div>
+    </section>
+
+    {{if .Revisions}}
+    <section class="admin-form-section">
+        <h3 class="admin-section-title">Historico de revisoes</h3>
+        <table class="table">
+            <thead><tr><th>Acao</th><th>Status</th><th>Usuario</th><th>Data</th></tr></thead>
+            <tbody>
+                {{range .Revisions}}
+                <tr>
+                    <td>{{.Action}}</td>
+                    <td>{{.Status}}</td>
+                    <td>{{.UserName}}</td>
+                    <td>{{.CreatedAt | formatDateTime}}</td>
+                </tr>
+                {{end}}
+            </tbody>
+        </table>
+    </section>
+    {{end}}
+
+    <div class="admin-form-actions">
+        <a href="{{.AdminPath}}/posts" class="btn">Cancelar</a>
+        <button type="submit" class="btn btn-primary btn-lg">Salvar noticia</button>
+    </div>
+</form>
+{{if .LockHeartbeat}}
+<script>
+    setInterval(function() {
+        fetch('{{.LockHeartbeat}}', {
+            method: 'POST',
+            headers: {'X-CSRF-Token': '{{$.CSRFToken}}'}
+        });
+    }, 60000);
+</script>
+{{end}}
+{{if .IsEditing}}
+<script>
+    setInterval(function() {
+        var form = document.querySelector('.admin-post-editor');
+        if (!form) return;
+        fetch('{{.AdminPath}}/posts/{{.Post.ID}}/autosave', {
+            method: 'POST',
+            body: new FormData(form),
+            headers: {'X-CSRF-Token': '{{$.CSRFToken}}'}
+        });
+    }, 90000);
+</script>
+{{end}}
+{{end}}

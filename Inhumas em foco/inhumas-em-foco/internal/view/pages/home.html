@@ -1,0 +1,178 @@
+{{define "content"}}
+<section class="home-hero">
+    <div class="container hero-layout">
+        {{if .Headline}}
+        <article class="hero-main">
+            <a href="/noticia/{{.Headline.Slug}}">
+                <img src="{{if .Headline.CoverImageKey}}{{imageURL .Headline.CoverImageKey}}{{else}}/static/images/inhumas-hero.png{{end}}" alt="{{.Headline.Title}}" loading="eager">
+                <div class="overlay">
+                    <span class="badge badge-accent">Destaque</span>
+                    <h1>{{.Headline.Title}}</h1>
+                    <p>{{.Headline.Excerpt}}</p>
+                    <span class="btn btn-primary">Ler materia</span>
+                </div>
+            </a>
+        </article>
+        {{else}}
+        <article class="hero-main">
+            <a href="/noticias">
+                <img src="/static/images/inhumas-hero.png" alt="Vista de Inhumas" loading="eager">
+                <div class="overlay">
+                    <span class="badge badge-accent">Destaque</span>
+                    <h1>Inhumas em foco todos os dias</h1>
+                    <p>Noticias, comercio local, promocoes e agenda da cidade em um portal leve e direto.</p>
+                    <span class="btn btn-primary">Ver noticias</span>
+                </div>
+            </a>
+        </article>
+        {{end}}
+        <aside class="hero-side">
+            <h2>Recentes</h2>
+            {{range .LatestNews}}
+            <a class="trending-item" href="/noticia/{{.Slug}}">
+                <span>{{.CategoryName}}</span>
+                <strong>{{.Title}}</strong>
+            </a>
+            {{end}}
+        </aside>
+    </div>
+</section>
+
+<section class="section ad-section ad-section-top">
+    <div class="container">
+        {{if .HeroBanner}}
+        <a class="ad-banner" href="{{.HeroBanner.LinkURL}}" target="_blank" onclick="trackMetric('banner_click','banner','{{.HeroBanner.ID}}')">
+            <span class="badge badge-accent">Patrocinado</span>
+            <img src="{{imageURL .HeroBanner.ImageKey}}" alt="{{.HeroBanner.Name}}" loading="lazy">
+        </a>
+        {{else}}
+        {{template "ad_placeholder_horizontal" .}}
+        {{end}}
+    </div>
+</section>
+
+<section class="section">
+    <div class="container">
+        <div class="section-heading">
+            <h2>Ultimas Noticias</h2>
+            <a href="/noticias">Ver todas</a>
+        </div>
+        <div class="news-grid">
+            {{range .LatestNews}}
+            <article class="card news-card">
+                <a href="/noticia/{{.Slug}}">
+                    <img src="{{if .CoverImageKey}}{{imageURL .CoverImageKey}}{{else}}/static/images/inhumas-hero.png{{end}}" alt="{{.Title}}" loading="lazy">
+                </a>
+                <div class="card-body">
+                    <span class="badge">{{.CategoryName}}</span>
+                    <h3 class="card-title"><a href="/noticia/{{.Slug}}">{{.Title}}</a></h3>
+                    <div class="card-meta">{{.PublishedAt | formatDate}}</div>
+                </div>
+            </article>
+            {{else}}
+            <div class="empty-state">Nenhuma noticia publicada ainda.</div>
+            {{end}}
+        </div>
+    </div>
+</section>
+
+<section class="section section-muted">
+    <div class="container">
+        <div class="section-heading">
+            <h2>Lojas em Destaque</h2>
+            <a href="/lojas">Ver todas</a>
+        </div>
+        <div class="store-row">
+            {{range .FeaturedStores}}
+            <a class="store-tile" href="/loja/{{.Slug}}">
+                <img src="{{if .LogoKey}}{{imageURL .LogoKey}}{{else}}/static/images/inhumas-hero.png{{end}}" alt="{{.Name}}" loading="lazy">
+                <strong>{{.Name}}</strong>
+                <span>{{.Category}}</span>
+                <small>*****</small>
+            </a>
+            {{else}}
+            {{template "ad_placeholder_compact" .}}
+            {{end}}
+        </div>
+    </div>
+</section>
+
+{{if .InFeedBanner}}
+<section class="section ad-section">
+    <div class="container">
+        <a class="ad-banner" href="{{.InFeedBanner.LinkURL}}" target="_blank" onclick="trackMetric('banner_click','banner','{{.InFeedBanner.ID}}')">
+            <span class="badge badge-accent">Patrocinado</span>
+            <img src="{{imageURL .InFeedBanner.ImageKey}}" alt="{{.InFeedBanner.Name}}" loading="lazy">
+        </a>
+    </div>
+</section>
+{{else}}
+<section class="section ad-section">
+    <div class="container">
+        {{template "ad_placeholder_horizontal" .}}
+    </div>
+</section>
+{{end}}
+
+{{if .FeaturedPromos}}
+<section class="section">
+    <div class="container">
+        <div class="section-heading">
+            <h2>Promocoes em Destaque</h2>
+            <a href="/promocoes">Ver todas</a>
+        </div>
+        <div class="promo-grid">
+            {{range .FeaturedPromos}}
+            <article class="card promo-card">
+                <a href="/promocao/{{.Slug}}">
+                    <img src="{{if .ImageKey}}{{imageURL .ImageKey}}{{else}}/static/images/inhumas-hero.png{{end}}" alt="{{.Title}}" loading="lazy">
+                </a>
+                <div class="card-body">
+                    <span>{{.StoreName}}</span>
+                    <h3><a href="/promocao/{{.Slug}}">{{.Title}}</a></h3>
+                    <strong>{{.PriceDisplay}}</strong>
+                    <small>Valido ate {{.EndDate | formatDate}}</small>
+                </div>
+                {{if .IsSponsored}}<span class="promo-ribbon">Patrocinado</span>{{end}}
+            </article>
+            {{end}}
+        </div>
+    </div>
+</section>
+{{end}}
+
+{{if .Influencers}}
+<section class="section section-muted">
+    <div class="container">
+        <div class="section-heading">
+            <h2>Influencers da Cidade</h2>
+            <a href="/influencers">Ver todos</a>
+        </div>
+        <div class="influencer-strip">
+            {{range .Influencers}}
+            <a class="influencer-mini" href="/influencer/{{.Slug}}">
+                <img src="{{if .AvatarKey}}{{imageURL .AvatarKey}}{{else}}/static/images/inhumas-hero.png{{end}}" alt="{{.Name}}" loading="lazy">
+                <strong>{{.Name}}</strong>
+                <span>{{.CityArea}}</span>
+            </a>
+            {{end}}
+        </div>
+    </div>
+</section>
+{{end}}
+
+{{if .Neighborhoods}}
+<section class="section">
+    <div class="container">
+        <div class="section-heading">
+            <h2>Bairros</h2>
+        </div>
+        <div class="tag-cloud">
+            {{range .Neighborhoods}}
+            <a href="/bairro/{{.Slug}}" class="tag">{{.Name}}</a>
+            {{end}}
+        </div>
+    </div>
+</section>
+{{end}}
+{{end}}

@@ -1,0 +1,24 @@
+{{define "content"}}
+<section class="section">
+    <div class="container">
+        <article class="influencer-profile">
+            {{if .Influencer.CoverImageKey}}<img class="influencer-cover" src="{{imageURL .Influencer.CoverImageKey}}" alt="{{.Influencer.Name}}">{{end}}
+            <div class="influencer-profile-body">
+                {{if .Influencer.AvatarKey}}<img class="influencer-avatar" src="{{imageURL .Influencer.AvatarKey}}" alt="{{.Influencer.Name}}">{{end}}
+                <div>
+                    <p class="card-category">{{.Influencer.CityArea}}</p>
+                    <h1>{{.Influencer.Name}}</h1>
+                    {{if .Influencer.IsSponsored}}<span class="sponsored-badge">Patrocinado</span>{{end}}
+                </div>
+            </div>
+            <p class="influencer-bio">{{.Influencer.Bio}}</p>
+            <div class="influencer-links">
+                {{if .Influencer.Instagram}}<a class="btn btn-primary" href="{{.Influencer.Instagram}}" rel="nofollow noopener" target="_blank">Instagram</a>{{end}}
+                {{if .Influencer.TikTok}}<a class="btn btn-secondary" href="{{.Influencer.TikTok}}" rel="nofollow noopener" target="_blank">TikTok</a>{{end}}
+                {{if .Influencer.YouTube}}<a class="btn btn-danger" href="{{.Influencer.YouTube}}" rel="nofollow noopener" target="_blank">YouTube</a>{{end}}
+                {{if .Influencer.Whatsapp}}<a class="btn btn-success" href="https://wa.me/{{.Influencer.Whatsapp}}" rel="nofollow noopener" target="_blank">WhatsApp</a>{{end}}
+            </div>
+        </article>
+    </div>
+</section>
+{{end}}

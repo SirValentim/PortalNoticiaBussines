@@ -1,0 +1,85 @@
+{{define "admin_content"}}
+<div class="admin-page-header">
+    <div>
+        <p class="admin-kicker">Comercial</p>
+        <h1>{{if .Promo}}Editar{{else}}Nova{{end}} Promocao</h1>
+    </div>
+    <a href="{{.AdminPath}}/promotions" class="btn btn-sm">Voltar</a>
+</div>
+
+<form class="admin-form" method="POST" action="{{if .Promo}}{{.AdminPath}}/promotions/{{.Promo.ID}}{{else}}{{.AdminPath}}/promotions{{end}}" enctype="multipart/form-data">
+    <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+    <section class="admin-form-section">
+        <div class="admin-form-grid">
+            <div class="form-group">
+                <label>Loja</label>
+                <select name="store_id" class="form-control" required>
+                    {{range .Stores}}
+                    <option value="{{.ID}}" {{if $.Promo}}{{if eq $.Promo.StoreID .ID}}selected{{end}}{{end}}>{{.Name}}</option>
+                    {{end}}
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Titulo</label>
+                <input type="text" name="title" class="form-control" value="{{if .Promo}}{{.Promo.Title}}{{end}}" required>
+            </div>
+        </div>
+        <div class="form-group">
+            <label>Descricao</label>
+            <textarea name="description" class="form-control" rows="6">{{if .Promo}}{{.Promo.Description}}{{end}}</textarea>
+        </div>
+        <div class="admin-form-grid">
+            <div class="form-group">
+                <label>Preco / Oferta</label>
+                <input type="text" name="price_display" class="form-control" value="{{if .Promo}}{{.Promo.PriceDisplay}}{{end}}" placeholder="Ex: R$ 29,90">
+            </div>
+            {{if .Promo}}
+            <div class="form-group">
+                <label>Status</label>
+                <select name="status" class="form-control">
+                    <option value="active" {{if eq .Promo.Status "active"}}selected{{end}}>Ativa</option>
+                    <option value="expired" {{if eq .Promo.Status "expired"}}selected{{end}}>Expirada</option>
+                    <option value="draft" {{if eq .Promo.Status "draft"}}selected{{end}}>Rascunho</option>
+                </select>
+            </div>
+            {{end}}
+        </div>
+    </section>
+
+    <section class="admin-form-section">
+        <div class="admin-form-grid">
+            <div class="form-group">
+                <label>Data Inicio</label>
+                <input type="date" name="start_date" class="form-control" value="{{if .Promo}}{{.Promo.StartDate.Format "2006-01-02"}}{{end}}" required>
+            </div>
+            <div class="form-group">
+                <label>Data Fim</label>
+                <input type="date" name="end_date" class="form-control" value="{{if .Promo}}{{.Promo.EndDate.Format "2006-01-02"}}{{end}}" required>
+            </div>
+            <div class="form-group">
+                <label>Imagem</label>
+                {{if and .Promo .Promo.ImageKey}}
+                <img class="admin-cover-preview" src="{{imageURL .Promo.ImageKey}}">
+                <label class="checkbox-control"><input type="checkbox" name="remove_image"><span>Remover imagem atual</span></label>
+                {{end}}
+                <input type="file" name="image" class="form-control" accept="image/*">
+                {{if .MediaAssets}}
+                <label>Ou escolher da biblioteca</label>
+                <select name="image_media_key" class="form-control">
+                    <option value="">Manter / nenhuma</option>
+                    {{range .MediaAssets}}
+                    <option value="{{.Key}}" {{if and $.Promo (eq $.Promo.ImageKey .Key)}}selected{{end}}>{{if .Title}}{{.Title}}{{else}}{{.OriginalName}}{{end}}</option>
+                    {{end}}
+                </select>
+                {{end}}
+            </div>
+        </div>
+        <label class="checkbox-control"><input type="checkbox" name="is_sponsored" {{if .Promo}}{{if .Promo.IsSponsored}}checked{{end}}{{end}}><span>Patrocinado</span></label>
+    </section>
+
+    <div class="admin-form-actions">
+        <a href="{{.AdminPath}}/promotions" class="btn">Cancelar</a>
+        <button type="submit" class="btn btn-primary btn-lg">Salvar promocao</button>
+    </div>
+</form>
+{{end}}

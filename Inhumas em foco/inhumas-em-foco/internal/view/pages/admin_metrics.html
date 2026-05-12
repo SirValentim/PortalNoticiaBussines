@@ -1,0 +1,90 @@
+{{define "admin_content"}}
+<div class="admin-page-header">
+    <div>
+        <p class="admin-kicker">Analise</p>
+        <h1>Metricas</h1>
+    </div>
+</div>
+
+<div class="stats-grid">
+    {{range .Totals}}
+    <div class="stat-card">
+        <h3>{{.Total}}</h3>
+        <p>{{metricLabel .MetricType}}</p>
+    </div>
+    {{else}}
+    <div class="stat-card">
+        <h3>0</h3>
+        <p>Nenhuma metrica registrada</p>
+    </div>
+    {{end}}
+</div>
+
+<div class="admin-panel-grid admin-panel-grid-three">
+    <section class="admin-form-section">
+        <h3 class="admin-section-title">Noticias mais vistas</h3>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{range .TopPosts}}
+                <tr>
+                    <td>#{{.EntityID}}</td>
+                    <td>{{.Total}}</td>
+                </tr>
+                {{else}}
+                <tr><td colspan="2" class="empty-state">Sem visualizacoes</td></tr>
+                {{end}}
+            </tbody>
+        </table>
+    </section>
+
+    <section class="admin-form-section">
+        <h3 class="admin-section-title">Lojas mais vistas</h3>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{range .TopStores}}
+                <tr>
+                    <td>#{{.EntityID}}</td>
+                    <td>{{.Total}}</td>
+                </tr>
+                {{else}}
+                <tr><td colspan="2" class="empty-state">Sem visualizacoes</td></tr>
+                {{end}}
+            </tbody>
+        </table>
+    </section>
+
+    <section class="admin-form-section">
+        <h3 class="admin-section-title">Banners com mais cliques</h3>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{range .TopBanners}}
+                <tr>
+                    <td>#{{.EntityID}}</td>
+                    <td>{{.Total}}</td>
+                </tr>
+                {{else}}
+                <tr><td colspan="2" class="empty-state">Sem cliques</td></tr>
+                {{end}}
+            </tbody>
+        </table>
+    </section>
+</div>
+{{end}}

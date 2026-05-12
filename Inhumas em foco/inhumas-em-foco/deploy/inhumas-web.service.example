@@ -1,0 +1,22 @@
+[Unit]
+Description=Inhumas em Foco Web
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=inhumas
+Group=inhumas
+WorkingDirectory=/var/www/inhumas
+EnvironmentFile=/etc/inhumas.env
+ExecStart=/var/www/inhumas/bin/web
+Restart=always
+MemoryMax=200M
+CPUQuota=80%
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ReadWritePaths=/var/www/inhumas
+
+[Install]
+WantedBy=multi-user.target

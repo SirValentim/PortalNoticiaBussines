@@ -1,0 +1,56 @@
+{{define "content"}}
+<section class="page-shell">
+    <div class="container">
+        <div class="page-header">
+            <span class="page-kicker">Guia comercial</span>
+            <h1>Lojas</h1>
+            <p>Encontre as melhores empresas e servicos em Inhumas.</p>
+        </div>
+        <div class="commercial-callout">
+            <div>
+                <span class="ad-label">Para empresas</span>
+                <strong>Cadastre sua loja no guia comercial</strong>
+                <p>Apareca em buscas, bairros, categorias e espacos de destaque do portal.</p>
+            </div>
+            <a href="/contato" class="btn btn-primary">Falar com comercial</a>
+        </div>
+        {{if .ListBanner}}
+        <a class="ad-banner ad-banner-list" href="{{.ListBanner.LinkURL}}" target="_blank" onclick="trackMetric('banner_click','banner','{{.ListBanner.ID}}')">
+            <span class="badge badge-accent">Patrocinado</span>
+            <strong>{{.ListBanner.Name}}</strong>
+            <img src="{{imageURL .ListBanner.ImageKey}}" alt="{{.ListBanner.Name}}" loading="lazy">
+        </a>
+        {{else}}
+        {{template "ad_placeholder_horizontal" .}}
+        {{end}}
+        <form method="GET" action="/lojas" class="search-bar compact-search">
+            <input type="text" name="q" class="form-control" value="{{.Query}}" placeholder="Buscar loja, bairro ou servico">
+            <button type="submit" class="btn btn-primary">Buscar</button>
+        </form>
+        <div class="filter-pills">
+            <a href="/lojas">Todas</a>
+            <a href="/lojas?categoria=Alimentacao">Alimentacao</a>
+            <a href="/lojas?categoria=Saude">Saude</a>
+            <a href="/lojas?categoria=Varejo">Varejo</a>
+            <a href="/lojas?categoria=Servicos">Servicos</a>
+            <a href="/lojas?categoria=Casa e Decoracao">Casa e Decoracao</a>
+        </div>
+        <div class="store-grid">
+            {{range .Stores}}
+            <a class="store-tile store-tile-large" href="/loja/{{.Slug}}">
+                <img src="{{if .LogoKey}}{{imageURL .LogoKey}}{{else}}/static/images/inhumas-hero.png{{end}}" alt="{{.Name}}" loading="lazy">
+                <strong>{{.Name}}</strong>
+                <span>{{.Category}}</span>
+                <small>*****</small>
+                {{if .IsSponsored}}<em>Patrocinado</em>{{end}}
+            </a>
+            {{else}}
+            <div class="empty-state empty-state-rich">
+                <strong>Nenhuma loja encontrada.</strong>
+                <span>Tente outro termo ou veja todas as categorias.</span>
+            </div>
+            {{end}}
+        </div>
+    </div>
+</section>
+{{end}}

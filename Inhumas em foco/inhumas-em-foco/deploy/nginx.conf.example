@@ -1,0 +1,92 @@
+limit_req_zone $binary_remote_addr zone=general:10m rate=10r/s;
+limit_req_zone $binary_remote_addr zone=login:10m rate=5r/m;
+limit_req_zone $binary_remote_addr zone=upload:10m rate=2r/m;
+
+upstream inhumas_web {
+    server 127.0.0.1:8080;
+    keepalive 16;
+}
+
+server {
+    listen 80;
+    server_name inhumasemfoco.online www.inhumasemfoco.online;
+
+    # Em producao, habilite o bloco HTTPS abaixo e deixe este bloco apenas
+    # redirecionando para TLS.
+    return 301 https://$host$request_uri;
+}
+
+# Requer certificados emitidos previamente, por exemplo via certbot:
+# certbot --nginx -d inhumasemfoco.online -d www.inhumasemfoco.online
+server {
+    listen 443 ssl http2;
+    server_name inhumasemfoco.online www.inhumasemfoco.online;
+
+    ssl_certificate /etc/letsencrypt/live/inhumasemfoco.online/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/inhumasemfoco.online/privkey.pem;
+    ssl_session_timeout 1d;
+    ssl_session_cache shared:SSL:10m;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_prefer_server_ciphers off;
+
+    client_max_body_size 2M;
+    server_tokens off;
+
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" always;
+    add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
+    add_header Cross-Origin-Opener-Policy "same-origin" always;
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self';" always;
+
+    location ~ /\.(?!well-known) {
+        deny all;
+    }
+
+    location = /health {
+        access_log off;
+        proxy_pass http://inhumas_web;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+    }
+
+    location /login {
+        limit_req zone=login burst=3 nodelay;
+        proxy_pass http://inhumas_web;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+    }
+
+    location /uploads/ {
+        limit_req zone=upload burst=2 nodelay;
+        alias /var/www/inhumas/uploads/;
+        expires 30d;
+        add_header Cache-Control "public, max-age=2592000, immutable";
+        add_header X-Content-Type-Options "nosniff" always;
+        try_files $uri =404;
+    }
+
+    location /static/ {
+        alias /var/www/inhumas/static/;
+        expires 7d;
+        add_header Cache-Control "public, max-age=604800";
+        add_header X-Content-Type-Options "nosniff" always;
+        try_files $uri =404;
+    }
+
+    location / {
+        limit_req zone=general burst=20 nodelay;
+        proxy_pass http://inhumas_web;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+    }
+}

@@ -1,0 +1,83 @@
+{{define "content"}}
+<section class="article-shell">
+    <div class="container article-layout">
+        <article class="article-main">
+            <div class="breadcrumb">Home / Noticias / {{.Post.CategoryName}}</div>
+            <span class="badge">{{.Post.CategoryName}}</span>
+            <h1>{{.Post.Title}}</h1>
+            {{if .Post.Excerpt}}<p class="article-lead">{{.Post.Excerpt}}</p>{{end}}
+            <div class="article-meta">
+                {{if .Post.AuthorName}}<strong>{{.Post.AuthorName}}</strong>{{else}}<strong>Redacao Inhumas em Foco</strong>{{end}}
+                {{if .Post.PublishedAt}}<span>{{.Post.PublishedAt | formatDateTime}}</span>{{end}}
+                {{if .Post.ReadingTimeMinutes}}<span>{{.Post.ReadingTimeMinutes}} min de leitura</span>{{end}}
+                {{if .Post.IsSponsored}}<span class="sponsored-badge">Conteudo Patrocinado</span>{{end}}
+            </div>
+            {{if .Post.CoverImageKey}}
+            <img class="article-cover" src="{{imageURL .Post.CoverImageKey}}" alt="{{.Post.Title}}" loading="eager">
+            {{end}}
+            <div class="article-content">
+                {{.Post.Content | htmlSafe}}
+            </div>
+            {{if .Post.GalleryImageKeys}}
+            <div class="news-grid">
+                {{range .Post.GalleryImageKeys}}
+                <img class="article-cover" src="{{imageURL .}}" alt="{{$.Post.Title}}" loading="lazy">
+                {{end}}
+            </div>
+            {{end}}
+            {{if or .Post.SourceName .Post.SourceURL}}
+            <aside class="editorial-note">
+                <h2>Fonte original</h2>
+                {{if .Post.SourceURL}}<p><a href="{{.Post.SourceURL}}" rel="nofollow noopener" target="_blank">{{if .Post.SourceName}}{{.Post.SourceName}}{{else}}{{.Post.SourceURL}}{{end}}</a></p>{{else}}<p>{{.Post.SourceName}}</p>{{end}}
+            </aside>
+            {{end}}
+            {{if .Post.Tags}}
+            <div class="filter-pills">
+                {{range .Post.Tags}}
+                {{if .Active}}<a href="/tag/{{.Slug}}">{{.Name}}</a>{{end}}
+                {{end}}
+            </div>
+            {{end}}
+            {{if .Post.EditorialNotes}}
+            <aside class="editorial-note">
+                <h2>Notas Editoriais</h2>
+                <p>{{.Post.EditorialNotes}}</p>
+                <small>Responsavel: {{.Post.EditorResponsible}}</small>
+            </aside>
+            {{end}}
+        </article>
+        <aside class="article-sidebar">
+            {{if .SidebarTopBanner}}
+            <a class="ad-banner ad-banner-sidebar" href="{{.SidebarTopBanner.LinkURL}}" target="_blank" onclick="trackMetric('banner_click','banner','{{.SidebarTopBanner.ID}}')">
+                <span class="badge badge-accent">Patrocinado</span>
+                <img src="{{imageURL .SidebarTopBanner.ImageKey}}" alt="{{.SidebarTopBanner.Name}}" loading="lazy">
+            </a>
+            {{else}}
+            {{template "ad_placeholder_sidebar" .}}
+            {{end}}
+            <h2>Leia tambem</h2>
+            {{if .Related}}
+            {{range .Related}}
+            <a class="trending-item" href="/noticia/{{.Slug}}">
+                <span>{{.CategoryName}}</span>
+                <strong>{{.Title}}</strong>
+            </a>
+            {{end}}
+            {{end}}
+            {{if .SidebarBottomBanner}}
+            <a class="ad-banner ad-banner-sidebar" href="{{.SidebarBottomBanner.LinkURL}}" target="_blank" onclick="trackMetric('banner_click','banner','{{.SidebarBottomBanner.ID}}')">
+                <span class="badge badge-accent">Patrocinado</span>
+                <img src="{{imageURL .SidebarBottomBanner.ImageKey}}" alt="{{.SidebarBottomBanner.Name}}" loading="lazy">
+            </a>
+            {{else}}
+            {{template "ad_placeholder_sidebar" .}}
+            {{end}}
+        </aside>
+    </div>
+</section>
+<section class="section ad-section">
+    <div class="container">
+        {{template "ad_placeholder_horizontal" .}}
+    </div>
+</section>
+{{end}}

@@ -1,0 +1,86 @@
+{{define "admin_content"}}
+<div class="admin-page-header">
+    <div>
+        <p class="admin-kicker">Publicidade</p>
+        <h1>Banners</h1>
+    </div>
+    <a href="{{.AdminPath}}/banners/new" class="btn btn-primary">+ Novo Banner</a>
+</div>
+
+<section class="admin-form-section">
+    <div class="admin-section-header">
+        <div>
+            <h3 class="admin-section-title">Mapa de espacos comerciais</h3>
+            <p>Use estes formatos para vender e organizar os banners do portal.</p>
+        </div>
+    </div>
+    <div class="commercial-slot-grid commercial-slot-grid-wide">
+        {{range .BannerSlots}}
+        <a class="commercial-slot-card {{if gt .ActiveCount 0}}slot-active{{else}}slot-open{{end}}" href="{{$.AdminPath}}/banners/new">
+            <span>{{.Label}}</span>
+            <strong>{{if gt .ActiveCount 0}}{{.ActiveCount}} ativo{{else}}Anuncie aqui{{end}}</strong>
+            <small>{{.Spec}} - {{.Description}}</small>
+        </a>
+        {{end}}
+    </div>
+</section>
+
+<div class="stats-grid commercial-stats-grid">
+    <div class="stat-card"><h3>{{.Summary.ActiveNow}}</h3><p>campanhas no ar</p></div>
+    <div class="stat-card"><h3>{{.Summary.Expiring}}</h3><p>vencem em 7 dias</p></div>
+    <div class="stat-card"><h3>{{.Summary.Paused}}</h3><p>pausadas</p></div>
+    <div class="stat-card"><h3>{{.Summary.Draft}}</h3><p>rascunhos</p></div>
+</div>
+
+<section class="admin-form-section">
+    <div class="admin-section-header">
+        <div>
+            <h3 class="admin-section-title">Campanhas cadastradas</h3>
+            <p>Controle cliente, periodo, arte, status e posicao comercial.</p>
+        </div>
+    </div>
+    <div class="admin-table-wrap">
+        <table class="table commercial-table">
+            <thead>
+                <tr>
+                    <th>Campanha</th>
+                    <th>Cliente</th>
+                    <th>Posicao</th>
+                    <th>Periodo</th>
+                    <th>Status</th>
+                    <th>Acoes</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{range .Banners}}
+                <tr>
+                    <td>
+                        <strong>{{.Name}}</strong>
+                        {{if .PriceDisplay}}<small>{{.PriceDisplay}}</small>{{end}}
+                    </td>
+                    <td>
+                        {{.AdvertiserName}}
+                        {{if .ContactWhatsapp}}<small>{{.ContactWhatsapp}}</small>{{else if .ContactPhone}}<small>{{.ContactPhone}}</small>{{end}}
+                    </td>
+                    <td>{{bannerPositionLabel .Position}}</td>
+                    <td>
+                        {{.StartDate | formatDate}} - {{.EndDate | formatDate}}
+                        {{if eq .Status "active"}}<small>{{bannerDaysLeft .EndDate}} dias restantes</small>{{end}}
+                    </td>
+                    <td><span class="status-pill status-{{.Status}}">{{bannerStatusLabel .Status}}</span>{{if not .ImageKey}}<small>sem imagem</small>{{end}}</td>
+                    <td class="admin-row-actions">
+                        <a href="{{$.AdminPath}}/banners/{{.ID}}/edit" class="btn btn-sm btn-primary">Editar</a>
+                        <form method="POST" action="{{$.AdminPath}}/banners/{{.ID}}/delete" onsubmit="return confirm('Tem certeza?')">
+                            <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+                            <button type="submit" class="btn btn-sm btn-danger">Excluir</button>
+                        </form>
+                    </td>
+                </tr>
+                {{else}}
+                <tr><td colspan="6" class="empty-state">Nenhum banner cadastrado</td></tr>
+                {{end}}
+            </tbody>
+        </table>
+    </div>
+</section>
+{{end}}

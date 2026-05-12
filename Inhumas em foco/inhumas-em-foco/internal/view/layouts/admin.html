@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{.Title}} | Painel Inhumas em Foco</title>
+    <link rel="stylesheet" href="/static/css/style.css?v=20260430-editorial-v1">
+</head>
+<body>
+    <div class="admin-layout">
+        <aside class="admin-sidebar">
+            <h2>Painel</h2>
+            <nav>
+                <a href="{{.AdminPath}}" {{if eq .Active "dashboard"}}class="active"{{end}}>Dashboard</a>
+                <a href="{{.AdminPath}}/posts" {{if eq .Active "posts"}}class="active"{{end}}>Noticias</a>
+                <a href="{{.AdminPath}}/categories" {{if eq .Active "categories"}}class="active"{{end}}>Categorias</a>
+                <a href="{{.AdminPath}}/tags" {{if eq .Active "tags"}}class="active"{{end}}>Tags</a>
+                <a href="{{.AdminPath}}/media" {{if eq .Active "media"}}class="active"{{end}}>Midia</a>
+                <a href="{{.AdminPath}}/stores" {{if eq .Active "stores"}}class="active"{{end}}>Lojas</a>
+                <a href="{{.AdminPath}}/influencers" {{if eq .Active "influencers"}}class="active"{{end}}>Influencers</a>
+                <a href="{{.AdminPath}}/banners" {{if eq .Active "banners"}}class="active"{{end}}>Banners</a>
+                <a href="{{.AdminPath}}/promotions" {{if eq .Active "promotions"}}class="active"{{end}}>Promocoes</a>
+                <a href="{{.AdminPath}}/neighborhoods" {{if eq .Active "neighborhoods"}}class="active"{{end}}>Bairros</a>
+                <a href="{{.AdminPath}}/users" {{if eq .Active "users"}}class="active"{{end}}>Usuarios</a>
+                <a href="{{.AdminPath}}/metrics" {{if eq .Active "metrics"}}class="active"{{end}}>Metricas</a>
+                <a href="{{.AdminPath}}/audit" {{if eq .Active "audit"}}class="active"{{end}}>Auditoria</a>
+                <a href="{{.AdminPath}}/dead-jobs" {{if eq .Active "dead_jobs"}}class="active"{{end}}>Jobs com falha</a>
+                <hr style="border-color:rgba(255,255,255,0.1);margin:16px 0;">
+                <a href="/">Ver site</a>
+                <a href="/logout">Sair</a>
+            </nav>
+        </aside>
+        <main class="admin-main">
+            {{if .Error}}
+            <div class="alert alert-error">{{.Error}}</div>
+            {{end}}
+            {{if .Success}}
+            <div class="alert alert-success">{{.Success}}</div>
+            {{end}}
+            {{template "admin_content" .}}
+        </main>
+    </div>
+</body>
+</html>

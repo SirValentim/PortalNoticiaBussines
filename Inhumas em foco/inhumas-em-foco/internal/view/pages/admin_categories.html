@@ -1,0 +1,44 @@
+{{define "admin_content"}}
+<div class="admin-page-header">
+    <div>
+        <p class="admin-kicker">Editorial</p>
+        <h1>Categorias</h1>
+    </div>
+    <a href="{{.AdminPath}}/categories/new" class="btn btn-primary">+ Nova Categoria</a>
+</div>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>Categoria</th>
+            <th>Slug</th>
+            <th>Ordem</th>
+            <th>Status</th>
+            <th>Acoes</th>
+        </tr>
+    </thead>
+    <tbody>
+        {{range .Categories}}
+        <tr>
+            <td>
+                <strong>{{.Name}}</strong>
+                {{if .RequiresEditorialNotes}}<span class="sponsored-badge">Requer notas</span>{{end}}
+                {{if .Description}}<br><small>{{.Description}}</small>{{end}}
+            </td>
+            <td>{{.Slug}}</td>
+            <td>{{.SortOrder}}</td>
+            <td>{{if .Active}}<span class="status-pill status-published">Ativa</span>{{else}}<span class="status-pill status-muted">Inativa</span>{{end}}</td>
+            <td class="admin-row-actions">
+                <a href="{{$.AdminPath}}/categories/{{.ID}}/edit" class="btn btn-sm btn-primary">Editar</a>
+                <form method="POST" action="{{$.AdminPath}}/categories/{{.ID}}/delete" onsubmit="return confirm('Tem certeza?')">
+                    <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+                    <button type="submit" class="btn btn-sm btn-danger">Excluir</button>
+                </form>
+            </td>
+        </tr>
+        {{else}}
+        <tr><td colspan="5" class="empty-state">Nenhuma categoria cadastrada</td></tr>
+        {{end}}
+    </tbody>
+</table>
+{{end}}

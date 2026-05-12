@@ -1,0 +1,43 @@
+{{define "admin_content"}}
+<div class="admin-page-header">
+    <div>
+        <p class="admin-kicker">Comercial</p>
+        <h1>Promocoes</h1>
+    </div>
+    <a href="{{.AdminPath}}/promotions/new" class="btn btn-primary">+ Nova Promocao</a>
+</div>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>Titulo</th>
+            <th>Loja</th>
+            <th>Preco</th>
+            <th>Validade</th>
+            <th>Acoes</th>
+        </tr>
+    </thead>
+    <tbody>
+        {{range .Promos}}
+        <tr>
+            <td>
+                {{.Title}}
+                {{if .IsSponsored}}<span class="sponsored-badge">Patrocinado</span>{{end}}
+            </td>
+            <td>{{.StoreName}}</td>
+            <td>{{.PriceDisplay}}</td>
+            <td>{{.EndDate | formatDate}}</td>
+            <td class="admin-row-actions">
+                <a href="{{$.AdminPath}}/promotions/{{.ID}}/edit" class="btn btn-sm btn-primary">Editar</a>
+                <form method="POST" action="{{$.AdminPath}}/promotions/{{.ID}}/delete" onsubmit="return confirm('Tem certeza?')">
+    <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+                    <button type="submit" class="btn btn-sm btn-danger">Excluir</button>
+                </form>
+            </td>
+        </tr>
+        {{else}}
+        <tr><td colspan="5" class="empty-state">Nenhuma promocao cadastrada</td></tr>
+        {{end}}
+    </tbody>
+</table>
+{{end}}

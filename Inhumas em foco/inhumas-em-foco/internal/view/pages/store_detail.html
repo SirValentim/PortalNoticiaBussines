@@ -1,0 +1,63 @@
+{{define "content"}}
+<section class="detail-hero store-detail-hero">
+    <div class="container detail-hero-inner">
+        <img class="detail-cover" src="{{if .Store.CoverImageKey}}{{imageURL .Store.CoverImageKey}}{{else}}/static/images/inhumas-hero.png{{end}}" alt="{{.Store.Name}}" loading="eager">
+        <div class="detail-hero-content">
+            <img class="store-detail-logo" src="{{if .Store.LogoKey}}{{imageURL .Store.LogoKey}}{{else}}/static/images/logo.png{{end}}" alt="{{.Store.Name}}">
+            <span class="badge">{{.Store.Category}}</span>
+            <h1>{{.Store.Name}}</h1>
+            {{if .Store.IsSponsored}}<span class="sponsored-badge">Patrocinado</span>{{end}}
+            <p>{{.Store.Description}}</p>
+            <div class="detail-actions">
+                {{if .Store.Whatsapp}}<a href="https://wa.me/{{.Store.Whatsapp}}" target="_blank" class="btn btn-success" onclick="trackMetric('store_whatsapp_click','store','{{.Store.ID}}')">WhatsApp</a>{{end}}
+                {{if .Store.Phone}}<a href="tel:{{.Store.Phone}}" class="btn btn-primary">Ligar</a>{{end}}
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="section">
+    <div class="container detail-grid">
+        <article class="detail-panel">
+            <h2>Informacoes</h2>
+            <div class="info-list">
+                {{if .Store.Address}}<p><strong>Endereco</strong><span>{{.Store.Address}}</span></p>{{end}}
+                {{if .Store.Phone}}<p><strong>Telefone</strong><span>{{.Store.Phone}}</span></p>{{end}}
+                {{if .Store.Whatsapp}}<p><strong>WhatsApp</strong><span>{{.Store.Whatsapp}}</span></p>{{end}}
+            </div>
+        </article>
+        <aside class="detail-panel side-ad">
+            <span class="badge badge-accent">Patrocinado</span>
+            <strong>Divulgue sua empresa</strong>
+            <small>Apareca no guia comercial e nas promocoes do portal.</small>
+            <a href="/contato" class="btn btn-primary">Anunciar</a>
+        </aside>
+    </div>
+</section>
+
+{{if .Promos}}
+<section class="section section-muted">
+    <div class="container">
+        <div class="section-heading">
+            <h2>Promocoes da loja</h2>
+            <a href="/promocoes">Ver todas</a>
+        </div>
+        <div class="promo-grid">
+            {{range .Promos}}
+            <article class="card promo-card">
+                <a href="/promocao/{{.Slug}}">
+                    <img src="{{if .ImageKey}}{{imageURL .ImageKey}}{{else}}/static/images/inhumas-hero.png{{end}}" alt="{{.Title}}" loading="lazy">
+                </a>
+                <div class="card-body">
+                    <span>{{.StoreName}}</span>
+                    <h3><a href="/promocao/{{.Slug}}">{{.Title}}</a></h3>
+                    <strong>{{.PriceDisplay}}</strong>
+                    <small>Valido ate {{.EndDate | formatDate}}</small>
+                </div>
+            </article>
+            {{end}}
+        </div>
+    </div>
+</section>
+{{end}}
+{{end}}
