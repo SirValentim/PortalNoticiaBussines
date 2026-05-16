@@ -35,6 +35,60 @@
         </div>
     </section>
 
+    {{if .IsEditing}}
+    <section class="admin-form-section">
+        <div class="admin-section-header">
+            <div>
+                <h3 class="admin-section-title">IA editorial</h3>
+                <p>Sugestoes assistivas com fonte preservada e aprovacao humana obrigatoria.</p>
+            </div>
+        </div>
+        <div class="admin-row-actions">
+            <button type="submit" class="btn btn-sm" form="ai-improve-title">Melhorar titulo</button>
+            <button type="submit" class="btn btn-sm" form="ai-subtitle">Criar subtitulo</button>
+            <button type="submit" class="btn btn-sm" form="ai-summary">Resumir</button>
+            <button type="submit" class="btn btn-sm" form="ai-meta">Meta description</button>
+            <button type="submit" class="btn btn-sm" form="ai-tags">Sugerir tags</button>
+            <button type="submit" class="btn btn-sm" form="ai-rewrite">Tom jornalistico</button>
+            <button type="submit" class="btn btn-sm" form="ai-social">Chamada social</button>
+            <button type="submit" class="btn btn-sm" form="ai-duplicate">Duplicidade</button>
+        </div>
+        {{if .AISuggestion}}
+        <div class="ai-suggestion-panel">
+            <h4>{{.AIActionLabel}}</h4>
+            {{with .AISuggestion.Title}}<p><strong>Titulo:</strong> {{.}}</p>{{end}}
+            {{with .AISuggestion.Subtitle}}<p><strong>Subtitulo:</strong> {{.}}</p>{{end}}
+            {{with .AISuggestion.Summary}}<p><strong>Resumo:</strong> {{.}}</p>{{end}}
+            {{with .AISuggestion.MetaDescription}}<p><strong>Meta description:</strong> {{.}}</p>{{end}}
+            {{with .AISuggestion.Tags}}
+            <p><strong>Tags:</strong>
+                {{range .}}<span class="status-pill status-muted">{{.}}</span>{{end}}
+            </p>
+            {{end}}
+            {{with .AISuggestion.RewrittenText}}<p><strong>Texto:</strong> {{.}}</p>{{end}}
+            {{with .AISuggestion.SocialCall}}<p><strong>Chamada:</strong> {{.}}</p>{{end}}
+            {{with .AISuggestion.DuplicateRisk}}<p><strong>Duplicidade:</strong> {{.}}</p>{{end}}
+            {{with .AISuggestion.Notes}}<p><small>{{.}}</small></p>{{end}}
+        </div>
+        {{end}}
+        {{if .AIUsageLogs}}
+        <table class="table">
+            <thead><tr><th>Acao</th><th>Provider</th><th>Usuario</th><th>Data</th></tr></thead>
+            <tbody>
+                {{range .AIUsageLogs}}
+                <tr>
+                    <td>{{aiActionLabel .Action}}</td>
+                    <td>{{.Provider}}</td>
+                    <td>{{.UserName}}</td>
+                    <td>{{.CreatedAt | formatDateTime}}</td>
+                </tr>
+                {{end}}
+            </tbody>
+        </table>
+        {{end}}
+    </section>
+    {{end}}
+
     <section class="admin-form-section">
         <div class="admin-section-header">
             <div>
@@ -227,6 +281,16 @@
         <button type="submit" class="btn btn-primary btn-lg">Salvar noticia</button>
     </div>
 </form>
+{{if .IsEditing}}
+<form id="ai-improve-title" method="POST" action="{{.AdminPath}}/posts/{{.Post.ID}}/ai/improve_title"><input type="hidden" name="csrf_token" value="{{$.CSRFToken}}"></form>
+<form id="ai-subtitle" method="POST" action="{{.AdminPath}}/posts/{{.Post.ID}}/ai/generate_subtitle"><input type="hidden" name="csrf_token" value="{{$.CSRFToken}}"></form>
+<form id="ai-summary" method="POST" action="{{.AdminPath}}/posts/{{.Post.ID}}/ai/generate_summary"><input type="hidden" name="csrf_token" value="{{$.CSRFToken}}"></form>
+<form id="ai-meta" method="POST" action="{{.AdminPath}}/posts/{{.Post.ID}}/ai/meta_description"><input type="hidden" name="csrf_token" value="{{$.CSRFToken}}"></form>
+<form id="ai-tags" method="POST" action="{{.AdminPath}}/posts/{{.Post.ID}}/ai/suggest_tags"><input type="hidden" name="csrf_token" value="{{$.CSRFToken}}"></form>
+<form id="ai-rewrite" method="POST" action="{{.AdminPath}}/posts/{{.Post.ID}}/ai/rewrite_journalistic"><input type="hidden" name="csrf_token" value="{{$.CSRFToken}}"></form>
+<form id="ai-social" method="POST" action="{{.AdminPath}}/posts/{{.Post.ID}}/ai/social_call"><input type="hidden" name="csrf_token" value="{{$.CSRFToken}}"></form>
+<form id="ai-duplicate" method="POST" action="{{.AdminPath}}/posts/{{.Post.ID}}/ai/check_duplicate"><input type="hidden" name="csrf_token" value="{{$.CSRFToken}}"></form>
+{{end}}
 {{if .LockHeartbeat}}
 <script>
     setInterval(function() {

@@ -16,7 +16,10 @@ func (h *Handler) AdminStores(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	stores, _ := h.repo.StoreList(r.Context(), false, 100)
-	h.Render(w, r, "admin_stores.html", map[string]any{"Stores": stores})
+	h.Render(w, r, "admin_stores.html", map[string]any{
+		"Stores":  stores,
+		"Summary": localCommercialSummaryStores(stores),
+	})
 }
 
 func (h *Handler) AdminStoreNew(w http.ResponseWriter, r *http.Request) {
@@ -42,15 +45,19 @@ func (h *Handler) AdminStoreCreate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	store := &model.Store{
-		Name:        r.FormValue("name"),
-		Description: r.FormValue("description"),
-		Category:    r.FormValue("category"),
-		Address:     r.FormValue("address"),
-		Phone:       r.FormValue("phone"),
-		Whatsapp:    r.FormValue("whatsapp"),
-		IsSponsored: r.FormValue("is_sponsored") == "on",
-		IsFeatured:  r.FormValue("is_featured") == "on",
-		Active:      true,
+		Name:             r.FormValue("name"),
+		Description:      r.FormValue("description"),
+		Category:         r.FormValue("category"),
+		Address:          r.FormValue("address"),
+		Phone:            r.FormValue("phone"),
+		Whatsapp:         r.FormValue("whatsapp"),
+		WebsiteURL:       r.FormValue("website_url"),
+		CommercialStatus: normalizeStoreCommercialStatusForHandler(r.FormValue("commercial_status")),
+		MetaTitle:        r.FormValue("meta_title"),
+		MetaDescription:  r.FormValue("meta_description"),
+		IsSponsored:      r.FormValue("is_sponsored") == "on",
+		IsFeatured:       r.FormValue("is_featured") == "on",
+		Active:           true,
 	}
 
 	if nID, err := strconv.ParseInt(r.FormValue("neighborhood_id"), 10, 64); err == nil {
@@ -98,10 +105,11 @@ func (h *Handler) AdminStoreCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.auditAdminAction(r, user, "create", "store", auditEntityID(store.ID), map[string]any{
-		"name":         store.Name,
-		"slug":         store.Slug,
-		"is_featured":  store.IsFeatured,
-		"is_sponsored": store.IsSponsored,
+		"name":              store.Name,
+		"slug":              store.Slug,
+		"commercial_status": store.CommercialStatus,
+		"is_featured":       store.IsFeatured,
+		"is_sponsored":      store.IsSponsored,
 	})
 
 	http.Redirect(w, r, h.cfg.AdminPathPrefix+"/stores", http.StatusSeeOther)
@@ -148,6 +156,10 @@ func (h *Handler) AdminStoreUpdate(w http.ResponseWriter, r *http.Request) {
 	store.Address = r.FormValue("address")
 	store.Phone = r.FormValue("phone")
 	store.Whatsapp = r.FormValue("whatsapp")
+	store.WebsiteURL = r.FormValue("website_url")
+	store.CommercialStatus = normalizeStoreCommercialStatusForHandler(r.FormValue("commercial_status"))
+	store.MetaTitle = r.FormValue("meta_title")
+	store.MetaDescription = r.FormValue("meta_description")
 	store.IsSponsored = r.FormValue("is_sponsored") == "on"
 	store.IsFeatured = r.FormValue("is_featured") == "on"
 	store.Active = r.FormValue("active") == "on"
@@ -202,10 +214,11 @@ func (h *Handler) AdminStoreUpdate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.auditAdminAction(r, user, "update", "store", auditEntityID(store.ID), map[string]any{
-		"name":         store.Name,
-		"active":       store.Active,
-		"is_featured":  store.IsFeatured,
-		"is_sponsored": store.IsSponsored,
+		"name":              store.Name,
+		"active":            store.Active,
+		"commercial_status": store.CommercialStatus,
+		"is_featured":       store.IsFeatured,
+		"is_sponsored":      store.IsSponsored,
 	})
 
 	http.Redirect(w, r, h.cfg.AdminPathPrefix+"/stores", http.StatusSeeOther)
@@ -225,6 +238,15 @@ func (h *Handler) AdminStoreDelete(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, h.cfg.AdminPathPrefix+"/stores", http.StatusSeeOther)
 }
 
+func normalizeStoreCommercialStatusForHandler(status string) string {
+	switch strings.ToLower(strings.TrimSpace(status)) {
+	case "lead", "paused", "inactive":
+		return strings.ToLower(strings.TrimSpace(status))
+	default:
+		return "active"
+	}
+}
+
 func (h *Handler) AdminInfluencers(w http.ResponseWriter, r *http.Request) {
 	if _, ok := h.requirePermission(w, r, auth.PermInfluencersManage); !ok {
 		return
@@ -234,6 +256,7 @@ func (h *Handler) AdminInfluencers(w http.ResponseWriter, r *http.Request) {
 		"Title":       "Influencers",
 		"Active":      "influencers",
 		"Influencers": influencers,
+		"Summary":     influencerAdminSummary(influencers),
 	})
 }
 
@@ -275,6 +298,7 @@ func (h *Handler) AdminInfluencerCreate(w http.ResponseWriter, r *http.Request) 
 	h.auditAdminAction(r, user, "create", "influencer", auditEntityID(influencer.ID), map[string]any{
 		"name":        influencer.Name,
 		"slug":        influencer.Slug,
+		"niche":       influencer.Niche,
 		"is_featured": influencer.IsFeatured,
 		"active":      influencer.Active,
 	})
@@ -343,6 +367,7 @@ func (h *Handler) AdminInfluencerUpdate(w http.ResponseWriter, r *http.Request) 
 	h.auditAdminAction(r, user, "update", "influencer", auditEntityID(influencer.ID), map[string]any{
 		"name":        influencer.Name,
 		"slug":        influencer.Slug,
+		"niche":       influencer.Niche,
 		"is_featured": influencer.IsFeatured,
 		"active":      influencer.Active,
 	})
@@ -370,14 +395,43 @@ func (h *Handler) influencerFromRequest(r *http.Request, influencer *model.Influ
 	influencer.Name = r.FormValue("name")
 	influencer.Bio = r.FormValue("bio")
 	influencer.CityArea = r.FormValue("city_area")
+	influencer.Niche = r.FormValue("niche")
 	influencer.Instagram = r.FormValue("instagram")
 	influencer.TikTok = r.FormValue("tiktok")
 	influencer.YouTube = r.FormValue("youtube")
 	influencer.Whatsapp = r.FormValue("whatsapp")
+	influencer.MetaTitle = r.FormValue("meta_title")
+	influencer.MetaDescription = r.FormValue("meta_description")
 	influencer.IsFeatured = r.FormValue("is_featured") == "on"
 	influencer.IsSponsored = r.FormValue("is_sponsored") == "on"
 	influencer.Active = r.FormValue("active") == "on"
 	return influencer
+}
+
+type influencerSummary struct {
+	Total      int
+	Active     int
+	Featured   int
+	Sponsored  int
+	TotalViews int
+}
+
+func influencerAdminSummary(influencers []model.Influencer) influencerSummary {
+	var summary influencerSummary
+	summary.Total = len(influencers)
+	for _, influencer := range influencers {
+		if influencer.Active {
+			summary.Active++
+		}
+		if influencer.IsFeatured {
+			summary.Featured++
+		}
+		if influencer.IsSponsored {
+			summary.Sponsored++
+		}
+		summary.TotalViews += influencer.ViewCount
+	}
+	return summary
 }
 
 func (h *Handler) applyInfluencerMediaSelection(r *http.Request, influencer *model.Influencer) {

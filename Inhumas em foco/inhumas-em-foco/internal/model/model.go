@@ -74,6 +74,22 @@ const (
 	JobGenerateSitemap    JobType = "generate_sitemap"
 	JobCleanupOldJobs     JobType = "cleanup_old_jobs"
 	JobCompressOldUploads JobType = "compress_old_uploads"
+	JobCollectNews        JobType = "collect_news"
+)
+
+type AutomationSourceType string
+
+const (
+	AutomationSourceRSS      AutomationSourceType = "rss"
+	AutomationSourceOfficial AutomationSourceType = "official"
+)
+
+type AutomationRunStatus string
+
+const (
+	AutomationRunSuccess AutomationRunStatus = "success"
+	AutomationRunError   AutomationRunStatus = "error"
+	AutomationRunPartial AutomationRunStatus = "partial"
 )
 
 type User struct {
@@ -186,6 +202,70 @@ type MediaArchiveMonth struct {
 	Count int    `json:"count"`
 }
 
+type PortalSettings struct {
+	SiteName                  string    `db:"site_name" json:"site_name"`
+	Tagline                   string    `db:"tagline" json:"tagline"`
+	LogoKey                   string    `db:"logo_key" json:"logo_key"`
+	FaviconKey                string    `db:"favicon_key" json:"favicon_key"`
+	ContactEmail              string    `db:"contact_email" json:"contact_email"`
+	ContactWhatsapp           string    `db:"contact_whatsapp" json:"contact_whatsapp"`
+	ContactPhone              string    `db:"contact_phone" json:"contact_phone"`
+	City                      string    `db:"city" json:"city"`
+	State                     string    `db:"state" json:"state"`
+	SEOTitle                  string    `db:"seo_title" json:"seo_title"`
+	SEODescription            string    `db:"seo_description" json:"seo_description"`
+	FacebookURL               string    `db:"facebook_url" json:"facebook_url"`
+	InstagramURL              string    `db:"instagram_url" json:"instagram_url"`
+	YoutubeURL                string    `db:"youtube_url" json:"youtube_url"`
+	TiktokURL                 string    `db:"tiktok_url" json:"tiktok_url"`
+	UploadMaxMB               int       `db:"upload_max_mb" json:"upload_max_mb"`
+	AutomationEnabled         bool      `db:"automation_enabled" json:"automation_enabled"`
+	AutomationIntervalMinutes int       `db:"automation_interval_minutes" json:"automation_interval_minutes"`
+	UpdatedAt                 time.Time `db:"updated_at" json:"updated_at"`
+}
+
+type AutomationSource struct {
+	ID                int64      `db:"id" json:"id"`
+	Name              string     `db:"name" json:"name"`
+	SourceType        string     `db:"source_type" json:"source_type"`
+	URL               string     `db:"url" json:"url"`
+	DefaultCategoryID *int64     `db:"default_category_id" json:"default_category_id"`
+	Active            bool       `db:"active" json:"active"`
+	LastRunAt         *time.Time `db:"last_run_at" json:"last_run_at"`
+	CreatedAt         time.Time  `db:"created_at" json:"created_at"`
+	UpdatedAt         time.Time  `db:"updated_at" json:"updated_at"`
+	CategoryName      string     `json:"category_name,omitempty"`
+}
+
+type AutomationRun struct {
+	ID            int64      `db:"id" json:"id"`
+	SourceID      *int64     `db:"source_id" json:"source_id"`
+	SourceName    string     `json:"source_name,omitempty"`
+	Status        string     `db:"status" json:"status"`
+	ItemsFound    int        `db:"items_found" json:"items_found"`
+	DraftsCreated int        `db:"drafts_created" json:"drafts_created"`
+	Duplicates    int        `db:"duplicates" json:"duplicates"`
+	Error         string     `db:"error" json:"error"`
+	Log           string     `db:"log" json:"log"`
+	StartedAt     time.Time  `db:"started_at" json:"started_at"`
+	FinishedAt    *time.Time `db:"finished_at" json:"finished_at"`
+}
+
+type AIUsageLog struct {
+	ID         int64     `db:"id" json:"id"`
+	PostID     *int64    `db:"post_id" json:"post_id"`
+	UserID     *int64    `db:"user_id" json:"user_id"`
+	Action     string    `db:"action" json:"action"`
+	Provider   string    `db:"provider" json:"provider"`
+	InputTitle string    `db:"input_title" json:"input_title"`
+	Output     string    `db:"output" json:"output"`
+	SourceName string    `db:"source_name" json:"source_name"`
+	SourceURL  string    `db:"source_url" json:"source_url"`
+	CreatedAt  time.Time `db:"created_at" json:"created_at"`
+	UserName   string    `json:"user_name,omitempty"`
+	UserEmail  string    `json:"user_email,omitempty"`
+}
+
 type SlugRedirect struct {
 	OldSlug    string    `db:"old_slug" json:"old_slug"`
 	NewSlug    string    `db:"new_slug" json:"new_slug"`
@@ -194,38 +274,89 @@ type SlugRedirect struct {
 }
 
 type Store struct {
-	ID             int64     `db:"id" json:"id"`
-	Slug           string    `db:"slug" json:"slug"`
-	Name           string    `db:"name" json:"name"`
-	Description    string    `db:"description" json:"description"`
-	Category       string    `db:"category" json:"category"`
-	Address        string    `db:"address" json:"address"`
-	Phone          string    `db:"phone" json:"phone"`
-	Whatsapp       string    `db:"whatsapp" json:"whatsapp"`
-	LogoKey        string    `db:"logo_key" json:"logo_key"`
-	CoverImageKey  string    `db:"cover_image_key" json:"cover_image_key"`
-	IsSponsored    bool      `db:"is_sponsored" json:"is_sponsored"`
-	IsFeatured     bool      `db:"is_featured" json:"is_featured"`
-	NeighborhoodID *int64    `db:"neighborhood_id" json:"neighborhood_id"`
-	Active         bool      `db:"active" json:"active"`
-	CreatedAt      time.Time `db:"created_at" json:"created_at"`
+	ID               int64     `db:"id" json:"id"`
+	Slug             string    `db:"slug" json:"slug"`
+	Name             string    `db:"name" json:"name"`
+	Description      string    `db:"description" json:"description"`
+	Category         string    `db:"category" json:"category"`
+	Address          string    `db:"address" json:"address"`
+	Phone            string    `db:"phone" json:"phone"`
+	Whatsapp         string    `db:"whatsapp" json:"whatsapp"`
+	WebsiteURL       string    `db:"website_url" json:"website_url"`
+	LogoKey          string    `db:"logo_key" json:"logo_key"`
+	CoverImageKey    string    `db:"cover_image_key" json:"cover_image_key"`
+	CommercialStatus string    `db:"commercial_status" json:"commercial_status"`
+	MetaTitle        string    `db:"meta_title" json:"meta_title"`
+	MetaDescription  string    `db:"meta_description" json:"meta_description"`
+	IsSponsored      bool      `db:"is_sponsored" json:"is_sponsored"`
+	IsFeatured       bool      `db:"is_featured" json:"is_featured"`
+	NeighborhoodID   *int64    `db:"neighborhood_id" json:"neighborhood_id"`
+	Active           bool      `db:"active" json:"active"`
+	CreatedAt        time.Time `db:"created_at" json:"created_at"`
 }
 
 type Promotion struct {
-	ID           int64     `db:"id" json:"id"`
-	StoreID      int64     `db:"store_id" json:"store_id"`
-	Title        string    `db:"title" json:"title"`
-	Slug         string    `db:"slug" json:"slug"`
-	Description  string    `db:"description" json:"description"`
-	PriceDisplay string    `db:"price_display" json:"price_display"`
-	ImageKey     string    `db:"image_key" json:"image_key"`
-	StartDate    time.Time `db:"start_date" json:"start_date"`
-	EndDate      time.Time `db:"end_date" json:"end_date"`
-	Status       string    `db:"status" json:"status"`
-	IsSponsored  bool      `db:"is_sponsored" json:"is_sponsored"`
-	CreatedAt    time.Time `db:"created_at" json:"created_at"`
-	StoreName    string    `db:"store_name" json:"store_name,omitempty"`
-	StoreSlug    string    `db:"store_slug" json:"store_slug,omitempty"`
+	ID              int64     `db:"id" json:"id"`
+	StoreID         int64     `db:"store_id" json:"store_id"`
+	Title           string    `db:"title" json:"title"`
+	Slug            string    `db:"slug" json:"slug"`
+	Description     string    `db:"description" json:"description"`
+	PriceDisplay    string    `db:"price_display" json:"price_display"`
+	CouponCode      string    `db:"coupon_code" json:"coupon_code"`
+	ImageKey        string    `db:"image_key" json:"image_key"`
+	StartDate       time.Time `db:"start_date" json:"start_date"`
+	EndDate         time.Time `db:"end_date" json:"end_date"`
+	Status          string    `db:"status" json:"status"`
+	IsSponsored     bool      `db:"is_sponsored" json:"is_sponsored"`
+	MetaTitle       string    `db:"meta_title" json:"meta_title"`
+	MetaDescription string    `db:"meta_description" json:"meta_description"`
+	CreatedAt       time.Time `db:"created_at" json:"created_at"`
+	StoreName       string    `db:"store_name" json:"store_name,omitempty"`
+	StoreSlug       string    `db:"store_slug" json:"store_slug,omitempty"`
+	ClickCount      int       `json:"click_count,omitempty"`
+}
+
+type Event struct {
+	ID              int64      `db:"id" json:"id"`
+	Slug            string     `db:"slug" json:"slug"`
+	Title           string     `db:"title" json:"title"`
+	Description     string     `db:"description" json:"description"`
+	Location        string     `db:"location" json:"location"`
+	Organizer       string     `db:"organizer" json:"organizer"`
+	TicketURL       string     `db:"ticket_url" json:"ticket_url"`
+	PriceDisplay    string     `db:"price_display" json:"price_display"`
+	ImageKey        string     `db:"image_key" json:"image_key"`
+	Status          string     `db:"status" json:"status"`
+	IsFeatured      bool       `db:"is_featured" json:"is_featured"`
+	IsSponsored     bool       `db:"is_sponsored" json:"is_sponsored"`
+	MetaTitle       string     `db:"meta_title" json:"meta_title"`
+	MetaDescription string     `db:"meta_description" json:"meta_description"`
+	StartAt         time.Time  `db:"start_at" json:"start_at"`
+	EndAt           *time.Time `db:"end_at" json:"end_at"`
+	CreatedAt       time.Time  `db:"created_at" json:"created_at"`
+	UpdatedAt       time.Time  `db:"updated_at" json:"updated_at"`
+}
+
+type Classified struct {
+	ID              int64      `db:"id" json:"id"`
+	Slug            string     `db:"slug" json:"slug"`
+	Title           string     `db:"title" json:"title"`
+	Description     string     `db:"description" json:"description"`
+	Category        string     `db:"category" json:"category"`
+	PriceDisplay    string     `db:"price_display" json:"price_display"`
+	ContactName     string     `db:"contact_name" json:"contact_name"`
+	ContactPhone    string     `db:"contact_phone" json:"contact_phone"`
+	ContactWhatsapp string     `db:"contact_whatsapp" json:"contact_whatsapp"`
+	Location        string     `db:"location" json:"location"`
+	ImageKey        string     `db:"image_key" json:"image_key"`
+	Status          string     `db:"status" json:"status"`
+	IsFeatured      bool       `db:"is_featured" json:"is_featured"`
+	IsSponsored     bool       `db:"is_sponsored" json:"is_sponsored"`
+	MetaTitle       string     `db:"meta_title" json:"meta_title"`
+	MetaDescription string     `db:"meta_description" json:"meta_description"`
+	ExpiresAt       *time.Time `db:"expires_at" json:"expires_at"`
+	CreatedAt       time.Time  `db:"created_at" json:"created_at"`
+	UpdatedAt       time.Time  `db:"updated_at" json:"updated_at"`
 }
 
 type Banner struct {
@@ -245,6 +376,8 @@ type Banner struct {
 	Status          string    `db:"status" json:"status"`
 	Active          bool      `db:"active" json:"active"`
 	Priority        int       `db:"priority" json:"priority"`
+	ImpressionCount int       `db:"-" json:"impression_count"`
+	ClickCount      int       `db:"-" json:"click_count"`
 	CreatedAt       time.Time `db:"created_at" json:"created_at"`
 }
 
@@ -260,21 +393,25 @@ type Neighborhood struct {
 }
 
 type Influencer struct {
-	ID            int64     `db:"id" json:"id"`
-	Slug          string    `db:"slug" json:"slug"`
-	Name          string    `db:"name" json:"name"`
-	Bio           string    `db:"bio" json:"bio"`
-	CityArea      string    `db:"city_area" json:"city_area"`
-	Instagram     string    `db:"instagram" json:"instagram"`
-	TikTok        string    `db:"tiktok" json:"tiktok"`
-	YouTube       string    `db:"youtube" json:"youtube"`
-	Whatsapp      string    `db:"whatsapp" json:"whatsapp"`
-	AvatarKey     string    `db:"avatar_key" json:"avatar_key"`
-	CoverImageKey string    `db:"cover_image_key" json:"cover_image_key"`
-	IsFeatured    bool      `db:"is_featured" json:"is_featured"`
-	IsSponsored   bool      `db:"is_sponsored" json:"is_sponsored"`
-	Active        bool      `db:"active" json:"active"`
-	CreatedAt     time.Time `db:"created_at" json:"created_at"`
+	ID              int64     `db:"id" json:"id"`
+	Slug            string    `db:"slug" json:"slug"`
+	Name            string    `db:"name" json:"name"`
+	Bio             string    `db:"bio" json:"bio"`
+	CityArea        string    `db:"city_area" json:"city_area"`
+	Niche           string    `db:"niche" json:"niche"`
+	Instagram       string    `db:"instagram" json:"instagram"`
+	TikTok          string    `db:"tiktok" json:"tiktok"`
+	YouTube         string    `db:"youtube" json:"youtube"`
+	Whatsapp        string    `db:"whatsapp" json:"whatsapp"`
+	AvatarKey       string    `db:"avatar_key" json:"avatar_key"`
+	CoverImageKey   string    `db:"cover_image_key" json:"cover_image_key"`
+	MetaTitle       string    `db:"meta_title" json:"meta_title"`
+	MetaDescription string    `db:"meta_description" json:"meta_description"`
+	IsFeatured      bool      `db:"is_featured" json:"is_featured"`
+	IsSponsored     bool      `db:"is_sponsored" json:"is_sponsored"`
+	Active          bool      `db:"active" json:"active"`
+	ViewCount       int       `db:"-" json:"view_count"`
+	CreatedAt       time.Time `db:"created_at" json:"created_at"`
 }
 
 type Job struct {

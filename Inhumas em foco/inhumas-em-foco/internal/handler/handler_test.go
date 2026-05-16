@@ -469,6 +469,338 @@ func TestAdminAuditLogsRequiresSettingsPermission(t *testing.T) {
 	}
 }
 
+func TestAdminSettingsRendersAndUpdatesPortalSettings(t *testing.T) {
+	h, repo := newTestHandler(t)
+	defer repo.Close()
+
+	ctx := context.Background()
+	admin := &model.User{ID: 1, Name: "Admin", Email: "admin@example.com", Role: model.RoleAdmin, Active: true}
+	if err := repo.MediaAssetCreate(ctx, &model.MediaAsset{
+		Key:          "2026/05/logo.webp",
+		OriginalName: "logo.webp",
+		Title:        "Logo oficial",
+		AltText:      "Logo oficial",
+		ContentType:  "image/webp",
+		SizeBytes:    1024,
+	}); err != nil {
+		t.Fatalf("MediaAssetCreate failed: %v", err)
+	}
+
+	getReq := httptest.NewRequest(http.MethodGet, h.cfg.AdminPathPrefix+"/settings", nil)
+	getReq = getReq.WithContext(auth.WithUser(getReq.Context(), admin))
+	getRec := httptest.NewRecorder()
+	h.AdminSettings(getRec, getReq)
+	if getRec.Code != http.StatusOK {
+		t.Fatalf("GET status = %d, want %d; body=%s", getRec.Code, http.StatusOK, getRec.Body.String())
+	}
+	if !strings.Contains(getRec.Body.String(), "Configuracoes") || !strings.Contains(getRec.Body.String(), "Logo oficial") {
+		t.Fatalf("settings page missing expected content: %s", getRec.Body.String())
+	}
+
+	form := url.Values{}
+	form.Set("site_name", "Portal Teste")
+	form.Set("tagline", "Noticias locais com contexto")
+	form.Set("contact_email", "contato@teste.com")
+	form.Set("contact_whatsapp", "(62) 98888-7777")
+	form.Set("contact_phone", "(62) 3333-2222")
+	form.Set("city", "Inhumas")
+	form.Set("state", "GO")
+	form.Set("seo_title", "Portal Teste - Noticias locais")
+	form.Set("seo_description", "Cobertura local profissional de Inhumas.")
+	form.Set("instagram_url", "https://instagram.com/portalteste")
+	form.Set("logo_media_key", "2026/05/logo.webp")
+	form.Set("upload_max_mb", "5")
+	form.Set("automation_enabled", "on")
+	form.Set("automation_interval_minutes", "30")
+	postReq := httptest.NewRequest(http.MethodPost, h.cfg.AdminPathPrefix+"/settings", strings.NewReader(form.Encode()))
+	postReq.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	postReq = postReq.WithContext(auth.WithUser(postReq.Context(), admin))
+	postRec := httptest.NewRecorder()
+	h.AdminSettingsUpdate(postRec, postReq)
+	if postRec.Code != http.StatusSeeOther {
+		t.Fatalf("POST status = %d, want %d; body=%s", postRec.Code, http.StatusSeeOther, postRec.Body.String())
+	}
+
+	settings, err := repo.PortalSettingsGet(ctx)
+	if err != nil {
+		t.Fatalf("PortalSettingsGet failed: %v", err)
+	}
+	if settings.SiteName != "Portal Teste" || settings.LogoKey != "2026/05/logo.webp" || settings.UploadMaxMB != 5 || !settings.AutomationEnabled {
+		t.Fatalf("settings not persisted: %#v", settings)
+	}
+	logs, err := repo.AuditLogList(ctx, "settings", 1, 10)
+	if err != nil {
+		t.Fatalf("AuditLogList failed: %v", err)
+	}
+	if len(logs) == 0 || logs[0].Action != "update" {
+		t.Fatalf("missing settings audit log: %#v", logs)
+	}
+
+	contactReq := httptest.NewRequest(http.MethodGet, "/contato", nil)
+	contactRec := httptest.NewRecorder()
+	h.Contact(contactRec, contactReq)
+	if contactRec.Code != http.StatusOK {
+		t.Fatalf("contact status = %d, want %d; body=%s", contactRec.Code, http.StatusOK, contactRec.Body.String())
+	}
+	if !strings.Contains(contactRec.Body.String(), "contato@teste.com") || !strings.Contains(contactRec.Body.String(), "Portal Teste") {
+		t.Fatalf("contact page did not use settings: %s", contactRec.Body.String())
+	}
+}
+
+func TestAdminSettingsRequiresSettingsPermission(t *testing.T) {
+	h, repo := newTestHandler(t)
+	defer repo.Close()
+
+	req := httptest.NewRequest(http.MethodGet, h.cfg.AdminPathPrefix+"/settings", nil)
+	req = req.WithContext(auth.WithUser(req.Context(), &model.User{ID: 1, Role: model.RoleComercial}))
+	rec := httptest.NewRecorder()
+
+	h.AdminSettings(rec, req)
+
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusForbidden, rec.Body.String())
+	}
+}
+
+func TestAdminEventCreateAndPublicPages(t *testing.T) {
+	h, repo := newTestHandler(t)
+	defer repo.Close()
+
+	user := &model.User{ID: 1, Name: "Comercial", Email: "comercial@example.com", Role: model.RoleComercial, Active: true}
+	form := url.Values{}
+	form.Set("title", "Feira Cultural de Inhumas")
+	form.Set("description", "Agenda cultural com gastronomia e musica local.")
+	form.Set("location", "Praca central")
+	form.Set("organizer", "Associacao local")
+	form.Set("ticket_url", "https://example.com/ingressos")
+	form.Set("price_display", "Entrada gratuita")
+	form.Set("status", "active")
+	form.Set("start_at", "2026-06-01T19:30")
+	form.Set("end_at", "2026-06-01T22:00")
+	form.Set("is_featured", "on")
+	form.Set("meta_title", "Feira Cultural de Inhumas")
+	form.Set("meta_description", "Evento cultural em Inhumas com programacao local.")
+
+	req := httptest.NewRequest(http.MethodPost, h.cfg.AdminPathPrefix+"/events", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req = req.WithContext(auth.WithUser(req.Context(), user))
+	rec := httptest.NewRecorder()
+	h.AdminEventCreate(rec, req)
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("create status = %d, want %d; body=%s", rec.Code, http.StatusSeeOther, rec.Body.String())
+	}
+
+	events, err := repo.EventList(context.Background(), false, 10)
+	if err != nil {
+		t.Fatalf("EventList failed: %v", err)
+	}
+	if len(events) != 1 || events[0].Slug != "feira-cultural-de-inhumas" || !events[0].IsFeatured {
+		t.Fatalf("unexpected event persisted: %#v", events)
+	}
+	logs, err := repo.AuditLogList(context.Background(), "event", events[0].ID, 10)
+	if err != nil || len(logs) == 0 || logs[0].Action != "create" {
+		t.Fatalf("missing event audit log: logs=%#v err=%v", logs, err)
+	}
+
+	listReq := httptest.NewRequest(http.MethodGet, "/eventos", nil)
+	listRec := httptest.NewRecorder()
+	h.EventList(listRec, listReq)
+	if listRec.Code != http.StatusOK {
+		t.Fatalf("event list status = %d, want %d; body=%s", listRec.Code, http.StatusOK, listRec.Body.String())
+	}
+	if !strings.Contains(listRec.Body.String(), "Feira Cultural de Inhumas") || !strings.Contains(listRec.Body.String(), "/evento/feira-cultural-de-inhumas") || !strings.Contains(listRec.Body.String(), "Destaques comerciais") {
+		t.Fatalf("event list missing event: %s", listRec.Body.String())
+	}
+	adminReq := httptest.NewRequest(http.MethodGet, h.cfg.AdminPathPrefix+"/events", nil)
+	adminReq = adminReq.WithContext(auth.WithUser(adminReq.Context(), user))
+	adminRec := httptest.NewRecorder()
+	h.AdminEvents(adminRec, adminReq)
+	if adminRec.Code != http.StatusOK || !strings.Contains(adminRec.Body.String(), "destaques vendidos") {
+		t.Fatalf("admin events missing commercial summary: %d %s", adminRec.Code, adminRec.Body.String())
+	}
+
+	detailReq := httptest.NewRequest(http.MethodGet, "/evento/feira-cultural-de-inhumas", nil)
+	detailReq.SetPathValue("slug", "feira-cultural-de-inhumas")
+	detailRec := httptest.NewRecorder()
+	h.EventDetail(detailRec, detailReq)
+	if detailRec.Code != http.StatusOK {
+		t.Fatalf("event detail status = %d, want %d; body=%s", detailRec.Code, http.StatusOK, detailRec.Body.String())
+	}
+	body := detailRec.Body.String()
+	for _, want := range []string{"Feira Cultural de Inhumas", "Praca central", `"@type":"Event"`, "Entrada gratuita"} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("event detail missing %q: %s", want, body)
+		}
+	}
+}
+
+func TestAdminEventsRequiresEventsPermission(t *testing.T) {
+	h, repo := newTestHandler(t)
+	defer repo.Close()
+
+	req := httptest.NewRequest(http.MethodGet, h.cfg.AdminPathPrefix+"/events", nil)
+	req = req.WithContext(auth.WithUser(req.Context(), &model.User{ID: 1, Role: model.RoleRedator}))
+	rec := httptest.NewRecorder()
+	h.AdminEvents(rec, req)
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusForbidden, rec.Body.String())
+	}
+}
+
+func TestAdminClassifiedCreateAndPublicPages(t *testing.T) {
+	h, repo := newTestHandler(t)
+	defer repo.Close()
+
+	user := &model.User{ID: 1, Name: "Comercial", Email: "comercial@example.com", Role: model.RoleComercial, Active: true}
+	form := url.Values{}
+	form.Set("title", "Casa Centro Codex")
+	form.Set("description", "Casa ampla no centro de Inhumas para venda.")
+	form.Set("category", "Imoveis")
+	form.Set("price_display", "R$ 350.000")
+	form.Set("contact_name", "Comercial Codex")
+	form.Set("contact_phone", "(62) 3333-2222")
+	form.Set("contact_whatsapp", "62999998888")
+	form.Set("location", "Centro")
+	form.Set("status", "active")
+	form.Set("expires_at", "2026-08-20")
+	form.Set("is_featured", "on")
+	form.Set("meta_title", "Casa Centro Codex")
+	form.Set("meta_description", "Classificado de imovel em Inhumas.")
+
+	req := httptest.NewRequest(http.MethodPost, h.cfg.AdminPathPrefix+"/classifieds", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req = req.WithContext(auth.WithUser(req.Context(), user))
+	rec := httptest.NewRecorder()
+	h.AdminClassifiedCreate(rec, req)
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("create status = %d, want %d; body=%s", rec.Code, http.StatusSeeOther, rec.Body.String())
+	}
+
+	classifieds, err := repo.ClassifiedList(context.Background(), repository.ClassifiedFilter{Limit: 10})
+	if err != nil {
+		t.Fatalf("ClassifiedList failed: %v", err)
+	}
+	if len(classifieds) != 1 || classifieds[0].Slug != "casa-centro-codex" || classifieds[0].Category != "Imoveis" || !classifieds[0].IsFeatured {
+		t.Fatalf("unexpected classified persisted: %#v", classifieds)
+	}
+	logs, err := repo.AuditLogList(context.Background(), "classified", classifieds[0].ID, 10)
+	if err != nil || len(logs) == 0 || logs[0].Action != "create" {
+		t.Fatalf("missing classified audit log: logs=%#v err=%v", logs, err)
+	}
+
+	listReq := httptest.NewRequest(http.MethodGet, "/classificados?categoria=Imoveis", nil)
+	listRec := httptest.NewRecorder()
+	h.Classifieds(listRec, listReq)
+	if listRec.Code != http.StatusOK {
+		t.Fatalf("classified list status = %d, want %d; body=%s", listRec.Code, http.StatusOK, listRec.Body.String())
+	}
+	if !strings.Contains(listRec.Body.String(), "Casa Centro Codex") || !strings.Contains(listRec.Body.String(), "/classificado/casa-centro-codex") || !strings.Contains(listRec.Body.String(), "Classificados em evidencia") {
+		t.Fatalf("classified list missing item: %s", listRec.Body.String())
+	}
+	adminReq := httptest.NewRequest(http.MethodGet, h.cfg.AdminPathPrefix+"/classifieds", nil)
+	adminReq = adminReq.WithContext(auth.WithUser(adminReq.Context(), user))
+	adminRec := httptest.NewRecorder()
+	h.AdminClassifieds(adminRec, adminReq)
+	if adminRec.Code != http.StatusOK || !strings.Contains(adminRec.Body.String(), "destaques vendidos") {
+		t.Fatalf("admin classifieds missing commercial summary: %d %s", adminRec.Code, adminRec.Body.String())
+	}
+
+	detailReq := httptest.NewRequest(http.MethodGet, "/classificado/casa-centro-codex", nil)
+	detailReq.SetPathValue("slug", "casa-centro-codex")
+	detailRec := httptest.NewRecorder()
+	h.ClassifiedDetail(detailRec, detailReq)
+	if detailRec.Code != http.StatusOK {
+		t.Fatalf("classified detail status = %d, want %d; body=%s", detailRec.Code, http.StatusOK, detailRec.Body.String())
+	}
+	body := detailRec.Body.String()
+	for _, want := range []string{"Casa Centro Codex", "R$ 350.000", "Centro", `"@type":"Product"`} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("classified detail missing %q: %s", want, body)
+		}
+	}
+}
+
+func TestAdminClassifiedsRequiresClassifiedPermission(t *testing.T) {
+	h, repo := newTestHandler(t)
+	defer repo.Close()
+
+	req := httptest.NewRequest(http.MethodGet, h.cfg.AdminPathPrefix+"/classifieds", nil)
+	req = req.WithContext(auth.WithUser(req.Context(), &model.User{ID: 1, Role: model.RoleRedator}))
+	rec := httptest.NewRecorder()
+	h.AdminClassifieds(rec, req)
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusForbidden, rec.Body.String())
+	}
+}
+
+func TestAdminStoreCreatePersistsSEOAndCommercialStatus(t *testing.T) {
+	h, repo := newTestHandler(t)
+	defer repo.Close()
+
+	user := &model.User{ID: 1, Name: "Comercial", Email: "comercial@example.com", Role: model.RoleComercial, Active: true}
+	form := url.Values{}
+	form.Set("name", "Loja SEO Codex")
+	form.Set("description", "Loja local com atendimento especializado.")
+	form.Set("category", "Servicos")
+	form.Set("address", "Avenida Central")
+	form.Set("phone", "(62) 3333-4444")
+	form.Set("whatsapp", "62999990000")
+	form.Set("website_url", "https://loja.example.com")
+	form.Set("commercial_status", "paused")
+	form.Set("meta_title", "SEO Loja Codex")
+	form.Set("meta_description", "Descricao SEO propria da loja Codex.")
+	form.Set("is_sponsored", "on")
+
+	req := httptest.NewRequest(http.MethodPost, h.cfg.AdminPathPrefix+"/stores", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req = req.WithContext(auth.WithUser(req.Context(), user))
+	rec := httptest.NewRecorder()
+	h.AdminStoreCreate(rec, req)
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("create status = %d, want %d; body=%s", rec.Code, http.StatusSeeOther, rec.Body.String())
+	}
+
+	store, err := repo.StoreGetBySlug(context.Background(), "loja-seo-codex")
+	if err != nil || store == nil {
+		t.Fatalf("StoreGetBySlug failed: store=%#v err=%v", store, err)
+	}
+	if store.WebsiteURL != "https://loja.example.com" || store.CommercialStatus != "paused" || store.MetaTitle != "SEO Loja Codex" {
+		t.Fatalf("store fields not persisted: %#v", store)
+	}
+	logs, err := repo.AuditLogList(context.Background(), "store", store.ID, 10)
+	if err != nil || len(logs) == 0 || logs[0].Action != "create" {
+		t.Fatalf("missing store audit log: logs=%#v err=%v", logs, err)
+	}
+
+	detailReq := httptest.NewRequest(http.MethodGet, "/loja/loja-seo-codex", nil)
+	detailReq.SetPathValue("slug", "loja-seo-codex")
+	detailRec := httptest.NewRecorder()
+	h.StoreDetail(detailRec, detailReq)
+	if detailRec.Code != http.StatusOK {
+		t.Fatalf("detail status = %d, want %d; body=%s", detailRec.Code, http.StatusOK, detailRec.Body.String())
+	}
+	body := detailRec.Body.String()
+	for _, want := range []string{"SEO Loja Codex", "Descricao SEO propria da loja Codex.", "https://loja.example.com"} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("store detail missing %q: %s", want, body)
+		}
+	}
+
+	listReq := httptest.NewRequest(http.MethodGet, "/lojas?categoria=Servicos", nil)
+	listRec := httptest.NewRecorder()
+	h.StoreList(listRec, listReq)
+	if listRec.Code != http.StatusOK || !strings.Contains(listRec.Body.String(), "Lojas em evidencia") || !strings.Contains(listRec.Body.String(), "Loja SEO Codex") {
+		t.Fatalf("store list missing commercial product: %d %s", listRec.Code, listRec.Body.String())
+	}
+	adminReq := httptest.NewRequest(http.MethodGet, h.cfg.AdminPathPrefix+"/stores", nil)
+	adminReq = adminReq.WithContext(auth.WithUser(adminReq.Context(), user))
+	adminRec := httptest.NewRecorder()
+	h.AdminStores(adminRec, adminReq)
+	if adminRec.Code != http.StatusOK || !strings.Contains(adminRec.Body.String(), "destaques vendidos") {
+		t.Fatalf("admin stores missing commercial summary: %d %s", adminRec.Code, adminRec.Body.String())
+	}
+}
+
 func TestPasswordResetRequestUsesGenericResponse(t *testing.T) {
 	h, repo := newTestHandler(t)
 	defer repo.Close()
@@ -750,6 +1082,63 @@ func TestAdminPostLockHeartbeatCreatesLock(t *testing.T) {
 	}
 }
 
+func TestAdminPostAIActionLogsSuggestionWithoutPublishing(t *testing.T) {
+	h, repo := newTestHandler(t)
+	defer repo.Close()
+
+	ctx := context.Background()
+	category, err := repo.CategoryGetBySlug(ctx, "noticias")
+	if err != nil || category == nil {
+		t.Fatalf("CategoryGetBySlug failed: %v", err)
+	}
+	authorID := int64(1)
+	post := &model.Post{
+		Title:       "Prefeitura anuncia obra",
+		Slug:        "prefeitura-anuncia-obra",
+		Excerpt:     "Obra foi anunciada para melhorar a mobilidade no centro.",
+		Content:     "<p>Obra foi anunciada para melhorar a mobilidade no centro.</p>",
+		CategoryID:  &category.ID,
+		AuthorID:    &authorID,
+		Status:      model.StatusDraft,
+		SourceName:  "Prefeitura de Inhumas",
+		SourceURL:   "https://example.com/fonte",
+		MetaTitle:   "Prefeitura anuncia obra",
+		IsSponsored: false,
+	}
+	if err := repo.PostCreate(ctx, post); err != nil {
+		t.Fatalf("PostCreate failed: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, h.cfg.AdminPathPrefix+"/posts/1/ai/meta_description", nil)
+	req.SetPathValue("id", strconv.FormatInt(post.ID, 10))
+	req.SetPathValue("action", "meta_description")
+	req = req.WithContext(auth.WithUser(req.Context(), &model.User{ID: 1, Name: "Editor", Role: model.RoleEditor}))
+	rec := httptest.NewRecorder()
+
+	h.AdminPostAIAction(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "Meta description") || !strings.Contains(rec.Body.String(), "revise fatos") {
+		t.Fatalf("AI suggestion not rendered with guardrails: %s", rec.Body.String())
+	}
+	logs, err := repo.AIUsageLogListForPost(ctx, post.ID, 10)
+	if err != nil {
+		t.Fatalf("AIUsageLogListForPost failed: %v", err)
+	}
+	if len(logs) != 1 || logs[0].Action != "meta_description" || !strings.Contains(logs[0].Output, "meta_description") {
+		t.Fatalf("unexpected AI logs: %#v", logs)
+	}
+	updated, err := repo.PostGetByID(ctx, post.ID)
+	if err != nil {
+		t.Fatalf("PostGetByID failed: %v", err)
+	}
+	if updated.Status != model.StatusDraft {
+		t.Fatalf("AI action changed status to %q", updated.Status)
+	}
+}
+
 func TestAdminPostCreateScheduledPersistsPublishAtAndJob(t *testing.T) {
 	h, repo := newTestHandler(t)
 	defer repo.Close()
@@ -893,21 +1282,24 @@ func TestInfluencerPagesRender(t *testing.T) {
 
 	ctx := context.Background()
 	influencer := &model.Influencer{
-		Name:      "Criadora Local",
-		Slug:      "criadora-local",
-		Bio:       "Conteudo sobre a cidade",
-		CityArea:  "Gastronomia",
-		Instagram: "https://instagram.com/criadora",
-		Active:    true,
+		Name:            "Criadora Local",
+		Slug:            "criadora-local",
+		Bio:             "Conteudo sobre a cidade",
+		CityArea:        "Centro",
+		Niche:           "Gastronomia",
+		Instagram:       "https://instagram.com/criadora",
+		MetaTitle:       "SEO Criadora Local",
+		MetaDescription: "Descricao SEO da criadora local.",
+		Active:          true,
 	}
 	if err := repo.InfluencerCreate(ctx, influencer); err != nil {
 		t.Fatalf("InfluencerCreate failed: %v", err)
 	}
 
-	listReq := httptest.NewRequest(http.MethodGet, "/influencers", nil)
+	listReq := httptest.NewRequest(http.MethodGet, "/influencers?niche=Gastronomia", nil)
 	listRec := httptest.NewRecorder()
 	h.InfluencerList(listRec, listReq)
-	if listRec.Code != http.StatusOK || !strings.Contains(listRec.Body.String(), "Criadora Local") {
+	if listRec.Code != http.StatusOK || !strings.Contains(listRec.Body.String(), "Criadora Local") || !strings.Contains(listRec.Body.String(), "Gastronomia") {
 		t.Fatalf("list status/body = %d %s", listRec.Code, listRec.Body.String())
 	}
 
@@ -915,8 +1307,74 @@ func TestInfluencerPagesRender(t *testing.T) {
 	detailReq.SetPathValue("slug", "criadora-local")
 	detailRec := httptest.NewRecorder()
 	h.InfluencerDetail(detailRec, detailReq)
-	if detailRec.Code != http.StatusOK || !strings.Contains(detailRec.Body.String(), "https://instagram.com/criadora") {
+	body := detailRec.Body.String()
+	if detailRec.Code != http.StatusOK || !strings.Contains(body, "https://instagram.com/criadora") || !strings.Contains(body, "SEO Criadora Local") || !strings.Contains(body, "Descricao SEO da criadora local.") {
 		t.Fatalf("detail status/body = %d %s", detailRec.Code, detailRec.Body.String())
+	}
+}
+
+func TestAdminInfluencerCreatePersistsNicheSEOAndReport(t *testing.T) {
+	h, repo := newTestHandler(t)
+	defer repo.Close()
+
+	user := &model.User{ID: 1, Name: "Comercial", Email: "comercial@example.com", Role: model.RoleComercial, Active: true}
+	form := url.Values{}
+	form.Set("name", "Influencer SEO Codex")
+	form.Set("bio", "Criadora local com agenda de conteudo.")
+	form.Set("city_area", "Centro")
+	form.Set("niche", "Moda")
+	form.Set("instagram", "https://instagram.com/influencercodex")
+	form.Set("meta_title", "SEO Influencer Codex")
+	form.Set("meta_description", "Descricao SEO do influencer Codex.")
+	form.Set("is_featured", "on")
+	form.Set("active", "on")
+
+	req := httptest.NewRequest(http.MethodPost, h.cfg.AdminPathPrefix+"/influencers", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req = req.WithContext(auth.WithUser(req.Context(), user))
+	rec := httptest.NewRecorder()
+	h.AdminInfluencerCreate(rec, req)
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("create status = %d, want %d; body=%s", rec.Code, http.StatusSeeOther, rec.Body.String())
+	}
+
+	influencer, err := repo.InfluencerGetBySlug(context.Background(), "influencer-seo-codex")
+	if err != nil || influencer == nil {
+		t.Fatalf("InfluencerGetBySlug failed: influencer=%#v err=%v", influencer, err)
+	}
+	if influencer.Niche != "Moda" || influencer.MetaTitle != "SEO Influencer Codex" || !influencer.IsFeatured {
+		t.Fatalf("influencer fields not persisted: %#v", influencer)
+	}
+	if err := repo.MetricTrack(context.Background(), &model.Metric{MetricType: "influencer_view", EntityType: "influencer", EntityID: influencer.ID}); err != nil {
+		t.Fatalf("MetricTrack failed: %v", err)
+	}
+
+	adminReq := httptest.NewRequest(http.MethodGet, h.cfg.AdminPathPrefix+"/influencers", nil)
+	adminReq = adminReq.WithContext(auth.WithUser(adminReq.Context(), user))
+	adminRec := httptest.NewRecorder()
+	h.AdminInfluencers(adminRec, adminReq)
+	if adminRec.Code != http.StatusOK {
+		t.Fatalf("admin status = %d, want %d; body=%s", adminRec.Code, http.StatusOK, adminRec.Body.String())
+	}
+	adminBody := adminRec.Body.String()
+	for _, want := range []string{"Influencer SEO Codex", "Moda", "Visualizacoes", ">1<"} {
+		if !strings.Contains(adminBody, want) {
+			t.Fatalf("admin influencers missing %q: %s", want, adminBody)
+		}
+	}
+
+	detailReq := httptest.NewRequest(http.MethodGet, "/influencer/influencer-seo-codex", nil)
+	detailReq.SetPathValue("slug", "influencer-seo-codex")
+	detailRec := httptest.NewRecorder()
+	h.InfluencerDetail(detailRec, detailReq)
+	if detailRec.Code != http.StatusOK {
+		t.Fatalf("detail status = %d, want %d; body=%s", detailRec.Code, http.StatusOK, detailRec.Body.String())
+	}
+	detailBody := detailRec.Body.String()
+	for _, want := range []string{"SEO Influencer Codex", "Descricao SEO do influencer Codex.", "Moda"} {
+		if !strings.Contains(detailBody, want) {
+			t.Fatalf("influencer detail missing %q: %s", want, detailBody)
+		}
 	}
 }
 
@@ -1699,6 +2157,65 @@ func TestAdminBannerUpdate(t *testing.T) {
 	}
 }
 
+func TestAdminBannersReportAndCSV(t *testing.T) {
+	h, repo := newTestHandler(t)
+	defer repo.Close()
+
+	ctx := context.Background()
+	banner := &model.Banner{
+		Name:           "Campanha Relatorio",
+		AdvertiserName: "Cliente Relatorio",
+		Position:       "hero",
+		ImageKey:       "webp/banner.webp",
+		LinkURL:        "https://cliente.example.com",
+		StartDate:      time.Now().AddDate(0, 0, -1),
+		EndDate:        time.Now().AddDate(0, 0, 10),
+		Status:         "active",
+		Active:         true,
+	}
+	if err := repo.BannerCreate(ctx, banner); err != nil {
+		t.Fatalf("BannerCreate failed: %v", err)
+	}
+	for _, metric := range []*model.Metric{
+		{MetricType: "banner_impression", EntityType: "banner", EntityID: banner.ID},
+		{MetricType: "banner_impression", EntityType: "banner", EntityID: banner.ID},
+		{MetricType: "banner_click", EntityType: "banner", EntityID: banner.ID},
+	} {
+		if err := repo.MetricTrack(ctx, metric); err != nil {
+			t.Fatalf("MetricTrack failed: %v", err)
+		}
+	}
+
+	user := &model.User{ID: 1, Role: model.RoleComercial, Active: true}
+	req := httptest.NewRequest(http.MethodGet, h.cfg.AdminPathPrefix+"/banners?status=active", nil)
+	req = req.WithContext(auth.WithUser(req.Context(), user))
+	rec := httptest.NewRecorder()
+	h.AdminBanners(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	body := rec.Body.String()
+	for _, want := range []string{"Relatorio comercial", "Cliente Relatorio", "Impressoes", "Cliques", "50.00%"} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("admin banners report missing %q: %s", want, body)
+		}
+	}
+
+	csvReq := httptest.NewRequest(http.MethodGet, h.cfg.AdminPathPrefix+"/banners/export.csv?status=active", nil)
+	csvReq = csvReq.WithContext(auth.WithUser(csvReq.Context(), user))
+	csvRec := httptest.NewRecorder()
+	h.AdminBannersExportCSV(csvRec, csvReq)
+	if csvRec.Code != http.StatusOK {
+		t.Fatalf("csv status = %d, want %d; body=%s", csvRec.Code, http.StatusOK, csvRec.Body.String())
+	}
+	csvBody := csvRec.Body.String()
+	for _, want := range []string{"campanha,anunciante,posicao,status", "Campanha Relatorio", "Cliente Relatorio", "2,1,50.00%"} {
+		if !strings.Contains(csvBody, want) {
+			t.Fatalf("csv report missing %q: %s", want, csvBody)
+		}
+	}
+}
+
 func TestAdminBannerUpdateRejectsInvalidDateRange(t *testing.T) {
 	h, repo := newTestHandler(t)
 	defer repo.Close()
@@ -1821,10 +2338,13 @@ func TestAdminPromoUpdate(t *testing.T) {
 	form.Set("title", "Promo nova")
 	form.Set("description", "Descricao nova")
 	form.Set("price_display", "R$ 20")
+	form.Set("coupon_code", "COD23")
 	form.Set("start_date", "2026-05-01")
 	form.Set("end_date", "2026-05-31")
 	form.Set("status", "draft")
 	form.Set("is_sponsored", "on")
+	form.Set("meta_title", "SEO Promo nova")
+	form.Set("meta_description", "Descricao SEO da promocao nova.")
 	req := httptest.NewRequest(http.MethodPost, h.cfg.AdminPathPrefix+"/promotions/1", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.SetPathValue("id", "1")
@@ -1840,7 +2360,7 @@ func TestAdminPromoUpdate(t *testing.T) {
 	if err != nil {
 		t.Fatalf("PromotionGetByID failed: %v", err)
 	}
-	if updated.Title != "Promo nova" || updated.Status != "draft" || !updated.IsSponsored || updated.ImageKey != "webp/promo.webp" {
+	if updated.Title != "Promo nova" || updated.Status != "draft" || updated.CouponCode != "COD23" || updated.MetaTitle != "SEO Promo nova" || !updated.IsSponsored || updated.ImageKey != "webp/promo.webp" {
 		t.Fatalf("unexpected promo update: %#v", updated)
 	}
 	logs, err := repo.AuditLogList(ctx, "promotion", promo.ID, 10)
@@ -1849,5 +2369,50 @@ func TestAdminPromoUpdate(t *testing.T) {
 	}
 	if len(logs) == 0 || logs[0].Action != "update" || !strings.Contains(logs[0].Changes, "Promo nova") {
 		t.Fatalf("missing promotion update audit log: %#v", logs)
+	}
+
+	for i := 0; i < 2; i++ {
+		if err := repo.MetricTrack(ctx, &model.Metric{MetricType: "promo_click", EntityType: "promotion", EntityID: promo.ID}); err != nil {
+			t.Fatalf("MetricTrack failed: %v", err)
+		}
+	}
+	adminReq := httptest.NewRequest(http.MethodGet, h.cfg.AdminPathPrefix+"/promotions", nil)
+	adminReq = adminReq.WithContext(auth.WithUser(adminReq.Context(), &model.User{ID: 1, Role: model.RoleComercial}))
+	adminRec := httptest.NewRecorder()
+	h.AdminPromotions(adminRec, adminReq)
+	if adminRec.Code != http.StatusOK {
+		t.Fatalf("admin promotions status = %d, want %d; body=%s", adminRec.Code, http.StatusOK, adminRec.Body.String())
+	}
+	if !strings.Contains(adminRec.Body.String(), "Cliques/resgates") || !strings.Contains(adminRec.Body.String(), ">2<") {
+		t.Fatalf("admin promotions missing click report: %s", adminRec.Body.String())
+	}
+
+	active := &model.Promotion{
+		StoreID:         store.ID,
+		Title:           "Promo publica",
+		Slug:            "promo-publica",
+		Description:     "Descricao publica",
+		PriceDisplay:    "R$ 30",
+		CouponCode:      "PUBLICA30",
+		StartDate:       time.Now().AddDate(0, 0, -1),
+		EndDate:         time.Now().AddDate(0, 0, 7),
+		Status:          "active",
+		MetaTitle:       "SEO Promo publica",
+		MetaDescription: "Descricao SEO publica.",
+	}
+	if err := repo.PromotionCreate(ctx, active); err != nil {
+		t.Fatalf("PromotionCreate active failed: %v", err)
+	}
+	detailReq := httptest.NewRequest(http.MethodGet, "/promocao/promo-publica", nil)
+	detailReq.SetPathValue("slug", "promo-publica")
+	detailRec := httptest.NewRecorder()
+	h.PromoDetail(detailRec, detailReq)
+	if detailRec.Code != http.StatusOK {
+		t.Fatalf("promo detail status = %d, want %d; body=%s", detailRec.Code, http.StatusOK, detailRec.Body.String())
+	}
+	for _, want := range []string{"SEO Promo publica", "Descricao SEO publica.", "PUBLICA30"} {
+		if !strings.Contains(detailRec.Body.String(), want) {
+			t.Fatalf("promo detail missing %q: %s", want, detailRec.Body.String())
+		}
 	}
 }

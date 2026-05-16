@@ -20,6 +20,7 @@ import (
 	"inhumas-em-foco/internal/auth"
 	commercialsvc "inhumas-em-foco/internal/commercial"
 	"inhumas-em-foco/internal/config"
+	"inhumas-em-foco/internal/editorialai"
 	"inhumas-em-foco/internal/middleware"
 	"inhumas-em-foco/internal/model"
 	postsvc "inhumas-em-foco/internal/posts"
@@ -39,6 +40,7 @@ type Handler struct {
 	userSvc   *usersvc.AdminService
 	postSvc   *postsvc.EditorialService
 	comSvc    *commercialsvc.Service
+	aiSvc     editorialai.Provider
 	storage   storage.Provider
 	sanitizer *bluemonday.Policy
 	templates *template.Template
@@ -54,6 +56,7 @@ func New(repo *repository.Repository, cfg *config.Config, session *session.Manag
 		userSvc:   usersvc.NewAdminService(repo, authSvc, cfg),
 		postSvc:   postsvc.NewEditorialService(authSvc),
 		comSvc:    commercialsvc.NewService(),
+		aiSvc:     editorialai.NewMockProvider(),
 		storage:   storage,
 		sanitizer: bluemonday.UGCPolicy(),
 	}
@@ -70,11 +73,33 @@ func (h *Handler) loadTemplates() error {
 
 func (h *Handler) funcMap() template.FuncMap {
 	return template.FuncMap{
-		"formatDate": func(t time.Time) string {
+		"formatDate": func(value any) string {
+			t := templateTime(value)
+			if t.IsZero() {
+				return ""
+			}
 			return t.Format("02/01/2006")
 		},
-		"formatDateTime": func(t time.Time) string {
+		"formatDateTime": func(value any) string {
+			t := templateTime(value)
+			if t.IsZero() {
+				return ""
+			}
 			return t.Format("02/01/2006 15:04")
+		},
+		"datetimeLocal": func(value any) string {
+			t := templateTime(value)
+			if t.IsZero() {
+				return ""
+			}
+			return t.Format("2006-01-02T15:04")
+		},
+		"dateInput": func(value any) string {
+			t := templateTime(value)
+			if t.IsZero() {
+				return ""
+			}
+			return t.Format("2006-01-02")
 		},
 		"htmlSafe": func(s string) template.HTML {
 			return template.HTML(h.sanitizer.Sanitize(s))
@@ -104,6 +129,7 @@ func (h *Handler) funcMap() template.FuncMap {
 		"bannerStatusLabel":   bannerStatusLabel,
 		"bannerPositionLabel": bannerPositionLabel,
 		"bannerDaysLeft":      bannerDaysLeft,
+		"bannerCTR":           bannerCTR,
 		"postStatusLabel":     postStatusLabel,
 		"selected": func(a, b string) bool {
 			return a == b
@@ -114,15 +140,37 @@ func (h *Handler) funcMap() template.FuncMap {
 		"roleLabel": func(role model.UserRole) string {
 			return role.Label()
 		},
-		"auditEntityIDLabel": auditEntityIDLabel,
-		"auditUserLabel":     auditUserLabel,
+		"auditEntityIDLabel":         auditEntityIDLabel,
+		"auditUserLabel":             auditUserLabel,
+		"eventStatusLabel":           eventStatusLabel,
+		"classifiedStatusLabel":      classifiedStatusLabel,
+		"storeCommercialStatusLabel": storeCommercialStatusLabel,
+		"promoStatusLabel":           promoStatusLabel,
+		"promoValidityLabel":         promoValidityLabel,
+		"aiActionLabel":              aiActionLabel,
 	}
+}
+
+func templateTime(value any) time.Time {
+	switch v := value.(type) {
+	case time.Time:
+		return v
+	case *time.Time:
+		if v != nil {
+			return *v
+		}
+	}
+	return time.Time{}
 }
 
 func (h *Handler) Render(w http.ResponseWriter, r *http.Request, name string, data map[string]any) {
 	user := auth.UserFromContext(r.Context())
 	if data == nil {
 		data = make(map[string]any)
+	}
+	settings := h.portalSettings(r.Context())
+	if _, ok := data["PortalSettings"]; !ok {
+		data["PortalSettings"] = settings
 	}
 	if seo, ok := data["SEO"].(model.SEOData); ok {
 		h.normalizeSEO(r, &seo)
@@ -169,11 +217,12 @@ func (h *Handler) normalizeSEO(r *http.Request, seo *model.SEOData) {
 		}
 		siteURL = scheme + "://" + r.Host
 	}
+	settings := h.portalSettings(r.Context())
 	if seo.Title == "" {
-		seo.Title = "Inhumas em Foco - Noticias, comercio e eventos de Inhumas GO"
+		seo.Title = settings.SEOTitle
 	}
 	if seo.Description == "" {
-		seo.Description = "Noticias de Inhumas GO, guia comercial, promocoes, eventos e informacoes locais atualizadas."
+		seo.Description = settings.SEODescription
 	}
 	if seo.Type == "" {
 		seo.Type = "website"
@@ -185,8 +234,20 @@ func (h *Handler) normalizeSEO(r *http.Request, seo *model.SEOData) {
 		seo.CanonicalURL = seo.URL
 	}
 	if seo.Image == "" {
-		seo.Image = siteURL + "/static/images/logo.png"
+		if settings.LogoKey != "" {
+			seo.Image = h.storage.URL(r.Context(), settings.LogoKey)
+		} else {
+			seo.Image = siteURL + "/static/images/logo.png"
+		}
 	}
+}
+
+func (h *Handler) portalSettings(ctx context.Context) model.PortalSettings {
+	settings, err := h.repo.PortalSettingsGet(ctx)
+	if err != nil {
+		return repository.DefaultPortalSettings()
+	}
+	return settings
 }
 
 func (h *Handler) templateFor(name string) (*template.Template, string, error) {
@@ -219,11 +280,23 @@ func (h *Handler) RenderError(w http.ResponseWriter, status int, msg string) {
 }
 
 func (h *Handler) parseMultipart(w http.ResponseWriter, r *http.Request) error {
-	r.Body = http.MaxBytesReader(w, r.Body, h.cfg.MaxUploadSize)
+	limit := h.effectiveMaxUploadSize(r.Context())
+	r.Body = http.MaxBytesReader(w, r.Body, limit)
 	if !strings.HasPrefix(strings.ToLower(r.Header.Get("Content-Type")), "multipart/form-data") {
 		return r.ParseForm()
 	}
-	return r.ParseMultipartForm(h.cfg.MaxUploadSize)
+	return r.ParseMultipartForm(limit)
+}
+
+func (h *Handler) effectiveMaxUploadSize(ctx context.Context) int64 {
+	settings := h.portalSettings(ctx)
+	if settings.UploadMaxMB > 0 {
+		return int64(settings.UploadMaxMB) * 1024 * 1024
+	}
+	if h.cfg.MaxUploadSize > 0 {
+		return h.cfg.MaxUploadSize
+	}
+	return 2 * 1024 * 1024
 }
 
 // Routes
@@ -238,6 +311,7 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /categoria/{slug}", h.CategoryPosts)
 	mux.HandleFunc("GET /tag/{slug}", h.TagPosts)
 	mux.HandleFunc("GET /eventos", h.EventList)
+	mux.HandleFunc("GET /evento/{slug}", h.EventDetail)
 	mux.HandleFunc("GET /loja/{slug}", h.StoreDetail)
 	mux.HandleFunc("GET /lojas", h.StoreList)
 	mux.HandleFunc("GET /influencer/{slug}", h.InfluencerDetail)
@@ -245,6 +319,7 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /promocao/{slug}", h.PromoDetail)
 	mux.HandleFunc("GET /promocoes", h.PromoList)
 	mux.HandleFunc("GET /classificados", h.Classifieds)
+	mux.HandleFunc("GET /classificado/{slug}", h.ClassifiedDetail)
 	mux.HandleFunc("GET /bairro/{slug}", h.NeighborhoodDetail)
 	mux.HandleFunc("GET /busca", h.Search)
 	mux.HandleFunc("GET /login", h.LoginPage)
@@ -282,6 +357,16 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST "+admin+"/posts/{id}/approve", h.AdminPostApprove)
 	mux.HandleFunc("POST "+admin+"/posts/{id}/reject", h.AdminPostReject)
 	mux.HandleFunc("POST "+admin+"/posts/{id}/publish", h.AdminPostPublish)
+	mux.HandleFunc("POST "+admin+"/posts/{id}/ai/{action}", h.AdminPostAIAction)
+
+	mux.HandleFunc("GET "+admin+"/automation", h.AdminAutomation)
+	mux.HandleFunc("GET "+admin+"/automation/sources/new", h.AdminAutomationSourceNew)
+	mux.HandleFunc("POST "+admin+"/automation/sources", h.AdminAutomationSourceCreate)
+	mux.HandleFunc("GET "+admin+"/automation/sources/{id}/edit", h.AdminAutomationSourceEdit)
+	mux.HandleFunc("POST "+admin+"/automation/sources/{id}", h.AdminAutomationSourceUpdate)
+	mux.HandleFunc("POST "+admin+"/automation/sources/{id}/delete", h.AdminAutomationSourceDelete)
+	mux.HandleFunc("POST "+admin+"/automation/sources/{id}/run", h.AdminAutomationSourceRun)
+	mux.HandleFunc("POST "+admin+"/automation/run-all", h.AdminAutomationRunAll)
 
 	mux.HandleFunc("GET "+admin+"/categories", h.AdminCategories)
 	mux.HandleFunc("GET "+admin+"/categories/new", h.AdminCategoryNew)
@@ -317,6 +402,7 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST "+admin+"/influencers/{id}/delete", h.AdminInfluencerDelete)
 
 	mux.HandleFunc("GET "+admin+"/banners", h.AdminBanners)
+	mux.HandleFunc("GET "+admin+"/banners/export.csv", h.AdminBannersExportCSV)
 	mux.HandleFunc("GET "+admin+"/banners/new", h.AdminBannerNew)
 	mux.HandleFunc("POST "+admin+"/banners", h.AdminBannerCreate)
 	mux.HandleFunc("GET "+admin+"/banners/{id}/edit", h.AdminBannerEdit)
@@ -329,6 +415,20 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET "+admin+"/promotions/{id}/edit", h.AdminPromoEdit)
 	mux.HandleFunc("POST "+admin+"/promotions/{id}", h.AdminPromoUpdate)
 	mux.HandleFunc("POST "+admin+"/promotions/{id}/delete", h.AdminPromoDelete)
+
+	mux.HandleFunc("GET "+admin+"/events", h.AdminEvents)
+	mux.HandleFunc("GET "+admin+"/events/new", h.AdminEventNew)
+	mux.HandleFunc("POST "+admin+"/events", h.AdminEventCreate)
+	mux.HandleFunc("GET "+admin+"/events/{id}/edit", h.AdminEventEdit)
+	mux.HandleFunc("POST "+admin+"/events/{id}", h.AdminEventUpdate)
+	mux.HandleFunc("POST "+admin+"/events/{id}/delete", h.AdminEventDelete)
+
+	mux.HandleFunc("GET "+admin+"/classifieds", h.AdminClassifieds)
+	mux.HandleFunc("GET "+admin+"/classifieds/new", h.AdminClassifiedNew)
+	mux.HandleFunc("POST "+admin+"/classifieds", h.AdminClassifiedCreate)
+	mux.HandleFunc("GET "+admin+"/classifieds/{id}/edit", h.AdminClassifiedEdit)
+	mux.HandleFunc("POST "+admin+"/classifieds/{id}", h.AdminClassifiedUpdate)
+	mux.HandleFunc("POST "+admin+"/classifieds/{id}/delete", h.AdminClassifiedDelete)
 
 	mux.HandleFunc("GET "+admin+"/neighborhoods", h.AdminNeighborhoods)
 	mux.HandleFunc("POST "+admin+"/neighborhoods", h.AdminNeighborhoodCreate)
@@ -343,6 +443,8 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET "+admin+"/metrics", h.AdminMetrics)
 	mux.HandleFunc("GET "+admin+"/dead-jobs", h.AdminDeadJobs)
 	mux.HandleFunc("GET "+admin+"/audit", h.AdminAuditLogs)
+	mux.HandleFunc("GET "+admin+"/settings", h.AdminSettings)
+	mux.HandleFunc("POST "+admin+"/settings", h.AdminSettingsUpdate)
 
 	// API
 	mux.HandleFunc("POST /api/metrics/{type}", h.APITrackMetric)
@@ -667,23 +769,9 @@ func (h *Handler) renderNewsRows(w http.ResponseWriter, posts []model.Post, hasM
 	})
 }
 
-// EventList renders the events archive using the eventos category when present.
 func (h *Handler) EventList(w http.ResponseWriter, r *http.Request) {
-	cat, err := h.repo.CategoryGetBySlug(r.Context(), "eventos")
-	if err != nil || cat == nil {
-		cat = &model.Category{
-			Name:        "Eventos",
-			Description: "Agenda cultural, gastronomica e comunitaria de Inhumas.",
-		}
-	}
-	posts, _ := h.repo.PostListByCategory(r.Context(), cat.ID, 21)
-	if cat.ID == 0 {
-		posts, _ = h.repo.PostListPublished(r.Context(), 21, 0)
-	}
-	hasMore := len(posts) > 20
-	if hasMore {
-		posts = posts[:20]
-	}
+	events, _ := h.repo.EventList(r.Context(), true, 100)
+	featuredEvents, regularEvents := splitCommercialEvents(events, 6)
 	listBanner, _ := h.repo.BannerGetActiveByPosition(r.Context(), "in_feed")
 	seo := model.SEOData{
 		Title:       "Eventos | Inhumas em Foco",
@@ -691,14 +779,36 @@ func (h *Handler) EventList(w http.ResponseWriter, r *http.Request) {
 		URL:         h.cfg.SiteURL + "/eventos",
 		Tags:        []string{"eventos em Inhumas", "agenda Inhumas", "Inhumas GO"},
 	}
-	h.Render(w, r, "category.html", map[string]any{
-		"SEO":        seo,
-		"JSONLD":     h.collectionJSONLD(seo, "Eventos", "/eventos"),
-		"Category":   cat,
-		"Posts":      posts,
-		"HasMore":    hasMore,
-		"NextPage":   2,
-		"ListBanner": listBanner,
+	h.Render(w, r, "event_list.html", map[string]any{
+		"SEO":            seo,
+		"JSONLD":         h.collectionJSONLD(seo, "Eventos", "/eventos"),
+		"Events":         regularEvents,
+		"FeaturedEvents": featuredEvents,
+		"HasEvents":      len(events) > 0,
+		"ListBanner":     listBanner,
+	})
+}
+
+func (h *Handler) EventDetail(w http.ResponseWriter, r *http.Request) {
+	event, err := h.repo.EventGetBySlug(r.Context(), r.PathValue("slug"))
+	if err != nil || event == nil || event.Status != "active" {
+		http.NotFound(w, r)
+		return
+	}
+	seo := model.SEOData{
+		Title:       firstNonEmpty(event.MetaTitle, event.Title+" | Inhumas em Foco"),
+		Description: firstNonEmpty(event.MetaDescription, event.Description),
+		URL:         h.cfg.SiteURL + "/evento/" + event.Slug,
+		Type:        "event",
+		Tags:        []string{"eventos em Inhumas", event.Title, event.Location},
+	}
+	if event.ImageKey != "" {
+		seo.Image = h.storage.URL(r.Context(), event.ImageKey)
+	}
+	h.Render(w, r, "event_detail.html", map[string]any{
+		"SEO":    seo,
+		"JSONLD": h.eventJSONLD(event, seo),
+		"Event":  event,
 	})
 }
 
@@ -729,8 +839,8 @@ func (h *Handler) StoreDetail(w http.ResponseWriter, r *http.Request) {
 	}
 
 	seo := model.SEOData{
-		Title:       store.Name + " | Inhumas em Foco",
-		Description: store.Description,
+		Title:       firstNonEmpty(store.MetaTitle, store.Name+" | Inhumas em Foco"),
+		Description: firstNonEmpty(store.MetaDescription, store.Description),
 		URL:         h.cfg.SiteURL + "/loja/" + store.Slug,
 		Type:        "profile",
 		Tags:        []string{store.Name, store.Category, "lojas em Inhumas", "Inhumas GO"},
@@ -767,6 +877,7 @@ func (h *Handler) StoreList(w http.ResponseWriter, r *http.Request) {
 		}
 		stores = filtered
 	}
+	featuredStores, regularStores := splitCommercialStores(stores, 6)
 
 	seo := model.SEOData{
 		Title:       "Lojas e Comercios | Inhumas em Foco",
@@ -777,16 +888,29 @@ func (h *Handler) StoreList(w http.ResponseWriter, r *http.Request) {
 	listBanner, _ := h.repo.BannerGetActiveByPosition(r.Context(), "in_feed")
 
 	h.Render(w, r, "store_list.html", map[string]any{
-		"SEO":        seo,
-		"JSONLD":     h.collectionJSONLD(seo, "Lojas", "/lojas"),
-		"Stores":     stores,
-		"Query":      query,
-		"ListBanner": listBanner,
+		"SEO":            seo,
+		"JSONLD":         h.collectionJSONLD(seo, "Lojas", "/lojas"),
+		"Stores":         regularStores,
+		"FeaturedStores": featuredStores,
+		"HasStores":      len(stores) > 0,
+		"Query":          query,
+		"ListBanner":     listBanner,
 	})
 }
 
 func (h *Handler) InfluencerList(w http.ResponseWriter, r *http.Request) {
 	influencers, _ := h.repo.InfluencerList(r.Context(), true, 100)
+	niches := influencerNiches(influencers)
+	selectedNiche := strings.TrimSpace(r.URL.Query().Get("niche"))
+	if selectedNiche != "" {
+		filtered := make([]model.Influencer, 0, len(influencers))
+		for _, influencer := range influencers {
+			if strings.EqualFold(strings.TrimSpace(influencer.Niche), selectedNiche) {
+				filtered = append(filtered, influencer)
+			}
+		}
+		influencers = filtered
+	}
 	seo := model.SEOData{
 		Title:       "Influencers da Cidade | Inhumas em Foco",
 		Description: "Conheca criadores, comunicadores e personalidades de Inhumas.",
@@ -798,6 +922,8 @@ func (h *Handler) InfluencerList(w http.ResponseWriter, r *http.Request) {
 		"SEO":         seo,
 		"JSONLD":      h.collectionJSONLD(seo, "Influencers da Cidade", "/influencers"),
 		"Influencers": influencers,
+		"Niches":      niches,
+		"ActiveNiche": selectedNiche,
 		"ListBanner":  listBanner,
 	})
 }
@@ -816,11 +942,11 @@ func (h *Handler) InfluencerDetail(w http.ResponseWriter, r *http.Request) {
 		UserAgent:  r.UserAgent(),
 	})
 	seo := model.SEOData{
-		Title:       influencer.Name + " | Influencers da Cidade",
-		Description: influencer.Bio,
+		Title:       firstNonEmpty(influencer.MetaTitle, influencer.Name+" | Influencers da Cidade"),
+		Description: firstNonEmpty(influencer.MetaDescription, influencer.Bio),
 		URL:         h.cfg.SiteURL + "/influencer/" + influencer.Slug,
 		Type:        "profile",
-		Tags:        []string{influencer.Name, "influencer de Inhumas", "Inhumas GO"},
+		Tags:        influencerSEOTags(influencer),
 	}
 	if influencer.CoverImageKey != "" {
 		seo.Image = h.storage.URL(r.Context(), influencer.CoverImageKey)
@@ -833,11 +959,133 @@ func (h *Handler) InfluencerDetail(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func influencerNiches(influencers []model.Influencer) []string {
+	seen := make(map[string]bool)
+	var niches []string
+	for _, influencer := range influencers {
+		niche := strings.TrimSpace(influencer.Niche)
+		if niche == "" || seen[strings.ToLower(niche)] {
+			continue
+		}
+		seen[strings.ToLower(niche)] = true
+		niches = append(niches, niche)
+	}
+	return niches
+}
+
+func influencerSEOTags(influencer *model.Influencer) []string {
+	tags := []string{influencer.Name, "influencer de Inhumas", "Inhumas GO"}
+	if niche := strings.TrimSpace(influencer.Niche); niche != "" {
+		tags = append(tags, niche+" em Inhumas")
+	}
+	if area := strings.TrimSpace(influencer.CityArea); area != "" {
+		tags = append(tags, area)
+	}
+	return tags
+}
+
+func splitCommercialStores(stores []model.Store, limit int) ([]model.Store, []model.Store) {
+	featured := make([]model.Store, 0)
+	regular := make([]model.Store, 0, len(stores))
+	for _, store := range stores {
+		if (store.IsFeatured || store.IsSponsored) && (limit <= 0 || len(featured) < limit) {
+			featured = append(featured, store)
+			continue
+		}
+		regular = append(regular, store)
+	}
+	return featured, regular
+}
+
+func splitCommercialEvents(events []model.Event, limit int) ([]model.Event, []model.Event) {
+	featured := make([]model.Event, 0)
+	regular := make([]model.Event, 0, len(events))
+	for _, event := range events {
+		if (event.IsFeatured || event.IsSponsored) && (limit <= 0 || len(featured) < limit) {
+			featured = append(featured, event)
+			continue
+		}
+		regular = append(regular, event)
+	}
+	return featured, regular
+}
+
+func splitCommercialClassifieds(classifieds []model.Classified, limit int) ([]model.Classified, []model.Classified) {
+	featured := make([]model.Classified, 0)
+	regular := make([]model.Classified, 0, len(classifieds))
+	for _, classified := range classifieds {
+		if (classified.IsFeatured || classified.IsSponsored) && (limit <= 0 || len(featured) < limit) {
+			featured = append(featured, classified)
+			continue
+		}
+		regular = append(regular, classified)
+	}
+	return featured, regular
+}
+
+type localCommercialSummary struct {
+	Total     int
+	Active    int
+	Featured  int
+	Sponsored int
+}
+
+func localCommercialSummaryStores(stores []model.Store) localCommercialSummary {
+	var summary localCommercialSummary
+	summary.Total = len(stores)
+	for _, store := range stores {
+		if store.Active {
+			summary.Active++
+		}
+		if store.IsFeatured {
+			summary.Featured++
+		}
+		if store.IsSponsored {
+			summary.Sponsored++
+		}
+	}
+	return summary
+}
+
+func localCommercialSummaryEvents(events []model.Event) localCommercialSummary {
+	var summary localCommercialSummary
+	summary.Total = len(events)
+	for _, event := range events {
+		if event.Status == "active" {
+			summary.Active++
+		}
+		if event.IsFeatured {
+			summary.Featured++
+		}
+		if event.IsSponsored {
+			summary.Sponsored++
+		}
+	}
+	return summary
+}
+
+func localCommercialSummaryClassifieds(classifieds []model.Classified) localCommercialSummary {
+	var summary localCommercialSummary
+	summary.Total = len(classifieds)
+	for _, classified := range classifieds {
+		if classified.Status == "active" {
+			summary.Active++
+		}
+		if classified.IsFeatured {
+			summary.Featured++
+		}
+		if classified.IsSponsored {
+			summary.Sponsored++
+		}
+	}
+	return summary
+}
+
 // Promo Detail
 func (h *Handler) PromoDetail(w http.ResponseWriter, r *http.Request) {
 	slug := r.PathValue("slug")
 	promo, err := h.repo.PromotionGetBySlug(r.Context(), slug)
-	if err != nil || promo == nil {
+	if err != nil || promo == nil || !promotionPubliclyVisible(promo) {
 		http.NotFound(w, r)
 		return
 	}
@@ -853,8 +1101,8 @@ func (h *Handler) PromoDetail(w http.ResponseWriter, r *http.Request) {
 	store, _ := h.repo.StoreGetBySlug(r.Context(), promo.StoreSlug)
 
 	seo := model.SEOData{
-		Title:       promo.Title + " | Inhumas em Foco",
-		Description: promo.Description,
+		Title:       firstNonEmpty(promo.MetaTitle, promo.Title+" | Inhumas em Foco"),
+		Description: firstNonEmpty(promo.MetaDescription, promo.Description),
 		URL:         h.cfg.SiteURL + "/promocao/" + promo.Slug,
 		Type:        "article",
 		Tags:        []string{"promocoes em Inhumas", promo.StoreName, "Inhumas GO"},
@@ -901,6 +1149,15 @@ func (h *Handler) PromoList(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) Classifieds(w http.ResponseWriter, r *http.Request) {
+	filter := repository.ClassifiedFilter{
+		Query:      strings.TrimSpace(r.URL.Query().Get("q")),
+		Category:   strings.TrimSpace(r.URL.Query().Get("categoria")),
+		ActiveOnly: true,
+		Limit:      100,
+	}
+	classifieds, _ := h.repo.ClassifiedList(r.Context(), filter)
+	featuredClassifieds, regularClassifieds := splitCommercialClassifieds(classifieds, 6)
+	listBanner, _ := h.repo.BannerGetActiveByPosition(r.Context(), "in_feed")
 	seo := model.SEOData{
 		Title:       "Classificados | Inhumas em Foco",
 		Description: "Anuncios locais de imoveis, veiculos, empregos, servicos e oportunidades em Inhumas.",
@@ -908,8 +1165,37 @@ func (h *Handler) Classifieds(w http.ResponseWriter, r *http.Request) {
 		Tags:        []string{"classificados Inhumas", "empregos Inhumas", "imoveis Inhumas"},
 	}
 	h.Render(w, r, "classifieds.html", map[string]any{
-		"SEO":    seo,
-		"JSONLD": h.collectionJSONLD(seo, "Classificados", "/classificados"),
+		"SEO":                 seo,
+		"JSONLD":              h.collectionJSONLD(seo, "Classificados", "/classificados"),
+		"Classifieds":         regularClassifieds,
+		"FeaturedClassifieds": featuredClassifieds,
+		"HasClassifieds":      len(classifieds) > 0,
+		"Query":               filter.Query,
+		"Category":            filter.Category,
+		"ListBanner":          listBanner,
+	})
+}
+
+func (h *Handler) ClassifiedDetail(w http.ResponseWriter, r *http.Request) {
+	classified, err := h.repo.ClassifiedGetBySlug(r.Context(), r.PathValue("slug"))
+	if err != nil || classified == nil || classified.Status != "active" || classifiedExpired(classified) {
+		http.NotFound(w, r)
+		return
+	}
+	seo := model.SEOData{
+		Title:       firstNonEmpty(classified.MetaTitle, classified.Title+" | Classificados Inhumas"),
+		Description: firstNonEmpty(classified.MetaDescription, classified.Description),
+		URL:         h.cfg.SiteURL + "/classificado/" + classified.Slug,
+		Type:        "product",
+		Tags:        []string{"classificados Inhumas", classified.Category, classified.Title},
+	}
+	if classified.ImageKey != "" {
+		seo.Image = h.storage.URL(r.Context(), classified.ImageKey)
+	}
+	h.Render(w, r, "classified_detail.html", map[string]any{
+		"SEO":        seo,
+		"JSONLD":     h.classifiedJSONLD(classified, seo),
+		"Classified": classified,
 	})
 }
 
@@ -1298,13 +1584,14 @@ func (h *Handler) RSS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	settings := h.portalSettings(r.Context())
 	feed := rssFeed{
 		Version: "2.0",
 		AtomNS:  "http://www.w3.org/2005/Atom",
 		Channel: rssChannel{
-			Title:       "Inhumas em Foco",
+			Title:       settings.SiteName,
 			Link:        h.cfg.SiteURL + "/",
-			Description: "Noticias, comercio e acontecimentos de Inhumas, Goias.",
+			Description: settings.SEODescription,
 			Language:    "pt-BR",
 			LastBuild:   time.Now().Format(time.RFC1123Z),
 			AtomLink: rssAtomLink{
@@ -1346,9 +1633,10 @@ func (h *Handler) organizationJSONLD(seo model.SEOData) template.JS {
 }
 
 func (h *Handler) homeJSONLD(seo model.SEOData) template.JS {
+	settings := h.portalSettings(context.Background())
 	return graphJSONScript(h.organizationPayload(seo), map[string]any{
 		"@type":       "WebSite",
-		"name":        "Inhumas em Foco",
+		"name":        settings.SiteName,
 		"url":         h.cfg.SiteURL + "/",
 		"inLanguage":  "pt-BR",
 		"description": seo.Description,
@@ -1361,6 +1649,7 @@ func (h *Handler) homeJSONLD(seo model.SEOData) template.JS {
 }
 
 func (h *Handler) collectionJSONLD(seo model.SEOData, name string, path string) template.JS {
+	settings := h.portalSettings(context.Background())
 	return graphJSONScript(
 		h.organizationPayload(seo),
 		map[string]any{
@@ -1371,7 +1660,7 @@ func (h *Handler) collectionJSONLD(seo model.SEOData, name string, path string) 
 			"inLanguage":  "pt-BR",
 			"isPartOf": map[string]any{
 				"@type": "WebSite",
-				"name":  "Inhumas em Foco",
+				"name":  settings.SiteName,
 				"url":   h.cfg.SiteURL + "/",
 			},
 		},
@@ -1383,6 +1672,7 @@ func (h *Handler) collectionJSONLD(seo model.SEOData, name string, path string) 
 }
 
 func (h *Handler) storeJSONLD(store *model.Store, seo model.SEOData) template.JS {
+	settings := h.portalSettings(context.Background())
 	payload := map[string]any{
 		"@type":       "LocalBusiness",
 		"name":        store.Name,
@@ -1392,13 +1682,13 @@ func (h *Handler) storeJSONLD(store *model.Store, seo model.SEOData) template.JS
 		"address": map[string]any{
 			"@type":           "PostalAddress",
 			"streetAddress":   store.Address,
-			"addressLocality": "Inhumas",
-			"addressRegion":   "GO",
+			"addressLocality": settings.City,
+			"addressRegion":   settings.State,
 			"addressCountry":  "BR",
 		},
 		"areaServed": map[string]any{
 			"@type": "City",
-			"name":  "Inhumas",
+			"name":  settings.City,
 		},
 	}
 	if store.Phone != "" {
@@ -1416,26 +1706,121 @@ func (h *Handler) storeJSONLD(store *model.Store, seo model.SEOData) template.JS
 	}))
 }
 
+func (h *Handler) eventJSONLD(event *model.Event, seo model.SEOData) template.JS {
+	settings := h.portalSettings(context.Background())
+	payload := map[string]any{
+		"@type":               "Event",
+		"name":                event.Title,
+		"description":         firstNonEmpty(event.MetaDescription, event.Description),
+		"url":                 seo.URL,
+		"startDate":           event.StartAt.Format(time.RFC3339),
+		"eventStatus":         "https://schema.org/EventScheduled",
+		"eventAttendanceMode": "https://schema.org/OfflineEventAttendanceMode",
+		"location": map[string]any{
+			"@type": "Place",
+			"name":  firstNonEmpty(event.Location, settings.City),
+			"address": map[string]any{
+				"@type":           "PostalAddress",
+				"addressLocality": settings.City,
+				"addressRegion":   settings.State,
+				"addressCountry":  "BR",
+			},
+		},
+		"organizer": map[string]any{
+			"@type": "Organization",
+			"name":  firstNonEmpty(event.Organizer, settings.SiteName),
+		},
+	}
+	if event.EndAt != nil {
+		payload["endDate"] = event.EndAt.Format(time.RFC3339)
+	}
+	if seo.Image != "" {
+		payload["image"] = []string{seo.Image}
+	}
+	if event.PriceDisplay != "" || event.TicketURL != "" {
+		offer := map[string]any{
+			"@type":        "Offer",
+			"availability": "https://schema.org/InStock",
+		}
+		if event.TicketURL != "" {
+			offer["url"] = event.TicketURL
+		}
+		if event.PriceDisplay != "" {
+			offer["priceSpecification"] = event.PriceDisplay
+		}
+		payload["offers"] = offer
+	}
+	return graphJSONScript(h.organizationPayload(seo), payload, h.breadcrumbPayload([]breadcrumbItem{
+		{Name: "Home", Path: "/"},
+		{Name: "Eventos", Path: "/eventos"},
+		{Name: event.Title, Path: "/evento/" + event.Slug},
+	}))
+}
+
+func (h *Handler) classifiedJSONLD(classified *model.Classified, seo model.SEOData) template.JS {
+	settings := h.portalSettings(context.Background())
+	payload := map[string]any{
+		"@type":       "Product",
+		"name":        classified.Title,
+		"description": firstNonEmpty(classified.MetaDescription, classified.Description),
+		"url":         seo.URL,
+		"category":    classified.Category,
+		"areaServed": map[string]any{
+			"@type": "City",
+			"name":  settings.City,
+		},
+		"offers": map[string]any{
+			"@type":         "Offer",
+			"availability":  "https://schema.org/InStock",
+			"priceCurrency": "BRL",
+			"seller": map[string]any{
+				"@type": "Organization",
+				"name":  firstNonEmpty(classified.ContactName, settings.SiteName),
+			},
+		},
+	}
+	if seo.Image != "" {
+		payload["image"] = []string{seo.Image}
+	}
+	if classified.PriceDisplay != "" {
+		payload["offers"].(map[string]any)["priceSpecification"] = classified.PriceDisplay
+	}
+	return graphJSONScript(h.organizationPayload(seo), payload, h.breadcrumbPayload([]breadcrumbItem{
+		{Name: "Home", Path: "/"},
+		{Name: "Classificados", Path: "/classificados"},
+		{Name: classified.Title, Path: "/classificado/" + classified.Slug},
+	}))
+}
+
 func (h *Handler) organizationPayload(seo model.SEOData) map[string]any {
+	settings := h.portalSettings(context.Background())
+	logoURL := h.cfg.SiteURL + "/static/images/logo.png"
+	if settings.LogoKey != "" {
+		logoURL = h.storage.URL(context.Background(), settings.LogoKey)
+	}
 	payload := map[string]any{
 		"@type": "NewsMediaOrganization",
-		"name":  "Inhumas em Foco",
+		"name":  settings.SiteName,
 		"url":   h.cfg.SiteURL + "/",
 		"logo": map[string]any{
 			"@type": "ImageObject",
-			"url":   h.cfg.SiteURL + "/static/images/logo.png",
+			"url":   logoURL,
 		},
 		"areaServed": map[string]any{
 			"@type": "City",
-			"name":  "Inhumas",
+			"name":  settings.City,
 		},
 		"address": map[string]any{
 			"@type":           "PostalAddress",
-			"addressLocality": "Inhumas",
-			"addressRegion":   "GO",
+			"addressLocality": settings.City,
+			"addressRegion":   settings.State,
 			"addressCountry":  "BR",
 		},
 		"sameAs": []string{},
+	}
+	sameAs := socialLinks(settings)
+	if len(sameAs) > 0 {
+		payload["sameAs"] = sameAs
 	}
 	if seo.Description != "" {
 		payload["description"] = seo.Description
@@ -1444,6 +1829,11 @@ func (h *Handler) organizationPayload(seo model.SEOData) map[string]any {
 }
 
 func (h *Handler) articleJSONLD(post *model.Post, seo model.SEOData) template.JS {
+	settings := h.portalSettings(context.Background())
+	logoURL := h.cfg.SiteURL + "/static/images/logo.png"
+	if settings.LogoKey != "" {
+		logoURL = h.storage.URL(context.Background(), settings.LogoKey)
+	}
 	payload := map[string]any{
 		"@type":            "NewsArticle",
 		"headline":         post.Title,
@@ -1454,11 +1844,11 @@ func (h *Handler) articleJSONLD(post *model.Post, seo model.SEOData) template.JS
 		"articleSection":   post.CategoryName,
 		"publisher": map[string]any{
 			"@type": "NewsMediaOrganization",
-			"name":  "Inhumas em Foco",
+			"name":  settings.SiteName,
 			"url":   h.cfg.SiteURL + "/",
 			"logo": map[string]any{
 				"@type": "ImageObject",
-				"url":   h.cfg.SiteURL + "/static/images/logo.png",
+				"url":   logoURL,
 			},
 		},
 	}
@@ -1576,7 +1966,8 @@ func (h *Handler) About(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) Contact(w http.ResponseWriter, r *http.Request) {
-	seo := model.SEOData{Title: "Contato | Inhumas em Foco", Description: "Entre em contato com Inhumas em Foco", URL: h.cfg.SiteURL + "/contato", NoIndex: true}
+	settings := h.portalSettings(r.Context())
+	seo := model.SEOData{Title: "Contato | " + settings.SiteName, Description: "Entre em contato com " + settings.SiteName, URL: h.cfg.SiteURL + "/contato", NoIndex: true}
 	h.Render(w, r, "contact.html", map[string]any{"SEO": seo})
 }
 
@@ -1670,6 +2061,19 @@ func storeName(store *model.Store) string {
 	return store.Name
 }
 
+func storeCommercialStatusLabel(status string) string {
+	switch status {
+	case "lead":
+		return "Prospect"
+	case "paused":
+		return "Pausado"
+	case "inactive":
+		return "Inativo comercial"
+	default:
+		return "Cliente ativo"
+	}
+}
+
 func influencerName(influencer *model.Influencer) string {
 	if influencer == nil {
 		return ""
@@ -1696,6 +2100,86 @@ func promotionTitle(promo *model.Promotion) string {
 		return ""
 	}
 	return promo.Title
+}
+
+func promoStatusLabel(status string) string {
+	switch status {
+	case "draft":
+		return "Rascunho"
+	case "expired":
+		return "Expirada"
+	default:
+		return "Ativa"
+	}
+}
+
+func promoValidityLabel(promo model.Promotion) string {
+	today := dateOnly(time.Now())
+	start := dateOnly(promo.StartDate)
+	end := dateOnly(promo.EndDate)
+	if promo.Status == "draft" {
+		return "Rascunho"
+	}
+	if promo.Status == "expired" || end.Before(today) {
+		return "Expirada"
+	}
+	if start.After(today) {
+		return "Agendada"
+	}
+	return "No ar"
+}
+
+func promotionPubliclyVisible(promo *model.Promotion) bool {
+	if promo == nil || promo.Status != "active" {
+		return false
+	}
+	today := dateOnly(time.Now())
+	return !dateOnly(promo.StartDate).After(today) && !dateOnly(promo.EndDate).Before(today)
+}
+
+func eventTitle(event *model.Event) string {
+	if event == nil {
+		return ""
+	}
+	return event.Title
+}
+
+func classifiedTitle(classified *model.Classified) string {
+	if classified == nil {
+		return ""
+	}
+	return classified.Title
+}
+
+func classifiedExpired(classified *model.Classified) bool {
+	if classified == nil || classified.ExpiresAt == nil {
+		return false
+	}
+	return classified.ExpiresAt.Before(time.Now().AddDate(0, 0, -1))
+}
+
+func classifiedStatusLabel(status string) string {
+	switch status {
+	case "draft":
+		return "Rascunho"
+	case "archived":
+		return "Arquivado"
+	case "sold":
+		return "Vendido"
+	default:
+		return "Ativo"
+	}
+}
+
+func eventStatusLabel(status string) string {
+	switch status {
+	case "draft":
+		return "Rascunho"
+	case "archived":
+		return "Arquivado"
+	default:
+		return "Ativo"
+	}
 }
 
 func postStatusLabel(status model.PostStatus) string {
@@ -1794,6 +2278,17 @@ func bannerDaysLeft(endDate time.Time) int {
 	today := dateOnly(time.Now())
 	end := dateOnly(endDate)
 	return int(end.Sub(today).Hours() / 24)
+}
+
+func bannerCTR(banner model.Banner) string {
+	return formatCTR(banner.ClickCount, banner.ImpressionCount)
+}
+
+func formatCTR(clicks, impressions int) string {
+	if impressions <= 0 {
+		return "0.00%"
+	}
+	return fmt.Sprintf("%.2f%%", (float64(clicks)/float64(impressions))*100)
 }
 
 func dateOnly(t time.Time) time.Time {

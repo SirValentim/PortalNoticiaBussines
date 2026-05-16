@@ -11,6 +11,7 @@ import (
 	"syscall"
 	"time"
 
+	"inhumas-em-foco/internal/automation"
 	"inhumas-em-foco/internal/config"
 	"inhumas-em-foco/internal/model"
 	"inhumas-em-foco/internal/repository"
@@ -21,7 +22,7 @@ import (
 func main() {
 	cfg := config.Load()
 
-	repo, err := repository.New(cfg.DatabaseURL)
+	repo, err := repository.Open(cfg.DBDriver, cfg.DatabaseURL, cfg.MigrationsDir)
 	if err != nil {
 		log.Fatal("Erro ao conectar ao banco: ", err)
 	}
@@ -40,6 +41,7 @@ func main() {
 	for {
 		select {
 		case <-ticker.C:
+			ensureRecurringJobs(repo)
 			processJobs(repo, cfg)
 		case <-signalChan():
 			fmt.Println("Worker encerrando...")
@@ -84,6 +86,7 @@ func processJobs(repo *repository.Repository, cfg *config.Config) {
 }
 
 func ensureRecurringJobs(repo *repository.Repository) {
+	ctx := context.Background()
 	recurring := []struct {
 		jobType model.JobType
 		runAt   time.Time
@@ -96,6 +99,10 @@ func ensureRecurringJobs(repo *repository.Repository) {
 	}
 	for _, job := range recurring {
 		scheduleIfMissing(repo, job.jobType, job.runAt)
+	}
+	settings, err := repo.PortalSettingsGet(ctx)
+	if err == nil && settings.AutomationEnabled {
+		scheduleIfMissing(repo, model.JobCollectNews, time.Now().Add(automationInterval(settings)))
 	}
 }
 
@@ -111,7 +118,21 @@ func scheduleNextRecurring(repo *repository.Repository, jobType model.JobType) {
 		scheduleIfMissing(repo, jobType, nextWeekly(time.Sunday, 5, 0))
 	case model.JobCompressOldUploads:
 		scheduleIfMissing(repo, jobType, nextWeekly(time.Sunday, 5, 30))
+	case model.JobCollectNews:
+		ctx := context.Background()
+		settings, err := repo.PortalSettingsGet(ctx)
+		if err == nil && settings.AutomationEnabled {
+			scheduleIfMissing(repo, jobType, time.Now().Add(automationInterval(settings)))
+		}
 	}
+}
+
+func automationInterval(settings model.PortalSettings) time.Duration {
+	minutes := settings.AutomationIntervalMinutes
+	if minutes < 5 {
+		minutes = 5
+	}
+	return time.Duration(minutes) * time.Minute
 }
 
 func scheduleIfMissing(repo *repository.Repository, jobType model.JobType, runAt time.Time) {
@@ -205,6 +226,17 @@ func executeJob(repo *repository.Repository, cfg *config.Config, job model.Job) 
 	case model.JobCompressOldUploads:
 		provider := storage.NewLocalProvider(cfg.UploadDir, "")
 		_, err := provider.CleanupOriginals(ctx, time.Duration(cfg.OriginalRetentionDays)*24*time.Hour)
+		return err
+
+	case model.JobCollectNews:
+		settings, err := repo.PortalSettingsGet(ctx)
+		if err != nil {
+			return err
+		}
+		if !settings.AutomationEnabled {
+			return nil
+		}
+		_, err = automation.NewService(repo).RunAllActive(ctx)
 		return err
 
 	case model.JobBackupDatabase:

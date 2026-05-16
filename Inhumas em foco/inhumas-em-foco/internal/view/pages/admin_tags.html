@@ -27,7 +27,7 @@
             <td>{{if .Active}}<span class="status-pill status-published">Ativa</span>{{else}}<span class="status-pill status-muted">Inativa</span>{{end}}</td>
             <td class="admin-row-actions">
                 <a href="{{$.AdminPath}}/tags/{{.ID}}/edit" class="btn btn-sm btn-primary">Editar</a>
-                <form method="POST" action="{{$.AdminPath}}/tags/{{.ID}}/delete" onsubmit="return confirm('Tem certeza?')">
+                <form method="POST" action="{{$.AdminPath}}/tags/{{.ID}}/delete" data-confirm="Tem certeza?">
                     <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
                     <button type="submit" class="btn btn-sm btn-danger">Excluir</button>
                 </form>

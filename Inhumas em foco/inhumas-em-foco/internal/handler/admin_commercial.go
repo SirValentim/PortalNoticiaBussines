@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"encoding/csv"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -19,12 +20,45 @@ func (h *Handler) AdminBanners(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	banners, _ := h.repo.BannerList(r.Context())
+	statusFilter := normalizeBannerStatusFilter(r.URL.Query().Get("status"))
+	filtered := filterBannersByStatus(banners, statusFilter)
 	h.Render(w, r, "admin_banners.html", map[string]any{
-		"Banners":     banners,
+		"Banners":     filtered,
 		"BannerSlots": bannerSlots(banners),
-		"Summary":     bannerSummary(banners),
+		"Summary":     bannerSummary(filtered),
+		"Report":      bannerReportSummary(filtered),
+		"Status":      statusFilter,
 		"Active":      "banners",
 	})
+}
+
+func (h *Handler) AdminBannersExportCSV(w http.ResponseWriter, r *http.Request) {
+	if _, ok := h.requirePermission(w, r, auth.PermBannersManage); !ok {
+		return
+	}
+	banners, _ := h.repo.BannerList(r.Context())
+	statusFilter := normalizeBannerStatusFilter(r.URL.Query().Get("status"))
+	banners = filterBannersByStatus(banners, statusFilter)
+
+	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
+	w.Header().Set("Content-Disposition", `attachment; filename="relatorio-banners.csv"`)
+	writer := csv.NewWriter(w)
+	_ = writer.Write([]string{"campanha", "anunciante", "posicao", "status", "inicio", "fim", "impressoes", "cliques", "ctr", "valor_plano"})
+	for _, banner := range banners {
+		_ = writer.Write([]string{
+			banner.Name,
+			banner.AdvertiserName,
+			bannerPositionLabel(banner.Position),
+			bannerStatusLabel(banner.Status),
+			banner.StartDate.Format("2006-01-02"),
+			banner.EndDate.Format("2006-01-02"),
+			strconv.Itoa(banner.ImpressionCount),
+			strconv.Itoa(banner.ClickCount),
+			bannerCTR(banner),
+			banner.PriceDisplay,
+		})
+	}
+	writer.Flush()
 }
 
 func (h *Handler) AdminBannerNew(w http.ResponseWriter, r *http.Request) {
@@ -246,6 +280,13 @@ type bannerCommercialSummary struct {
 	WithoutImage int
 }
 
+type bannerReportSummaryData struct {
+	Advertisers int
+	Impressions int
+	Clicks      int
+	CTR         string
+}
+
 type bannerSlot struct {
 	Position    string
 	Label       string
@@ -287,6 +328,47 @@ func bannerSummary(banners []model.Banner) bannerCommercialSummary {
 	return summary
 }
 
+func bannerReportSummary(banners []model.Banner) bannerReportSummaryData {
+	advertisers := make(map[string]bool)
+	var summary bannerReportSummaryData
+	for _, banner := range banners {
+		name := strings.ToLower(strings.TrimSpace(banner.AdvertiserName))
+		if name != "" {
+			advertisers[name] = true
+		}
+		summary.Impressions += banner.ImpressionCount
+		summary.Clicks += banner.ClickCount
+	}
+	summary.Advertisers = len(advertisers)
+	summary.CTR = formatCTR(summary.Clicks, summary.Impressions)
+	return summary
+}
+
+func filterBannersByStatus(banners []model.Banner, status string) []model.Banner {
+	if status == "" {
+		return banners
+	}
+	filtered := make([]model.Banner, 0, len(banners))
+	for _, banner := range banners {
+		if normalizeBannerStatus(banner.Status) == status {
+			filtered = append(filtered, banner)
+		}
+	}
+	return filtered
+}
+
+func normalizeBannerStatusFilter(status string) string {
+	status = strings.ToLower(strings.TrimSpace(status))
+	switch status {
+	case "", "all":
+		return ""
+	case "active", "paused", "draft", "expired":
+		return status
+	default:
+		return ""
+	}
+}
+
 func bannerSlots(banners []model.Banner) []bannerSlot {
 	slots := []bannerSlot{
 		{Position: "hero", Label: "Topo da home", Spec: "1200 x 220", Description: "Faixa principal logo abaixo do destaque editorial."},
@@ -314,7 +396,7 @@ func (h *Handler) AdminPromotions(w http.ResponseWriter, r *http.Request) {
 	if _, ok := h.requirePermission(w, r, auth.PermPromosManage); !ok {
 		return
 	}
-	promos, _ := h.repo.PromotionListActive(r.Context(), 100)
+	promos, _ := h.repo.PromotionListAdmin(r.Context(), 200)
 	stores, _ := h.repo.StoreList(r.Context(), false, 1000)
 	storeMap := make(map[int64]string)
 	for _, s := range stores {
@@ -323,6 +405,7 @@ func (h *Handler) AdminPromotions(w http.ResponseWriter, r *http.Request) {
 	h.Render(w, r, "admin_promotions.html", map[string]any{
 		"Promos":   promos,
 		"StoreMap": storeMap,
+		"Summary":  promotionAdminSummary(promos),
 	})
 }
 
@@ -360,11 +443,14 @@ func (h *Handler) AdminPromoCreate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	promo := &model.Promotion{
-		Title:        r.FormValue("title"),
-		Description:  r.FormValue("description"),
-		PriceDisplay: r.FormValue("price_display"),
-		Status:       "active",
-		IsSponsored:  r.FormValue("is_sponsored") == "on",
+		Title:           r.FormValue("title"),
+		Description:     r.FormValue("description"),
+		PriceDisplay:    r.FormValue("price_display"),
+		CouponCode:      r.FormValue("coupon_code"),
+		Status:          normalizePromotionStatusForHandler(r.FormValue("status")),
+		IsSponsored:     r.FormValue("is_sponsored") == "on",
+		MetaTitle:       r.FormValue("meta_title"),
+		MetaDescription: r.FormValue("meta_description"),
 	}
 
 	if storeID, err := strconv.ParseInt(r.FormValue("store_id"), 10, 64); err == nil {
@@ -442,11 +528,11 @@ func (h *Handler) AdminPromoUpdate(w http.ResponseWriter, r *http.Request) {
 	promo.Title = r.FormValue("title")
 	promo.Description = r.FormValue("description")
 	promo.PriceDisplay = r.FormValue("price_display")
-	promo.Status = r.FormValue("status")
-	if promo.Status == "" {
-		promo.Status = "active"
-	}
+	promo.CouponCode = r.FormValue("coupon_code")
+	promo.Status = normalizePromotionStatusForHandler(r.FormValue("status"))
 	promo.IsSponsored = r.FormValue("is_sponsored") == "on"
+	promo.MetaTitle = r.FormValue("meta_title")
+	promo.MetaDescription = r.FormValue("meta_description")
 	if storeID, err := strconv.ParseInt(r.FormValue("store_id"), 10, 64); err == nil {
 		promo.StoreID = storeID
 	}
@@ -496,6 +582,41 @@ func (h *Handler) AdminPromoUpdate(w http.ResponseWriter, r *http.Request) {
 		"end_date":     promo.EndDate.Format("2006-01-02"),
 	})
 	http.Redirect(w, r, h.cfg.AdminPathPrefix+"/promotions", http.StatusSeeOther)
+}
+
+type promotionSummary struct {
+	Total   int
+	Active  int
+	Draft   int
+	Expired int
+	Clicks  int
+}
+
+func promotionAdminSummary(promos []model.Promotion) promotionSummary {
+	var summary promotionSummary
+	summary.Total = len(promos)
+	today := dateOnly(time.Now())
+	for _, promo := range promos {
+		summary.Clicks += promo.ClickCount
+		switch {
+		case promo.Status == "draft":
+			summary.Draft++
+		case promo.Status == "expired" || dateOnly(promo.EndDate).Before(today):
+			summary.Expired++
+		default:
+			summary.Active++
+		}
+	}
+	return summary
+}
+
+func normalizePromotionStatusForHandler(status string) string {
+	switch strings.ToLower(strings.TrimSpace(status)) {
+	case "draft", "expired":
+		return strings.ToLower(strings.TrimSpace(status))
+	default:
+		return "active"
+	}
 }
 
 func (h *Handler) AdminPromoDelete(w http.ResponseWriter, r *http.Request) {

@@ -1,0 +1,101 @@
+{{define "admin_content"}}
+<div class="admin-page-header">
+    <div>
+        <p class="admin-kicker">Agenda local</p>
+        <h1>{{if .Event}}Editar{{else}}Novo{{end}} Evento</h1>
+    </div>
+    <a href="{{.AdminPath}}/events" class="btn btn-sm">Voltar</a>
+</div>
+
+<form class="admin-form" method="POST" action="{{if .Event}}{{.AdminPath}}/events/{{.Event.ID}}{{else}}{{.AdminPath}}/events{{end}}" enctype="multipart/form-data">
+    <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+
+    <section class="admin-form-section">
+        <div class="admin-form-grid">
+            <div class="form-group">
+                <label>Titulo</label>
+                <input type="text" name="title" class="form-control" value="{{if .Event}}{{.Event.Title}}{{end}}" required maxlength="300">
+            </div>
+            <div class="form-group">
+                <label>Status</label>
+                <select name="status" class="form-control">
+                    <option value="active" {{if .Event}}{{if selected .Event.Status "active"}}selected{{end}}{{else}}selected{{end}}>Ativo</option>
+                    <option value="draft" {{if .Event}}{{if selected .Event.Status "draft"}}selected{{end}}{{end}}>Rascunho</option>
+                    <option value="archived" {{if .Event}}{{if selected .Event.Status "archived"}}selected{{end}}{{end}}>Arquivado</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Inicio</label>
+                <input type="datetime-local" name="start_at" class="form-control" value="{{if .Event}}{{datetimeLocal .Event.StartAt}}{{end}}" required>
+            </div>
+            <div class="form-group">
+                <label>Fim</label>
+                <input type="datetime-local" name="end_at" class="form-control" value="{{if .Event}}{{datetimeLocal .Event.EndAt}}{{end}}">
+            </div>
+            <div class="form-group">
+                <label>Local</label>
+                <input type="text" name="location" class="form-control" value="{{if .Event}}{{.Event.Location}}{{end}}" maxlength="300">
+            </div>
+            <div class="form-group">
+                <label>Organizador</label>
+                <input type="text" name="organizer" class="form-control" value="{{if .Event}}{{.Event.Organizer}}{{end}}" maxlength="200">
+            </div>
+        </div>
+        <div class="form-group">
+            <label>Descricao</label>
+            <textarea name="description" class="form-control" rows="7">{{if .Event}}{{.Event.Description}}{{end}}</textarea>
+        </div>
+    </section>
+
+    <section class="admin-form-section">
+        <div class="admin-form-grid">
+            <div class="form-group">
+                <label>Imagem</label>
+                {{if and .Event .Event.ImageKey}}
+                <img class="admin-cover-preview" src="{{imageURL .Event.ImageKey}}" alt="{{.Event.Title}}">
+                <label class="checkbox-control"><input type="checkbox" name="remove_image"><span>Remover imagem atual</span></label>
+                {{end}}
+                <input type="file" name="image" class="form-control" accept="image/*">
+                {{if .MediaAssets}}
+                <label>Ou escolher da biblioteca</label>
+                <select name="image_media_key" class="form-control">
+                    <option value="">Manter / nenhuma</option>
+                    {{range .MediaAssets}}
+                    <option value="{{.Key}}" {{if and $.Event (eq $.Event.ImageKey .Key)}}selected{{end}}>{{if .Title}}{{.Title}}{{else}}{{.OriginalName}}{{end}}</option>
+                    {{end}}
+                </select>
+                {{end}}
+            </div>
+            <div class="form-group">
+                <label>Link de ingresso/inscricao</label>
+                <input type="url" name="ticket_url" class="form-control" value="{{if .Event}}{{.Event.TicketURL}}{{end}}" placeholder="https://...">
+                <label>Valor/entrada</label>
+                <input type="text" name="price_display" class="form-control" value="{{if .Event}}{{.Event.PriceDisplay}}{{end}}" placeholder="Gratuito, R$ 30,00...">
+                <div class="admin-check-grid">
+                    <label class="checkbox-control"><input type="checkbox" name="is_featured" {{if .Event}}{{if .Event.IsFeatured}}checked{{end}}{{end}}><span>Destaque</span></label>
+                    <label class="checkbox-control"><input type="checkbox" name="is_sponsored" {{if .Event}}{{if .Event.IsSponsored}}checked{{end}}{{end}}><span>Patrocinado</span></label>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="admin-form-section">
+        <h3>SEO</h3>
+        <div class="admin-form-grid">
+            <div class="form-group">
+                <label>Meta title</label>
+                <input type="text" name="meta_title" class="form-control" value="{{if .Event}}{{.Event.MetaTitle}}{{end}}" maxlength="200">
+            </div>
+            <div class="form-group">
+                <label>Meta description</label>
+                <textarea name="meta_description" class="form-control" rows="4" maxlength="300">{{if .Event}}{{.Event.MetaDescription}}{{end}}</textarea>
+            </div>
+        </div>
+    </section>
+
+    <div class="admin-form-actions">
+        <a href="{{.AdminPath}}/events" class="btn">Cancelar</a>
+        <button type="submit" class="btn btn-primary btn-lg">Salvar evento</button>
+    </div>
+</form>
+{{end}}

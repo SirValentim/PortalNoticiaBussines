@@ -4,41 +4,168 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{.Title}} | Painel Inhumas em Foco</title>
-    <link rel="stylesheet" href="/static/css/style.css?v=20260430-editorial-v1">
+    <link rel="stylesheet" href="/static/css/style.css?v=20260516-admin-ux-v1">
 </head>
 <body>
     <div class="admin-layout">
         <aside class="admin-sidebar">
-            <h2>Painel</h2>
-            <nav>
-                <a href="{{.AdminPath}}" {{if eq .Active "dashboard"}}class="active"{{end}}>Dashboard</a>
-                <a href="{{.AdminPath}}/posts" {{if eq .Active "posts"}}class="active"{{end}}>Noticias</a>
-                <a href="{{.AdminPath}}/categories" {{if eq .Active "categories"}}class="active"{{end}}>Categorias</a>
-                <a href="{{.AdminPath}}/tags" {{if eq .Active "tags"}}class="active"{{end}}>Tags</a>
-                <a href="{{.AdminPath}}/media" {{if eq .Active "media"}}class="active"{{end}}>Midia</a>
-                <a href="{{.AdminPath}}/stores" {{if eq .Active "stores"}}class="active"{{end}}>Lojas</a>
-                <a href="{{.AdminPath}}/influencers" {{if eq .Active "influencers"}}class="active"{{end}}>Influencers</a>
-                <a href="{{.AdminPath}}/banners" {{if eq .Active "banners"}}class="active"{{end}}>Banners</a>
-                <a href="{{.AdminPath}}/promotions" {{if eq .Active "promotions"}}class="active"{{end}}>Promocoes</a>
-                <a href="{{.AdminPath}}/neighborhoods" {{if eq .Active "neighborhoods"}}class="active"{{end}}>Bairros</a>
-                <a href="{{.AdminPath}}/users" {{if eq .Active "users"}}class="active"{{end}}>Usuarios</a>
-                <a href="{{.AdminPath}}/metrics" {{if eq .Active "metrics"}}class="active"{{end}}>Metricas</a>
-                <a href="{{.AdminPath}}/audit" {{if eq .Active "audit"}}class="active"{{end}}>Auditoria</a>
-                <a href="{{.AdminPath}}/dead-jobs" {{if eq .Active "dead_jobs"}}class="active"{{end}}>Jobs com falha</a>
-                <hr style="border-color:rgba(255,255,255,0.1);margin:16px 0;">
-                <a href="/">Ver site</a>
-                <a href="/logout">Sair</a>
+            <div class="admin-brand">
+                <span class="admin-brand-mark">IF</span>
+                <div>
+                    <strong>Inhumas em Foco</strong>
+                    <small>CMS Editorial</small>
+                </div>
+            </div>
+            <nav aria-label="Navegacao administrativa">
+                <div class="admin-nav-group">
+                    <span class="admin-nav-label">Operacao</span>
+                    <a href="{{.AdminPath}}" {{if eq .Active "dashboard"}}class="active"{{end}}>Dashboard</a>
+                    <a href="{{.AdminPath}}/metrics" {{if eq .Active "metrics"}}class="active"{{end}}>Metricas</a>
+                    <a href="{{.AdminPath}}/dead-jobs" {{if eq .Active "dead_jobs"}}class="active"{{end}}>Jobs com falha</a>
+                </div>
+                <div class="admin-nav-group">
+                    <span class="admin-nav-label">Editorial</span>
+                    <a href="{{.AdminPath}}/posts" {{if eq .Active "posts"}}class="active"{{end}}>Noticias</a>
+                    <a href="{{.AdminPath}}/automation" {{if eq .Active "automation"}}class="active"{{end}}>Automacao</a>
+                    <a href="{{.AdminPath}}/categories" {{if eq .Active "categories"}}class="active"{{end}}>Categorias</a>
+                    <a href="{{.AdminPath}}/tags" {{if eq .Active "tags"}}class="active"{{end}}>Tags</a>
+                    <a href="{{.AdminPath}}/media" {{if eq .Active "media"}}class="active"{{end}}>Midia</a>
+                </div>
+                <div class="admin-nav-group">
+                    <span class="admin-nav-label">Comercial local</span>
+                    <a href="{{.AdminPath}}/banners" {{if eq .Active "banners"}}class="active"{{end}}>Banners</a>
+                    <a href="{{.AdminPath}}/stores" {{if eq .Active "stores"}}class="active"{{end}}>Lojas</a>
+                    <a href="{{.AdminPath}}/promotions" {{if eq .Active "promotions"}}class="active"{{end}}>Promocoes</a>
+                    <a href="{{.AdminPath}}/events" {{if eq .Active "events"}}class="active"{{end}}>Eventos</a>
+                    <a href="{{.AdminPath}}/classifieds" {{if eq .Active "classifieds"}}class="active"{{end}}>Classificados</a>
+                    <a href="{{.AdminPath}}/influencers" {{if eq .Active "influencers"}}class="active"{{end}}>Influencers</a>
+                    <a href="{{.AdminPath}}/neighborhoods" {{if eq .Active "neighborhoods"}}class="active"{{end}}>Bairros</a>
+                </div>
+                <div class="admin-nav-group">
+                    <span class="admin-nav-label">Sistema</span>
+                    <a href="{{.AdminPath}}/users" {{if eq .Active "users"}}class="active"{{end}}>Usuarios</a>
+                    <a href="{{.AdminPath}}/audit" {{if eq .Active "audit"}}class="active"{{end}}>Auditoria</a>
+                    <a href="{{.AdminPath}}/settings" {{if eq .Active "settings"}}class="active"{{end}}>Configuracoes</a>
+                </div>
             </nav>
         </aside>
         <main class="admin-main">
-            {{if .Error}}
-            <div class="alert alert-error">{{.Error}}</div>
-            {{end}}
-            {{if .Success}}
-            <div class="alert alert-success">{{.Success}}</div>
-            {{end}}
-            {{template "admin_content" .}}
+            <header class="admin-topbar">
+                <div class="admin-topbar-title">
+                    <span>{{.Title}}</span>
+                    {{if .User}}<small>{{.User.Name}} - {{.User.Role}}</small>{{end}}
+                </div>
+                <div class="admin-topbar-actions">
+                    <a class="admin-icon-link" href="{{.AdminPath}}/posts/new" title="Nova noticia" aria-label="Nova noticia">+</a>
+                    <a class="admin-topbar-link" href="/">Ver site</a>
+                    <a class="admin-topbar-link" href="/logout">Sair</a>
+                </div>
+            </header>
+
+            <div class="admin-toast-region" aria-live="polite" aria-atomic="true">
+                {{if .Error}}
+                <div class="admin-toast admin-toast-error" role="alert">{{.Error}}</div>
+                {{end}}
+                {{if .Success}}
+                <div class="admin-toast admin-toast-success" role="status">{{.Success}}</div>
+                {{end}}
+            </div>
+
+            <div class="admin-content-shell">
+                {{template "admin_content" .}}
+            </div>
         </main>
     </div>
+    <div class="admin-confirm-backdrop" data-confirm-modal hidden>
+        <div class="admin-confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="admin-confirm-title">
+            <span class="admin-kicker">Confirmacao</span>
+            <h2 id="admin-confirm-title">Confirmar acao</h2>
+            <p data-confirm-message>Tem certeza?</p>
+            <div class="admin-confirm-actions">
+                <button type="button" class="btn" data-confirm-cancel>Cancelar</button>
+                <button type="button" class="btn btn-danger" data-confirm-accept>Confirmar</button>
+            </div>
+        </div>
+    </div>
+    <script>
+    (function () {
+        var pendingForm = null;
+        var modal = document.querySelector('[data-confirm-modal]');
+        var message = document.querySelector('[data-confirm-message]');
+        var accept = document.querySelector('[data-confirm-accept]');
+        var cancel = document.querySelector('[data-confirm-cancel]');
+
+        function openConfirm(form) {
+            pendingForm = form;
+            message.textContent = form.getAttribute('data-confirm') || 'Tem certeza?';
+            modal.hidden = false;
+            accept.focus();
+        }
+
+        function closeConfirm() {
+            modal.hidden = true;
+            pendingForm = null;
+        }
+
+        document.addEventListener('submit', function (event) {
+            var form = event.target;
+            if (!(form instanceof HTMLFormElement)) return;
+            if (form.hasAttribute('data-confirm') && !form.dataset.confirmed) {
+                event.preventDefault();
+                openConfirm(form);
+                return;
+            }
+            form.setAttribute('aria-busy', 'true');
+            form.querySelectorAll('button[type="submit"], input[type="submit"]').forEach(function (button) {
+                button.disabled = true;
+                if (button.tagName === 'BUTTON' && !button.dataset.originalText) {
+                    button.dataset.originalText = button.textContent;
+                    button.textContent = 'Processando...';
+                }
+            });
+        });
+
+        accept.addEventListener('click', function () {
+            if (!pendingForm) return;
+            pendingForm.dataset.confirmed = 'true';
+            pendingForm.requestSubmit();
+            closeConfirm();
+        });
+        cancel.addEventListener('click', closeConfirm);
+        modal.addEventListener('click', function (event) {
+            if (event.target === modal) closeConfirm();
+        });
+        document.addEventListener('keydown', function (event) {
+            if (event.key === 'Escape' && !modal.hidden) closeConfirm();
+        });
+
+        document.querySelectorAll('.admin-toast').forEach(function (toast) {
+            window.setTimeout(function () {
+                toast.classList.add('is-hiding');
+            }, 5200);
+        });
+
+        document.querySelectorAll('.admin-filters, .admin-filter-form').forEach(function (form) {
+            if (!(form instanceof HTMLFormElement) || form.method.toLowerCase() !== 'get') return;
+            var key = 'inhumas-filter:' + location.pathname + ':' + form.className;
+            if (!location.search) {
+                try {
+                    var saved = JSON.parse(localStorage.getItem(key) || '{}');
+                    Object.keys(saved).forEach(function (name) {
+                        var field = form.elements[name];
+                        if (field && !field.value) field.value = saved[name];
+                    });
+                } catch (err) {}
+            }
+            form.addEventListener('submit', function () {
+                var values = {};
+                Array.prototype.forEach.call(form.elements, function (field) {
+                    if (field.name && field.value) values[field.name] = field.value;
+                });
+                localStorage.setItem(key, JSON.stringify(values));
+            });
+        });
+    })();
+    </script>
 </body>
 </html>

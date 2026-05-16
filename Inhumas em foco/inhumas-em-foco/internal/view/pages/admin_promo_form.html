@@ -33,16 +33,18 @@
                 <label>Preco / Oferta</label>
                 <input type="text" name="price_display" class="form-control" value="{{if .Promo}}{{.Promo.PriceDisplay}}{{end}}" placeholder="Ex: R$ 29,90">
             </div>
-            {{if .Promo}}
+            <div class="form-group">
+                <label>Cupom</label>
+                <input type="text" name="coupon_code" class="form-control" value="{{if .Promo}}{{.Promo.CouponCode}}{{end}}" placeholder="Ex: INHUMAS10">
+            </div>
             <div class="form-group">
                 <label>Status</label>
                 <select name="status" class="form-control">
-                    <option value="active" {{if eq .Promo.Status "active"}}selected{{end}}>Ativa</option>
-                    <option value="expired" {{if eq .Promo.Status "expired"}}selected{{end}}>Expirada</option>
-                    <option value="draft" {{if eq .Promo.Status "draft"}}selected{{end}}>Rascunho</option>
+                    <option value="active" {{if .Promo}}{{if eq .Promo.Status "active"}}selected{{end}}{{else}}selected{{end}}>Ativa</option>
+                    <option value="expired" {{if .Promo}}{{if eq .Promo.Status "expired"}}selected{{end}}{{end}}>Expirada</option>
+                    <option value="draft" {{if .Promo}}{{if eq .Promo.Status "draft"}}selected{{end}}{{end}}>Rascunho</option>
                 </select>
             </div>
-            {{end}}
         </div>
     </section>
 
@@ -75,6 +77,20 @@
             </div>
         </div>
         <label class="checkbox-control"><input type="checkbox" name="is_sponsored" {{if .Promo}}{{if .Promo.IsSponsored}}checked{{end}}{{end}}><span>Patrocinado</span></label>
+    </section>
+
+    <section class="admin-form-section">
+        <h3>SEO</h3>
+        <div class="admin-form-grid">
+            <div class="form-group">
+                <label>Meta title</label>
+                <input type="text" name="meta_title" class="form-control" value="{{if .Promo}}{{.Promo.MetaTitle}}{{end}}" maxlength="200">
+            </div>
+            <div class="form-group">
+                <label>Meta description</label>
+                <textarea name="meta_description" class="form-control" rows="4" maxlength="300">{{if .Promo}}{{.Promo.MetaDescription}}{{end}}</textarea>
+            </div>
+        </div>
     </section>
 
     <div class="admin-form-actions">

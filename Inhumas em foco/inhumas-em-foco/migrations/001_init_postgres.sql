@@ -1,5 +1,5 @@
 CREATE TYPE job_status AS ENUM ('pending','running','completed','failed');
-CREATE TYPE job_type AS ENUM ('publish_post','expire_promotion','expire_banner','backup_database','vacuum_db','generate_sitemap','cleanup_old_jobs','compress_old_uploads');
+CREATE TYPE job_type AS ENUM ('publish_post','expire_promotion','expire_banner','backup_database','vacuum_db','generate_sitemap','cleanup_old_jobs','compress_old_uploads','collect_news');
 CREATE TYPE user_role AS ENUM ('super_admin','admin','editor','redator','revisor','comercial');
 CREATE TYPE post_status AS ENUM ('draft','review','approved','scheduled','published','archived');
 
@@ -119,6 +119,71 @@ CREATE TABLE media_assets (
 CREATE INDEX idx_media_assets_created ON media_assets(created_at DESC);
 CREATE INDEX idx_media_assets_search ON media_assets(original_name, title, alt_text);
 
+CREATE TABLE portal_settings (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    site_name VARCHAR(200) NOT NULL,
+    tagline TEXT,
+    logo_key VARCHAR(500),
+    favicon_key VARCHAR(500),
+    contact_email VARCHAR(200),
+    contact_whatsapp VARCHAR(60),
+    contact_phone VARCHAR(60),
+    city VARCHAR(120),
+    state VARCHAR(2),
+    seo_title VARCHAR(200),
+    seo_description VARCHAR(300),
+    facebook_url TEXT,
+    instagram_url TEXT,
+    youtube_url TEXT,
+    tiktok_url TEXT,
+    upload_max_mb INTEGER DEFAULT 2,
+    automation_enabled BOOLEAN DEFAULT false,
+    automation_interval_minutes INTEGER DEFAULT 60,
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE automation_sources (
+    id BIGSERIAL PRIMARY KEY,
+    name VARCHAR(200) NOT NULL,
+    source_type VARCHAR(40) NOT NULL DEFAULT 'rss',
+    url TEXT NOT NULL,
+    default_category_id INT REFERENCES categories(id),
+    active BOOLEAN DEFAULT true,
+    last_run_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+CREATE INDEX idx_automation_sources_active ON automation_sources(active, source_type);
+
+CREATE TABLE automation_runs (
+    id BIGSERIAL PRIMARY KEY,
+    source_id BIGINT REFERENCES automation_sources(id),
+    status VARCHAR(40) NOT NULL DEFAULT 'success',
+    items_found INTEGER DEFAULT 0,
+    drafts_created INTEGER DEFAULT 0,
+    duplicates INTEGER DEFAULT 0,
+    error TEXT,
+    log TEXT,
+    started_at TIMESTAMP DEFAULT NOW(),
+    finished_at TIMESTAMP
+);
+CREATE INDEX idx_automation_runs_started ON automation_runs(started_at DESC);
+
+CREATE TABLE ai_usage_logs (
+    id BIGSERIAL PRIMARY KEY,
+    post_id BIGINT REFERENCES posts(id) ON DELETE SET NULL,
+    user_id BIGINT REFERENCES users(id) ON DELETE SET NULL,
+    action VARCHAR(80) NOT NULL,
+    provider VARCHAR(80) NOT NULL,
+    input_title VARCHAR(300),
+    output JSONB NOT NULL DEFAULT '{}'::jsonb,
+    source_name VARCHAR(200),
+    source_url TEXT,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+CREATE INDEX idx_ai_usage_post ON ai_usage_logs(post_id, created_at DESC);
+CREATE INDEX idx_ai_usage_created ON ai_usage_logs(created_at DESC);
+
 CREATE TABLE post_tags (
     post_id BIGINT NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
     tag_id BIGINT NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
@@ -163,12 +228,15 @@ CREATE TABLE influencers (
     name VARCHAR(200) NOT NULL,
     bio TEXT,
     city_area VARCHAR(200),
+    niche VARCHAR(120),
     instagram TEXT,
     tiktok TEXT,
     youtube TEXT,
     whatsapp VARCHAR(40),
     avatar_key TEXT,
     cover_image_key TEXT,
+    meta_title VARCHAR(200),
+    meta_description VARCHAR(300),
     is_featured BOOLEAN DEFAULT false,
     is_sponsored BOOLEAN DEFAULT false,
     active BOOLEAN DEFAULT true,
@@ -184,8 +252,12 @@ CREATE TABLE stores (
     address TEXT,
     phone VARCHAR(50),
     whatsapp VARCHAR(50),
+    website_url TEXT,
     logo_key VARCHAR(500),
     cover_image_key VARCHAR(500),
+    commercial_status VARCHAR(50) DEFAULT 'active',
+    meta_title VARCHAR(200),
+    meta_description VARCHAR(300),
     is_sponsored BOOLEAN DEFAULT false,
     is_featured BOOLEAN DEFAULT false,
     neighborhood_id INT REFERENCES neighborhoods(id),
@@ -200,23 +272,80 @@ CREATE TABLE promotions (
     slug VARCHAR(300) UNIQUE NOT NULL,
     description TEXT,
     price_display VARCHAR(100),
+    coupon_code VARCHAR(80),
     image_key VARCHAR(500),
     start_date DATE NOT NULL,
     end_date DATE NOT NULL,
     status VARCHAR(50) DEFAULT 'active',
     is_sponsored BOOLEAN DEFAULT false,
+    meta_title VARCHAR(200),
+    meta_description VARCHAR(300),
     created_at TIMESTAMP DEFAULT NOW()
 );
 CREATE INDEX idx_promotions_active ON promotions(store_id, status, end_date) WHERE status = 'active';
 
+CREATE TABLE events (
+    id BIGSERIAL PRIMARY KEY,
+    slug VARCHAR(300) UNIQUE NOT NULL,
+    title VARCHAR(300) NOT NULL,
+    description TEXT,
+    location VARCHAR(300),
+    organizer VARCHAR(200),
+    ticket_url TEXT,
+    price_display VARCHAR(120),
+    image_key VARCHAR(500),
+    status VARCHAR(50) DEFAULT 'active',
+    is_featured BOOLEAN DEFAULT false,
+    is_sponsored BOOLEAN DEFAULT false,
+    meta_title VARCHAR(200),
+    meta_description VARCHAR(300),
+    start_at TIMESTAMP NOT NULL,
+    end_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+CREATE INDEX idx_events_status_start ON events(status, start_at);
+CREATE INDEX idx_events_featured ON events(is_featured, status, start_at);
+
+CREATE TABLE classifieds (
+    id BIGSERIAL PRIMARY KEY,
+    slug VARCHAR(300) UNIQUE NOT NULL,
+    title VARCHAR(300) NOT NULL,
+    description TEXT,
+    category VARCHAR(120),
+    price_display VARCHAR(120),
+    contact_name VARCHAR(200),
+    contact_phone VARCHAR(60),
+    contact_whatsapp VARCHAR(60),
+    location VARCHAR(200),
+    image_key VARCHAR(500),
+    status VARCHAR(50) DEFAULT 'active',
+    is_featured BOOLEAN DEFAULT false,
+    is_sponsored BOOLEAN DEFAULT false,
+    meta_title VARCHAR(200),
+    meta_description VARCHAR(300),
+    expires_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+);
+CREATE INDEX idx_classifieds_status_category ON classifieds(status, category, created_at DESC);
+CREATE INDEX idx_classifieds_featured ON classifieds(is_featured, status, created_at DESC);
+
 CREATE TABLE banners (
     id BIGSERIAL PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
+    advertiser_name VARCHAR(200),
+    contact_name VARCHAR(200),
+    contact_phone VARCHAR(60),
+    contact_whatsapp VARCHAR(60),
+    price_display VARCHAR(120),
+    notes TEXT,
     position VARCHAR(50) NOT NULL,
     image_key VARCHAR(500) NOT NULL,
     link_url TEXT NOT NULL,
     start_date DATE NOT NULL,
     end_date DATE NOT NULL,
+    status VARCHAR(40) DEFAULT 'active',
     active BOOLEAN DEFAULT true,
     priority INT DEFAULT 0,
     created_at TIMESTAMP DEFAULT NOW()
@@ -237,7 +366,18 @@ CREATE TABLE jobs (
 );
 CREATE INDEX idx_jobs_pending ON jobs(run_at) WHERE status = 'pending';
 
-CREATE TABLE dead_jobs (LIKE jobs INCLUDING ALL);
+CREATE TABLE dead_jobs (
+    id BIGSERIAL PRIMARY KEY,
+    type job_type NOT NULL,
+    payload JSONB NOT NULL DEFAULT '{}',
+    status job_status DEFAULT 'failed',
+    run_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    attempts INT DEFAULT 0,
+    max_attempts INT DEFAULT 3,
+    error TEXT,
+    processed_at TIMESTAMP WITH TIME ZONE
+);
 
 CREATE TABLE metrics (
     id BIGSERIAL PRIMARY KEY,

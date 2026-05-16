@@ -19,9 +19,11 @@ func (h *Handler) adminPostFormData(ctx context.Context, user *model.User, post 
 	cats, _ := h.repo.CategoryList(ctx)
 	tags, _ := h.repo.TagList(ctx, true)
 	var revisions []model.PostRevision
+	var aiLogs []model.AIUsageLog
 	isEditing := post != nil && post.ID > 0
 	if isEditing {
 		revisions, _ = h.repo.PostRevisionList(ctx, post.ID, 12)
+		aiLogs, _ = h.repo.AIUsageLogListForPost(ctx, post.ID, 8)
 	}
 	data := map[string]any{
 		"Categories":     cats,
@@ -29,6 +31,7 @@ func (h *Handler) adminPostFormData(ctx context.Context, user *model.User, post 
 		"SelectedTagIDs": selectedTagIDs(post),
 		"SEOChecklist":   seoChecklist(post),
 		"Revisions":      revisions,
+		"AIUsageLogs":    aiLogs,
 		"Post":           post,
 		"IsEditing":      isEditing,
 		"MediaAssets":    h.mediaAssetsForForms(ctx),

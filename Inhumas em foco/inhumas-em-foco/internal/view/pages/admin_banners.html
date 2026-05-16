@@ -35,6 +35,32 @@
 <section class="admin-form-section">
     <div class="admin-section-header">
         <div>
+            <h3 class="admin-section-title">Relatorio comercial</h3>
+            <p>Prestacao de contas por campanha, anunciante, posicao e desempenho.</p>
+        </div>
+        <a href="{{.AdminPath}}/banners/export.csv{{if .Status}}?status={{.Status}}{{end}}" class="btn btn-sm">Exportar CSV</a>
+    </div>
+    <form method="GET" action="{{.AdminPath}}/banners" class="admin-filters">
+        <select name="status" class="form-control">
+            <option value="" {{if not .Status}}selected{{end}}>Todos os status</option>
+            <option value="active" {{if selected .Status "active"}}selected{{end}}>Ativos</option>
+            <option value="paused" {{if selected .Status "paused"}}selected{{end}}>Pausados</option>
+            <option value="draft" {{if selected .Status "draft"}}selected{{end}}>Rascunhos</option>
+            <option value="expired" {{if selected .Status "expired"}}selected{{end}}>Expirados</option>
+        </select>
+        <button type="submit" class="btn btn-primary">Filtrar</button>
+    </form>
+    <div class="stats-grid commercial-stats-grid">
+        <div class="stat-card"><h3>{{.Report.Advertisers}}</h3><p>anunciantes</p></div>
+        <div class="stat-card"><h3>{{.Report.Impressions}}</h3><p>impressoes</p></div>
+        <div class="stat-card"><h3>{{.Report.Clicks}}</h3><p>cliques</p></div>
+        <div class="stat-card"><h3>{{.Report.CTR}}</h3><p>CTR medio</p></div>
+    </div>
+</section>
+
+<section class="admin-form-section">
+    <div class="admin-section-header">
+        <div>
             <h3 class="admin-section-title">Campanhas cadastradas</h3>
             <p>Controle cliente, periodo, arte, status e posicao comercial.</p>
         </div>
@@ -47,6 +73,9 @@
                     <th>Cliente</th>
                     <th>Posicao</th>
                     <th>Periodo</th>
+                    <th>Impressoes</th>
+                    <th>Cliques</th>
+                    <th>CTR</th>
                     <th>Status</th>
                     <th>Acoes</th>
                 </tr>
@@ -67,17 +96,20 @@
                         {{.StartDate | formatDate}} - {{.EndDate | formatDate}}
                         {{if eq .Status "active"}}<small>{{bannerDaysLeft .EndDate}} dias restantes</small>{{end}}
                     </td>
+                    <td>{{.ImpressionCount}}</td>
+                    <td>{{.ClickCount}}</td>
+                    <td>{{bannerCTR .}}</td>
                     <td><span class="status-pill status-{{.Status}}">{{bannerStatusLabel .Status}}</span>{{if not .ImageKey}}<small>sem imagem</small>{{end}}</td>
                     <td class="admin-row-actions">
                         <a href="{{$.AdminPath}}/banners/{{.ID}}/edit" class="btn btn-sm btn-primary">Editar</a>
-                        <form method="POST" action="{{$.AdminPath}}/banners/{{.ID}}/delete" onsubmit="return confirm('Tem certeza?')">
+                        <form method="POST" action="{{$.AdminPath}}/banners/{{.ID}}/delete" data-confirm="Tem certeza?">
                             <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
                             <button type="submit" class="btn btn-sm btn-danger">Excluir</button>
                         </form>
                     </td>
                 </tr>
                 {{else}}
-                <tr><td colspan="6" class="empty-state">Nenhum banner cadastrado</td></tr>
+                <tr><td colspan="9" class="empty-state">Nenhum banner cadastrado</td></tr>
                 {{end}}
             </tbody>
         </table>

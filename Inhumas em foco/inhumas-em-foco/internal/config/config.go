@@ -8,7 +8,9 @@ import (
 
 type Config struct {
 	Port                  string
+	DBDriver              string
 	DatabaseURL           string
+	MigrationsDir         string
 	SessionSecret         string
 	PreviousSessionSecret string
 	AdminPathPrefix       string
@@ -20,6 +22,8 @@ type Config struct {
 	MetricsToken          string
 	BackupDir             string
 	BackupScript          string
+	CSPReportOnly         bool
+	CSPReportURI          string
 	SMTPHost              string
 	SMTPPort              string
 	SMTPUsername          string
@@ -49,9 +53,12 @@ func Load() *Config {
 		originalRetentionDays = 7
 	}
 	maintMode, _ := strconv.ParseBool(os.Getenv("MAINTENANCE_MODE"))
+	cspReportOnly, _ := strconv.ParseBool(os.Getenv("CSP_REPORT_ONLY"))
 	return &Config{
 		Port:                  port,
+		DBDriver:              strings.ToLower(strings.TrimSpace(getEnv("DB_DRIVER", ""))),
 		DatabaseURL:           getEnv("DATABASE_URL", "./inhumas.db"),
+		MigrationsDir:         getEnv("MIGRATIONS_DIR", "./migrations"),
 		SessionSecret:         getEnv("SESSION_SECRET", "change-me-in-production-32-bytes-minimum-length-here"),
 		PreviousSessionSecret: os.Getenv("PREVIOUS_SESSION_SECRET"),
 		AdminPathPrefix:       getEnv("ADMIN_PATH_PREFIX", "/painel/7x9k2m"),
@@ -63,6 +70,8 @@ func Load() *Config {
 		MetricsToken:          os.Getenv("METRICS_TOKEN"),
 		BackupDir:             os.Getenv("BACKUP_DIR"),
 		BackupScript:          os.Getenv("BACKUP_SCRIPT"),
+		CSPReportOnly:         cspReportOnly,
+		CSPReportURI:          os.Getenv("CSP_REPORT_URI"),
 		SMTPHost:              os.Getenv("SMTP_HOST"),
 		SMTPPort:              getEnv("SMTP_PORT", "587"),
 		SMTPUsername:          os.Getenv("SMTP_USERNAME"),

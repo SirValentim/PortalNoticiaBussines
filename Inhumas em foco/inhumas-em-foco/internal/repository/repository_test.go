@@ -47,6 +47,42 @@ func TestUserUpdate(t *testing.T) {
 	}
 }
 
+func TestOpenSQLiteMarksSchemaMigration(t *testing.T) {
+	repo, err := Open("sqlite", ":memory:", "")
+	if err != nil {
+		t.Fatalf("Open sqlite failed: %v", err)
+	}
+	defer repo.Close()
+	if repo.Driver() != "sqlite" {
+		t.Fatalf("driver = %q, want sqlite", repo.Driver())
+	}
+	var count int
+	if err := repo.DB().QueryRow(`SELECT COUNT(*) FROM schema_migrations WHERE version = 'sqlite_auto'`).Scan(&count); err != nil {
+		t.Fatalf("schema migration lookup failed: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("schema migration count = %d, want 1", count)
+	}
+}
+
+func TestNormalizeDriver(t *testing.T) {
+	cases := []struct {
+		driver string
+		url    string
+		want   string
+	}{
+		{"", "postgres://user:pass@localhost/db", "postgres"},
+		{"pg", "./inhumas.db", "postgres"},
+		{"sqlite3", "postgres://ignored", "sqlite"},
+		{"", "./inhumas.db", "sqlite"},
+	}
+	for _, tc := range cases {
+		if got := normalizeDriver(tc.driver, tc.url); got != tc.want {
+			t.Fatalf("normalizeDriver(%q,%q) = %q, want %q", tc.driver, tc.url, got, tc.want)
+		}
+	}
+}
+
 func TestJobRecordFailureBackoffAndDeadJobs(t *testing.T) {
 	repo, err := New(":memory:")
 	if err != nil {

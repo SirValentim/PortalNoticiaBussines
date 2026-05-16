@@ -5,9 +5,12 @@ import (
 	"crypto/rand"
 	"crypto/subtle"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
+	"os"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -20,9 +23,14 @@ import (
 )
 
 var (
-	startedAt     = time.Now()
-	requestsTotal uint64
+	startedAt           = time.Now()
+	requestsTotal       uint64
+	structuredLogWriter io.Writer = os.Stdout
 )
+
+type requestContextKey string
+
+const requestIDKey requestContextKey = "request_id"
 
 type OperationalMetrics struct {
 	StartedAt     time.Time `json:"started_at"`
@@ -39,17 +47,151 @@ func MetricsSnapshot() OperationalMetrics {
 }
 
 func SecurityHeaders(next http.Handler) http.Handler {
+	return SecurityHeadersWithConfig(nil)(next)
+}
+
+func SecurityHeadersWithConfig(cfg *config.Config) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("X-Frame-Options", "SAMEORIGIN")
+			w.Header().Set("X-Content-Type-Options", "nosniff")
+			w.Header().Set("X-XSS-Protection", "1; mode=block")
+			w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
+			w.Header().Set("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=()")
+			w.Header().Set("Content-Security-Policy", cspHeader(true, isHTTPSRequest(r), ""))
+			if cfg != nil && cfg.CSPReportOnly {
+				w.Header().Set("Content-Security-Policy-Report-Only", cspHeader(false, false, cfg.CSPReportURI))
+			}
+			if isHTTPSRequest(r) {
+				w.Header().Set("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload")
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
+func cspHeader(allowUnsafeInline bool, upgradeInsecure bool, reportURI string) string {
+	scriptSrc := "script-src 'self'"
+	styleSrc := "style-src 'self'"
+	if allowUnsafeInline {
+		scriptSrc += " 'unsafe-inline'"
+		styleSrc += " 'unsafe-inline'"
+	}
+	directives := []string{
+		"default-src 'self'",
+		scriptSrc,
+		styleSrc,
+		"img-src 'self' data: https:",
+		"font-src 'self'",
+		"connect-src 'self'",
+		"object-src 'none'",
+		"frame-ancestors 'self'",
+		"base-uri 'self'",
+		"form-action 'self'",
+	}
+	if upgradeInsecure {
+		directives = append(directives, "upgrade-insecure-requests")
+	}
+	if reportURI != "" {
+		directives = append(directives, "report-uri "+reportURI)
+	}
+	return strings.Join(directives, "; ")
+}
+
+func isHTTPSRequest(r *http.Request) bool {
+	return r.TLS != nil || strings.EqualFold(r.Header.Get("X-Forwarded-Proto"), "https")
+}
+
+type responseRecorder struct {
+	http.ResponseWriter
+	status int
+	bytes  int
+}
+
+func (r *responseRecorder) WriteHeader(status int) {
+	if r.status != 0 {
+		return
+	}
+	r.status = status
+	r.ResponseWriter.WriteHeader(status)
+}
+
+func (r *responseRecorder) Write(body []byte) (int, error) {
+	if r.status == 0 {
+		r.status = http.StatusOK
+	}
+	n, err := r.ResponseWriter.Write(body)
+	r.bytes += n
+	return n, err
+}
+
+func (r *responseRecorder) Flush() {
+	flusher, ok := r.ResponseWriter.(http.Flusher)
+	if !ok {
+		return
+	}
+	flusher.Flush()
+}
+
+func StructuredLogger(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("X-Frame-Options", "SAMEORIGIN")
-		w.Header().Set("X-Content-Type-Options", "nosniff")
-		w.Header().Set("X-XSS-Protection", "1; mode=block")
-		w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
-		w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self'; frame-ancestors 'self'; base-uri 'self'; form-action 'self'")
-		if r.TLS != nil || strings.EqualFold(r.Header.Get("X-Forwarded-Proto"), "https") {
-			w.Header().Set("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload")
+		started := time.Now()
+		requestID := strings.TrimSpace(r.Header.Get("X-Request-ID"))
+		if requestID == "" {
+			requestID = newRequestID()
 		}
-		next.ServeHTTP(w, r)
+		w.Header().Set("X-Request-ID", requestID)
+
+		rec := &responseRecorder{ResponseWriter: w}
+		ctx := context.WithValue(r.Context(), requestIDKey, requestID)
+		next.ServeHTTP(rec, r.WithContext(ctx))
+		if rec.status == 0 {
+			rec.status = http.StatusOK
+		}
+
+		level := "info"
+		if rec.status >= 500 {
+			level = "error"
+		} else if rec.status >= 400 {
+			level = "warn"
+		}
+		entry := map[string]any{
+			"ts":          time.Now().UTC().Format(time.RFC3339Nano),
+			"level":       level,
+			"event":       "http_request",
+			"request_id":  requestID,
+			"method":      r.Method,
+			"path":        r.URL.Path,
+			"query":       r.URL.RawQuery,
+			"status":      rec.status,
+			"bytes":       rec.bytes,
+			"duration_ms": time.Since(started).Milliseconds(),
+			"ip":          ClientIP(r),
+			"user_agent":  r.UserAgent(),
+		}
+		if data, err := json.Marshal(entry); err == nil {
+			fmt.Fprintln(structuredLogWriter, string(data))
+		}
 	})
+}
+
+func RequestID(ctx context.Context) string {
+	if requestID, ok := ctx.Value(requestIDKey).(string); ok {
+		return requestID
+	}
+	return ""
+}
+
+func SetStructuredLogWriter(w io.Writer) func() {
+	previous := structuredLogWriter
+	if w == nil {
+		structuredLogWriter = io.Discard
+	} else {
+		structuredLogWriter = w
+	}
+	return func() {
+		structuredLogWriter = previous
+	}
 }
 
 func ClientIP(r *http.Request) string {
@@ -183,6 +325,9 @@ func adminRouteAllowed(role model.UserRole, path, adminPrefix string) bool {
 	}
 	switch role {
 	case model.RoleEditor, model.RoleRedator, model.RoleRevisor:
+		if role == model.RoleEditor && strings.HasPrefix(section, "/automation") {
+			return true
+		}
 		return strings.HasPrefix(section, "/posts")
 	case model.RoleComercial:
 		return strings.HasPrefix(section, "/stores") ||
@@ -268,6 +413,14 @@ func csrfTokenFromCookie(r *http.Request) string {
 
 func newCSRFToken() string {
 	var b [32]byte
+	if _, err := rand.Read(b[:]); err != nil {
+		return fmt.Sprintf("%d", time.Now().UnixNano())
+	}
+	return base64.RawURLEncoding.EncodeToString(b[:])
+}
+
+func newRequestID() string {
+	var b [16]byte
 	if _, err := rand.Read(b[:]); err != nil {
 		return fmt.Sprintf("%d", time.Now().UnixNano())
 	}

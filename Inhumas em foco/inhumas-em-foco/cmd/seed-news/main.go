@@ -30,7 +30,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "erro ao ler %s: %v\n", sqlPath, err)
 		os.Exit(1)
 	}
-	repo, err := repository.New(dbPath)
+	repo, err := repository.Open(os.Getenv("DB_DRIVER"), dbPath, filepath.Join(projectRoot, "migrations"))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "erro ao abrir banco: %v\n", err)
 		os.Exit(1)

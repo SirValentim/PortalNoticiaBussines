@@ -41,6 +41,7 @@
                     <span>{{.StoreName}}</span>
                     <h3><a href="/promocao/{{.Slug}}">{{.Title}}</a></h3>
                     <strong>{{.PriceDisplay}}</strong>
+                    {{if .CouponCode}}<small>Cupom {{.CouponCode}}</small>{{end}}
                     <small>Valido ate {{.EndDate | formatDate}}</small>
                 </div>
                 {{if .IsSponsored}}<span class="promo-ribbon">20% OFF</span>{{end}}

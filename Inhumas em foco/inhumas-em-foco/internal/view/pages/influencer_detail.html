@@ -6,8 +6,10 @@
             <div class="influencer-profile-body">
                 {{if .Influencer.AvatarKey}}<img class="influencer-avatar" src="{{imageURL .Influencer.AvatarKey}}" alt="{{.Influencer.Name}}">{{end}}
                 <div>
-                    <p class="card-category">{{.Influencer.CityArea}}</p>
+                    <p class="card-category">{{if .Influencer.Niche}}{{.Influencer.Niche}}{{else}}{{.Influencer.CityArea}}{{end}}</p>
                     <h1>{{.Influencer.Name}}</h1>
+                    {{if .Influencer.CityArea}}<span class="status-pill">{{.Influencer.CityArea}}</span>{{end}}
+                    {{if .Influencer.IsFeatured}}<span class="sponsored-badge sponsored-badge-success">Destaque</span>{{end}}
                     {{if .Influencer.IsSponsored}}<span class="sponsored-badge">Patrocinado</span>{{end}}
                 </div>
             </div>

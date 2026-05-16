@@ -7,11 +7,21 @@
     <a href="{{.AdminPath}}/stores/new" class="btn btn-primary">+ Nova Loja</a>
 </div>
 
+<section class="admin-form-section">
+    <div class="stats-grid commercial-stats-grid">
+        <div class="stat-card"><h3>{{.Summary.Total}}</h3><p>lojas cadastradas</p></div>
+        <div class="stat-card"><h3>{{.Summary.Active}}</h3><p>ativas</p></div>
+        <div class="stat-card"><h3>{{.Summary.Featured}}</h3><p>destaques vendidos</p></div>
+        <div class="stat-card"><h3>{{.Summary.Sponsored}}</h3><p>patrocinadas</p></div>
+    </div>
+</section>
+
 <table class="table">
     <thead>
         <tr>
             <th>Nome</th>
             <th>Categoria</th>
+            <th>Comercial</th>
             <th>Status</th>
             <th>Acoes</th>
         </tr>
@@ -25,17 +35,18 @@
                 {{if .IsFeatured}}<span class="sponsored-badge sponsored-badge-success">Destaque</span>{{end}}
             </td>
             <td>{{.Category}}</td>
+            <td><span class="status-pill">{{storeCommercialStatusLabel .CommercialStatus}}</span></td>
             <td>{{if .Active}}<span class="status-pill status-published">Ativo</span>{{else}}<span class="status-pill status-muted">Inativo</span>{{end}}</td>
             <td class="admin-row-actions">
                 <a href="{{$.AdminPath}}/stores/{{.ID}}/edit?slug={{.Slug}}" class="btn btn-sm btn-primary">Editar</a>
-                <form method="POST" action="{{$.AdminPath}}/stores/{{.ID}}/delete" onsubmit="return confirm('Tem certeza?')">
+                <form method="POST" action="{{$.AdminPath}}/stores/{{.ID}}/delete" data-confirm="Tem certeza?">
     <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
                     <button type="submit" class="btn btn-sm btn-danger">Excluir</button>
                 </form>
             </td>
         </tr>
         {{else}}
-        <tr><td colspan="4" class="empty-state">Nenhuma loja cadastrada</td></tr>
+        <tr><td colspan="5" class="empty-state">Nenhuma loja cadastrada</td></tr>
         {{end}}
     </tbody>
 </table>

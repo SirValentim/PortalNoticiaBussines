@@ -190,16 +190,16 @@ Objetivo: dar controle corporativo e rastreabilidade.
 
 Entregas:
 
-- [ ] Tela de auditoria.
-- [ ] Filtros por usuario, entidade, acao e periodo.
-- [ ] Registro de diffs importantes.
-- [ ] Auditoria para usuarios, posts, banners, lojas, promocoes e configuracoes.
-- [ ] Painel de configuracoes gerais.
-- [ ] Nome do portal, logo, favicon e redes sociais.
-- [ ] Email, WhatsApp e contatos.
-- [ ] SEO global.
-- [ ] Configuracoes de upload.
-- [ ] Configuracoes de automacao.
+- [x] Tela de auditoria.
+- [x] Filtros por usuario, entidade, acao e periodo.
+- [x] Registro de diffs importantes.
+- [x] Auditoria para usuarios, posts, banners, lojas, promocoes e configuracoes.
+- [x] Painel de configuracoes gerais.
+- [x] Nome do portal, logo, favicon e redes sociais.
+- [x] Email, WhatsApp e contatos.
+- [x] SEO global.
+- [x] Configuracoes de upload.
+- [x] Configuracoes de automacao.
 
 Criterio de pronto:
 
@@ -212,14 +212,14 @@ Objetivo: completar os produtos locais do portal.
 
 Entregas:
 
-- [ ] CRUD completo de eventos.
-- [ ] Campos de evento: data, horario, local, organizador, ingresso, imagem, status e SEO.
-- [ ] CRUD completo de classificados.
-- [ ] Campos de classificados: categoria, preco, contato, validade, destaque e status.
-- [ ] Melhorar CRUD de lojas com SEO e status comercial.
-- [ ] Melhorar promocoes com regras de validade e relatorio.
-- [ ] Melhorar influencers com categorias/nichos e destaque.
-- [ ] Sitemap para todos os modulos ativos.
+- [x] CRUD completo de eventos.
+- [x] Campos de evento: data, horario, local, organizador, ingresso, imagem, status e SEO.
+- [x] CRUD completo de classificados.
+- [x] Campos de classificados: categoria, preco, contato, validade, destaque e status.
+- [x] Melhorar CRUD de lojas com SEO e status comercial.
+- [x] Melhorar promocoes com regras de validade e relatorio.
+- [x] Melhorar influencers com categorias/nichos e destaque.
+- [x] Sitemap para todos os modulos ativos.
 
 Criterio de pronto:
 
@@ -232,16 +232,16 @@ Objetivo: profissionalizar monetizacao.
 
 Entregas:
 
-- [ ] Relatorio por anunciante.
-- [ ] Relatorio por banner, posicao e periodo.
-- [ ] Impressao e clique por campanha.
-- [ ] Filtro por status comercial.
-- [ ] Exportacao CSV simples.
-- [ ] Validacao para evitar banners conflitantes por posicao/periodo.
-- [ ] Produto de classificados em destaque.
-- [ ] Produto de eventos patrocinados.
-- [ ] Produto de lojas patrocinadas.
-- [ ] Regra visual para evitar anuncios consecutivos no feed.
+- [x] Relatorio por anunciante.
+- [x] Relatorio por banner, posicao e periodo.
+- [x] Impressao e clique por campanha.
+- [x] Filtro por status comercial.
+- [x] Exportacao CSV simples.
+- [x] Validacao para evitar banners conflitantes por posicao/periodo.
+- [x] Produto de classificados em destaque.
+- [x] Produto de eventos patrocinados.
+- [x] Produto de lojas patrocinadas.
+- [x] Regra visual para evitar anuncios consecutivos no feed.
 
 Criterio de pronto:
 
@@ -254,18 +254,18 @@ Objetivo: criar coleta automatizada sem publicacao automatica.
 
 Entregas:
 
-- [ ] Cadastro de fontes RSS.
-- [ ] Cadastro de fontes oficiais.
-- [ ] Job de coleta.
-- [ ] Deduplicacao por URL.
-- [ ] Deduplicacao por titulo.
-- [ ] Similaridade basica para evitar repeticao.
-- [ ] Criacao automatica de rascunhos.
-- [ ] Fila de revisao.
-- [ ] Tela de execucoes.
-- [ ] Logs visiveis por execucao.
-- [ ] Botao executar agora.
-- [ ] Nunca publicar automaticamente.
+- [x] Cadastro de fontes RSS.
+- [x] Cadastro de fontes oficiais.
+- [x] Job de coleta.
+- [x] Deduplicacao por URL.
+- [x] Deduplicacao por titulo.
+- [x] Similaridade basica para evitar repeticao.
+- [x] Criacao automatica de rascunhos.
+- [x] Fila de revisao.
+- [x] Tela de execucoes.
+- [x] Logs visiveis por execucao.
+- [x] Botao executar agora.
+- [x] Nunca publicar automaticamente.
 
 Criterio de pronto:
 
@@ -278,20 +278,20 @@ Objetivo: preparar assistentes editoriais sem prender o CMS a um fornecedor.
 
 Entregas:
 
-- [ ] Interface `EditorialAIProvider`.
-- [ ] Provider mock/teste.
-- [ ] Gerar titulo.
-- [ ] Gerar subtitulo.
-- [ ] Gerar resumo.
-- [ ] Gerar meta description.
-- [ ] Sugerir tags.
-- [ ] Reescrever em tom jornalistico.
-- [ ] Criar chamada para redes sociais.
-- [ ] Verificar possivel duplicidade.
-- [ ] Guardrails: nao inventar fatos.
-- [ ] Preservar fonte original.
-- [ ] Marcar conteudo automatizado como rascunho.
-- [ ] Logar uso de IA.
+- [x] Interface `EditorialAIProvider`.
+- [x] Provider mock/teste.
+- [x] Gerar titulo.
+- [x] Gerar subtitulo.
+- [x] Gerar resumo.
+- [x] Gerar meta description.
+- [x] Sugerir tags.
+- [x] Reescrever em tom jornalistico.
+- [x] Criar chamada para redes sociais.
+- [x] Verificar possivel duplicidade.
+- [x] Guardrails: nao inventar fatos.
+- [x] Preservar fonte original.
+- [x] Marcar conteudo automatizado como rascunho.
+- [x] Logar uso de IA.
 
 Criterio de pronto:
 
@@ -305,16 +305,16 @@ Objetivo: evoluir a persistencia para padrao corporativo.
 
 Entregas:
 
-- [ ] Definir estrategia SQLite -> PostgreSQL.
-- [ ] Adicionar driver PostgreSQL.
-- [ ] Configurar `DB_DRIVER` ou deteccao segura.
-- [ ] Criar runner de migrations.
-- [ ] Versionar migrations incrementais.
-- [ ] Portar repository para SQL compativel ou separar dialetos.
-- [ ] Migrar FTS5 para PostgreSQL full-text.
-- [ ] Ajustar worker com lock concorrente seguro.
-- [ ] Criar script de migracao de dados.
-- [ ] Testar restore e rollback.
+- [x] Definir estrategia SQLite -> PostgreSQL.
+- [x] Adicionar driver PostgreSQL.
+- [x] Configurar `DB_DRIVER` ou deteccao segura.
+- [x] Criar runner de migrations.
+- [x] Versionar migrations incrementais.
+- [x] Portar repository para SQL compativel ou separar dialetos.
+- [x] Migrar FTS5 para PostgreSQL full-text.
+- [x] Ajustar worker com lock concorrente seguro.
+- [x] Criar script de migracao de dados.
+- [x] Testar restore e rollback.
 
 Criterio de pronto:
 
@@ -326,18 +326,20 @@ Criterio de pronto:
 
 Objetivo: deixar o CMS mais confiavel para operacao continua.
 
+Status: concluido no escopo atual.
+
 Entregas:
 
-- [ ] Monitor externo de uptime.
-- [ ] Backup externo fora da VPS.
-- [ ] Alertas de falha de backup.
-- [ ] Alertas de disco.
-- [ ] Logs estruturados.
-- [ ] Revisao CSP para reduzir `unsafe-inline`.
-- [ ] Politica de retencao de logs.
-- [ ] Smoke test automatizado pos-deploy.
-- [ ] Checklist de rollback.
-- [ ] Documentar rotina de publicacao e emergencia no checklist.
+- [x] Monitor externo de uptime documentado para `/health`.
+- [x] Backup externo fora da VPS preparado via rclone ou volume montado.
+- [x] Alertas de falha de backup adicionados no script de backup e no verificador de backup recente.
+- [x] Alertas de disco configuraveis por `DISK_ALERT_THRESHOLD`.
+- [x] Logs estruturados JSON com `request_id`, status, rota, IP, bytes e duracao.
+- [x] Revisao CSP aplicada com diretivas mais restritivas e modo `Content-Security-Policy-Report-Only` para auditar remocao futura de `unsafe-inline`.
+- [x] Politica de retencao de logs documentada e script `journal-retention.sh` criado.
+- [x] Smoke test automatizado pos-deploy criado em `scripts/smoke-test.sh`.
+- [x] Checklist de rollback documentado.
+- [x] Rotina de publicacao, emergencia, monitoramento e backup documentada no checklist e no guia operacional.
 
 Criterio de pronto:
 
@@ -349,38 +351,60 @@ Criterio de pronto:
 
 Objetivo: elevar o painel para experiencia comercial premium.
 
+Status: concluido no escopo atual.
+
 Entregas:
 
-- [ ] Sidebar com grupos e melhor hierarquia.
-- [ ] Header admin com usuario, papel e atalhos.
-- [ ] Toasts de sucesso/erro.
-- [ ] Loading states.
-- [ ] Estados vazios consistentes.
-- [ ] Confirmacoes de exclusao melhores que `confirm()` nativo.
-- [ ] Tabelas com filtros persistentes.
-- [ ] Paginacao consistente em todos os modulos.
-- [ ] Responsividade completa do painel.
-- [ ] Revisao visual de formularios longos.
+- [x] Sidebar com grupos e melhor hierarquia.
+- [x] Header admin com usuario, papel e atalhos.
+- [x] Toasts de sucesso/erro.
+- [x] Loading states em submits administrativos.
+- [x] Estados vazios consistentes.
+- [x] Confirmacoes de exclusao melhores que `confirm()` nativo.
+- [x] Tabelas com filtros persistentes por tela.
+- [x] Paginacao consistente preservada nos modulos que ja usam o componente atual.
+- [x] Responsividade completa do painel revisada para sidebar/topbar/formularios.
+- [x] Revisao visual de formularios longos com area de conteudo, topbar e acoes fixas preservadas.
 
 Criterio de pronto:
 
 - Painel e rapido, claro e confortavel para uso diario.
 - Usuarios nao precisam entender detalhes tecnicos para operar.
 
-## Ordem de Prioridade Curta
+### Sprint 14 - Revisao final corporativa e operacao continua
 
-Para as proximas execucoes, a ordem mais segura e:
+Objetivo: encerrar o ciclo de construcao do CMS com uma revisao executiva, checklist de readiness, backlog residual realista e documentacao oficial alinhada.
 
-1. Publicar edicao completa de usuarios na VPS.
-2. Aplicar permissoes por acao nos handlers.
-3. Criar CRUD de categorias e tags.
-4. Criar biblioteca de midia.
-5. Refatorar handlers grandes em modulos.
-6. Implementar fluxo editorial de revisao/aprovacao.
-7. Criar auditoria e configuracoes.
-8. Implementar automacao RSS.
-9. Implementar IA editorial.
-10. Migrar para PostgreSQL.
+Status: concluido no escopo atual.
+
+Entregas:
+
+- [x] Documento `docs/CMS_REVISAO_FINAL.md` criado com status executivo, modulos concluidos, readiness, decisoes abertas e backlog residual.
+- [x] Script `scripts/production-readiness.sh` criado para validar ambiente, services, health, home, admin protegido, backup recente, disco, Nginx e backup externo.
+- [x] `.env.example` atualizado com variaveis de PostgreSQL, CSP report-only, backup externo, alertas e retencao.
+- [x] `README.md` atualizado para apontar documentos oficiais, build completo e readiness pos-deploy.
+- [x] `docs/DEPLOY_GUIDE.md` atualizado com PostgreSQL suportado, binarios atuais e readiness final.
+- [x] `Makefile` atualizado com build completo, `build-linux`, `smoke` e `readiness`.
+- [x] Backlog residual consolidado em prioridades alta, media e futura.
+
+Criterio de pronto:
+
+- A equipe sabe o que esta pronto, o que depende de infraestrutura externa e como validar producao.
+- Deploy e manutencao possuem verificacao final repetivel.
+- Documentos oficiais apontam para uma unica linha de operacao.
+
+## Backlog Residual Curto
+
+O CMS esta funcionalmente pronto para operacao inicial. O que resta agora e principalmente infraestrutura, governanca e evolucao:
+
+1. Configurar backup externo real fora da VPS e testar restauracao.
+2. Configurar monitor externo de uptime para `/health`.
+3. Configurar SMTP transacional real para recuperacao de senha.
+4. Revisar contas administrativas e remover qualquer segredo de bootstrap.
+5. Homologar migracao SQLite -> PostgreSQL com base recente.
+6. Criar testes de repository PostgreSQL em ambiente de CI/homologacao.
+7. Remover `unsafe-inline` da CSP apos migrar scripts/styles inline.
+8. Ativar Cloudflare/WAF quando DNS estiver sob gestao definitiva.
 
 ## Criterio Final de CMS Corporativo
 

@@ -11,11 +11,13 @@ import (
 
 	"inhumas-em-foco/internal/model"
 
+	_ "github.com/lib/pq"
 	_ "modernc.org/sqlite"
 )
 
 type Repository struct {
-	db *sql.DB
+	db     *sql.DB
+	driver string
 }
 
 type AuditLogFilter struct {
@@ -38,7 +40,16 @@ type MediaAssetFilter struct {
 }
 
 func New(dbPath string) (*Repository, error) {
-	db, err := sql.Open("sqlite", dbPath+"?_pragma=journal_mode(WAL)&_pragma=synchronous(NORMAL)&_pragma=cache_size(-64000)&_pragma=temp_store(memory)")
+	return Open("sqlite", dbPath, "")
+}
+
+func Open(driver, databaseURL, migrationsDir string) (*Repository, error) {
+	driver = normalizeDriver(driver, databaseURL)
+	openURL := databaseURL
+	if driver == "sqlite" {
+		openURL = databaseURL + "?_pragma=journal_mode(WAL)&_pragma=synchronous(NORMAL)&_pragma=cache_size(-64000)&_pragma=temp_store(memory)"
+	}
+	db, err := sql.Open(driver, openURL)
 	if err != nil {
 		return nil, err
 	}
@@ -46,18 +57,44 @@ func New(dbPath string) (*Repository, error) {
 	db.SetMaxIdleConns(5)
 	db.SetConnMaxLifetime(30 * time.Minute)
 
-	repo := &Repository{db: db}
-	if err := repo.Migrate(); err != nil {
+	repo := &Repository{db: db, driver: driver}
+	if err := repo.MigrateWithDir(migrationsDir); err != nil {
+		db.Close()
 		return nil, fmt.Errorf("migrate: %w", err)
 	}
 	return repo, nil
+}
+
+func normalizeDriver(driver, databaseURL string) string {
+	driver = strings.ToLower(strings.TrimSpace(driver))
+	switch driver {
+	case "postgres", "postgresql", "pg":
+		return "postgres"
+	case "sqlite", "sqlite3":
+		return "sqlite"
+	}
+	if strings.HasPrefix(strings.ToLower(databaseURL), "postgres://") || strings.HasPrefix(strings.ToLower(databaseURL), "postgresql://") {
+		return "postgres"
+	}
+	return "sqlite"
 }
 
 func (r *Repository) DB() *sql.DB {
 	return r.db
 }
 
+func (r *Repository) Driver() string {
+	return r.driver
+}
+
 func (r *Repository) Migrate() error {
+	return r.MigrateWithDir("")
+}
+
+func (r *Repository) MigrateWithDir(migrationsDir string) error {
+	if r.driver == "postgres" {
+		return r.runPostgresMigrations(migrationsDir)
+	}
 	schema := `
 CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -162,6 +199,71 @@ CREATE TABLE IF NOT EXISTS media_assets (
 CREATE INDEX IF NOT EXISTS idx_media_assets_created ON media_assets(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_media_assets_search ON media_assets(original_name, title, alt_text);
 
+CREATE TABLE IF NOT EXISTS portal_settings (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    site_name TEXT NOT NULL,
+    tagline TEXT,
+    logo_key TEXT,
+    favicon_key TEXT,
+    contact_email TEXT,
+    contact_whatsapp TEXT,
+    contact_phone TEXT,
+    city TEXT,
+    state TEXT,
+    seo_title TEXT,
+    seo_description TEXT,
+    facebook_url TEXT,
+    instagram_url TEXT,
+    youtube_url TEXT,
+    tiktok_url TEXT,
+    upload_max_mb INTEGER DEFAULT 2,
+    automation_enabled BOOLEAN DEFAULT false,
+    automation_interval_minutes INTEGER DEFAULT 60,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS automation_sources (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    source_type TEXT NOT NULL DEFAULT 'rss',
+    url TEXT NOT NULL,
+    default_category_id INTEGER REFERENCES categories(id),
+    active BOOLEAN DEFAULT true,
+    last_run_at DATETIME,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_automation_sources_active ON automation_sources(active, source_type);
+
+CREATE TABLE IF NOT EXISTS automation_runs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    source_id INTEGER REFERENCES automation_sources(id),
+    status TEXT NOT NULL DEFAULT 'success',
+    items_found INTEGER DEFAULT 0,
+    drafts_created INTEGER DEFAULT 0,
+    duplicates INTEGER DEFAULT 0,
+    error TEXT,
+    log TEXT,
+    started_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    finished_at DATETIME
+);
+CREATE INDEX IF NOT EXISTS idx_automation_runs_started ON automation_runs(started_at DESC);
+
+CREATE TABLE IF NOT EXISTS ai_usage_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    post_id INTEGER REFERENCES posts(id) ON DELETE SET NULL,
+    user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    action TEXT NOT NULL,
+    provider TEXT NOT NULL,
+    input_title TEXT,
+    output TEXT NOT NULL,
+    source_name TEXT,
+    source_url TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_ai_usage_post ON ai_usage_logs(post_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_ai_usage_created ON ai_usage_logs(created_at DESC);
+
 CREATE TABLE IF NOT EXISTS post_tags (
     post_id INTEGER NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
     tag_id INTEGER NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
@@ -200,8 +302,12 @@ CREATE TABLE IF NOT EXISTS stores (
     address TEXT,
     phone TEXT,
     whatsapp TEXT,
+    website_url TEXT,
     logo_key TEXT,
     cover_image_key TEXT,
+    commercial_status TEXT DEFAULT 'active',
+    meta_title TEXT,
+    meta_description TEXT,
     is_sponsored BOOLEAN DEFAULT false,
     is_featured BOOLEAN DEFAULT false,
     neighborhood_id INTEGER,
@@ -216,13 +322,63 @@ CREATE TABLE IF NOT EXISTS promotions (
     slug TEXT UNIQUE NOT NULL,
     description TEXT,
     price_display TEXT,
+    coupon_code TEXT,
     image_key TEXT,
     start_date DATE NOT NULL,
     end_date DATE NOT NULL,
     status TEXT DEFAULT 'active',
     is_sponsored BOOLEAN DEFAULT false,
+    meta_title TEXT,
+    meta_description TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    slug TEXT UNIQUE NOT NULL,
+    title TEXT NOT NULL,
+    description TEXT,
+    location TEXT,
+    organizer TEXT,
+    ticket_url TEXT,
+    price_display TEXT,
+    image_key TEXT,
+    status TEXT DEFAULT 'active',
+    is_featured BOOLEAN DEFAULT false,
+    is_sponsored BOOLEAN DEFAULT false,
+    meta_title TEXT,
+    meta_description TEXT,
+    start_at DATETIME NOT NULL,
+    end_at DATETIME,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_events_status_start ON events(status, start_at);
+CREATE INDEX IF NOT EXISTS idx_events_featured ON events(is_featured, status, start_at);
+
+CREATE TABLE IF NOT EXISTS classifieds (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    slug TEXT UNIQUE NOT NULL,
+    title TEXT NOT NULL,
+    description TEXT,
+    category TEXT,
+    price_display TEXT,
+    contact_name TEXT,
+    contact_phone TEXT,
+    contact_whatsapp TEXT,
+    location TEXT,
+    image_key TEXT,
+    status TEXT DEFAULT 'active',
+    is_featured BOOLEAN DEFAULT false,
+    is_sponsored BOOLEAN DEFAULT false,
+    meta_title TEXT,
+    meta_description TEXT,
+    expires_at DATETIME,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_classifieds_status_category ON classifieds(status, category, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_classifieds_featured ON classifieds(is_featured, status, created_at DESC);
 
 CREATE TABLE IF NOT EXISTS banners (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -261,12 +417,15 @@ CREATE TABLE IF NOT EXISTS influencers (
     name TEXT NOT NULL,
     bio TEXT,
     city_area TEXT,
+    niche TEXT,
     instagram TEXT,
     tiktok TEXT,
     youtube TEXT,
     whatsapp TEXT,
     avatar_key TEXT,
     cover_image_key TEXT,
+    meta_title TEXT,
+    meta_description TEXT,
     is_featured BOOLEAN DEFAULT false,
     is_sponsored BOOLEAN DEFAULT false,
     active BOOLEAN DEFAULT true,
@@ -349,7 +508,10 @@ INSERT OR IGNORE INTO categories (slug, name, requires_editorial_notes) VALUES
 	if _, err := r.db.Exec(schema); err != nil {
 		return err
 	}
-	return r.ensureSQLiteColumns()
+	if err := r.ensureSQLiteColumns(); err != nil {
+		return err
+	}
+	return r.markSQLiteSchemaVersion()
 }
 
 func (r *Repository) ensureSQLiteColumns() error {
@@ -419,6 +581,46 @@ func (r *Repository) ensureSQLiteColumns() error {
 			return err
 		}
 	}
+	storeColumns := []struct {
+		name       string
+		definition string
+	}{
+		{"website_url", "TEXT DEFAULT ''"},
+		{"commercial_status", "TEXT DEFAULT 'active'"},
+		{"meta_title", "TEXT DEFAULT ''"},
+		{"meta_description", "TEXT DEFAULT ''"},
+	}
+	for _, column := range storeColumns {
+		if err := r.ensureColumn("stores", column.name, column.definition); err != nil {
+			return err
+		}
+	}
+	promotionColumns := []struct {
+		name       string
+		definition string
+	}{
+		{"coupon_code", "TEXT DEFAULT ''"},
+		{"meta_title", "TEXT DEFAULT ''"},
+		{"meta_description", "TEXT DEFAULT ''"},
+	}
+	for _, column := range promotionColumns {
+		if err := r.ensureColumn("promotions", column.name, column.definition); err != nil {
+			return err
+		}
+	}
+	influencerColumns := []struct {
+		name       string
+		definition string
+	}{
+		{"niche", "TEXT DEFAULT ''"},
+		{"meta_title", "TEXT DEFAULT ''"},
+		{"meta_description", "TEXT DEFAULT ''"},
+	}
+	for _, column := range influencerColumns {
+		if err := r.ensureColumn("influencers", column.name, column.definition); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -475,12 +677,12 @@ func (r *Repository) UserGetByID(ctx context.Context, id int64) (*model.User, er
 }
 
 func (r *Repository) UserCreate(ctx context.Context, u *model.User) error {
-	res, err := r.db.ExecContext(ctx, `INSERT INTO users (name, email, password_hash, role, active) VALUES ($1, $2, $3, $4, $5)`,
+	id, err := r.insertID(ctx, `INSERT INTO users (name, email, password_hash, role, active) VALUES ($1, $2, $3, $4, $5)`,
 		u.Name, u.Email, u.PasswordHash, u.Role, u.Active)
 	if err != nil {
 		return err
 	}
-	u.ID, _ = res.LastInsertId()
+	u.ID = id
 	return nil
 }
 
@@ -524,14 +726,14 @@ func (r *Repository) PasswordResetInvalidateUser(ctx context.Context, userID int
 }
 
 func (r *Repository) PasswordResetCreate(ctx context.Context, token *model.PasswordResetToken) error {
-	res, err := r.db.ExecContext(ctx, `
+	id, err := r.insertID(ctx, `
 		INSERT INTO password_reset_tokens (user_id, token_hash, requested_ip, user_agent, expires_at)
 		VALUES ($1, $2, $3, $4, $5)`,
 		token.UserID, token.TokenHash, token.RequestedIP, token.UserAgent, token.ExpiresAt)
 	if err != nil {
 		return err
 	}
-	token.ID, _ = res.LastInsertId()
+	token.ID = id
 	return nil
 }
 
@@ -597,14 +799,14 @@ func (r *Repository) CategoryList(ctx context.Context) ([]model.Category, error)
 }
 
 func (r *Repository) CategoryCreate(ctx context.Context, c *model.Category) error {
-	res, err := r.db.ExecContext(ctx, `
+	id, err := r.insertID(ctx, `
 		INSERT INTO categories (slug, name, description, meta_title, meta_description, image_key, sort_order, active, requires_editorial_notes)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
 		c.Slug, c.Name, c.Description, c.MetaTitle, c.MetaDescription, c.ImageKey, c.SortOrder, c.Active, c.RequiresEditorialNotes)
 	if err != nil {
 		return err
 	}
-	c.ID, _ = res.LastInsertId()
+	c.ID = id
 	return nil
 }
 
@@ -691,14 +893,14 @@ func (r *Repository) TagList(ctx context.Context, activeOnly bool) ([]model.Tag,
 }
 
 func (r *Repository) TagCreate(ctx context.Context, tag *model.Tag) error {
-	res, err := r.db.ExecContext(ctx, `
+	id, err := r.insertID(ctx, `
 		INSERT INTO tags (slug, name, description, meta_title, meta_description, active)
 		VALUES ($1, $2, $3, $4, $5, $6)`,
 		tag.Slug, tag.Name, tag.Description, tag.MetaTitle, tag.MetaDescription, tag.Active)
 	if err != nil {
 		return err
 	}
-	tag.ID, _ = res.LastInsertId()
+	tag.ID = id
 	return nil
 }
 
@@ -787,14 +989,14 @@ func scanTag(scanner tagScanner, tag *model.Tag) error {
 // Posts
 
 func (r *Repository) PostCreate(ctx context.Context, p *model.Post) error {
-	res, err := r.db.ExecContext(ctx, `
+	id, err := r.insertID(ctx, `
 		INSERT INTO posts (title, slug, excerpt, content, cover_image_key, gallery_image_keys, meta_title, meta_description, seo_keyword, canonical_url, source_name, source_url, reading_time_minutes, category_id, author_id, status, is_sponsored, is_featured, is_pinned, editorial_notes, editor_responsible, published_at, publish_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)`,
 		p.Title, p.Slug, p.Excerpt, p.Content, p.CoverImageKey, encodeStringList(p.GalleryImageKeys), p.MetaTitle, p.MetaDescription, p.SEOKeyword, p.CanonicalURL, p.SourceName, p.SourceURL, p.ReadingTimeMinutes, p.CategoryID, p.AuthorID, p.Status, p.IsSponsored, p.IsFeatured, p.IsPinned, p.EditorialNotes, p.EditorResponsible, p.PublishedAt, p.PublishAt)
 	if err != nil {
 		return err
 	}
-	p.ID, _ = res.LastInsertId()
+	p.ID = id
 	return nil
 }
 
@@ -1022,6 +1224,26 @@ func (r *Repository) PostSlugExists(ctx context.Context, slug string) bool {
 }
 
 func (r *Repository) PostSearch(ctx context.Context, query string, limit int) ([]model.Post, error) {
+	if r.driver == "postgres" {
+		rows, err := r.db.QueryContext(ctx, `
+			SELECT p.id, p.title, p.slug, p.excerpt, p.cover_image_key, p.category_id, p.author_id, p.status, p.is_sponsored, COALESCE(p.is_featured, false), p.published_at, p.created_at, p.updated_at, COALESCE(c.name, ''), COALESCE(u.name, '')
+			FROM posts p
+			LEFT JOIN categories c ON c.id = p.category_id
+			LEFT JOIN users u ON u.id = p.author_id
+			WHERE p.search_vector @@ plainto_tsquery('portuguese', $1) AND p.status = 'published'
+			ORDER BY ts_rank_cd(p.search_vector, plainto_tsquery('portuguese', $1)) DESC, p.published_at DESC
+			LIMIT $2`, query, limit)
+		if err == nil {
+			defer rows.Close()
+			posts, err := scanPostList(rows)
+			if err != nil {
+				return nil, err
+			}
+			if len(posts) > 0 {
+				return posts, nil
+			}
+		}
+	}
 	ftsQuery := buildFTSQuery(query)
 	if ftsQuery != "" {
 		rows, err := r.db.QueryContext(ctx, `
@@ -1141,14 +1363,14 @@ func (r *Repository) PostUpdateStatusAndEditorialNotes(ctx context.Context, id i
 }
 
 func (r *Repository) PostRevisionCreate(ctx context.Context, revision *model.PostRevision) error {
-	res, err := r.db.ExecContext(ctx, `
+	id, err := r.insertID(ctx, `
 		INSERT INTO post_revisions (post_id, user_id, action, title, status, snapshot)
 		VALUES ($1, $2, $3, $4, $5, $6)`,
 		revision.PostID, revision.UserID, revision.Action, revision.Title, revision.Status, revision.Snapshot)
 	if err != nil {
 		return err
 	}
-	revision.ID, _ = res.LastInsertId()
+	revision.ID = id
 	return nil
 }
 
@@ -1179,14 +1401,14 @@ func (r *Repository) PostRevisionList(ctx context.Context, postID int64, limit i
 }
 
 func (r *Repository) MediaAssetCreate(ctx context.Context, asset *model.MediaAsset) error {
-	res, err := r.db.ExecContext(ctx, `
+	id, err := r.insertID(ctx, `
 		INSERT INTO media_assets (key, original_name, title, alt_text, content_type, size_bytes, uploaded_by)
 		VALUES ($1, $2, $3, $4, $5, $6, $7)`,
 		asset.Key, asset.OriginalName, asset.Title, asset.AltText, asset.ContentType, asset.SizeBytes, asset.UploadedBy)
 	if err != nil {
 		return err
 	}
-	asset.ID, _ = res.LastInsertId()
+	asset.ID = id
 	return nil
 }
 
@@ -1320,9 +1542,12 @@ func (r *Repository) MediaAssetUsageCount(ctx context.Context, key string) (int,
 			UNION ALL SELECT COUNT(*) FROM categories WHERE image_key = $1
 			UNION ALL SELECT COUNT(*) FROM stores WHERE logo_key = $1 OR cover_image_key = $1
 			UNION ALL SELECT COUNT(*) FROM promotions WHERE image_key = $1
+			UNION ALL SELECT COUNT(*) FROM events WHERE image_key = $1
+			UNION ALL SELECT COUNT(*) FROM classifieds WHERE image_key = $1
 			UNION ALL SELECT COUNT(*) FROM banners WHERE image_key = $1
 			UNION ALL SELECT COUNT(*) FROM neighborhoods WHERE cover_image_key = $1
 			UNION ALL SELECT COUNT(*) FROM influencers WHERE avatar_key = $1 OR cover_image_key = $1
+			UNION ALL SELECT COUNT(*) FROM portal_settings WHERE logo_key = $1 OR favicon_key = $1
 		)`, key)
 	var count int
 	err := row.Scan(&count)
@@ -1420,29 +1645,28 @@ func (r *Repository) SlugRedirectGet(ctx context.Context, oldSlug string) (*mode
 // Stores
 
 func (r *Repository) StoreCreate(ctx context.Context, s *model.Store) error {
-	res, err := r.db.ExecContext(ctx, `
-		INSERT INTO stores (slug, name, description, category, address, phone, whatsapp, logo_key, cover_image_key, is_sponsored, is_featured, neighborhood_id, active)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
-		s.Slug, s.Name, s.Description, s.Category, s.Address, s.Phone, s.Whatsapp, s.LogoKey, s.CoverImageKey, s.IsSponsored, s.IsFeatured, s.NeighborhoodID, s.Active)
+	id, err := r.insertID(ctx, `
+		INSERT INTO stores (slug, name, description, category, address, phone, whatsapp, website_url, logo_key, cover_image_key, commercial_status, meta_title, meta_description, is_sponsored, is_featured, neighborhood_id, active)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`,
+		s.Slug, s.Name, s.Description, s.Category, s.Address, s.Phone, s.Whatsapp, s.WebsiteURL, s.LogoKey, s.CoverImageKey, normalizeStoreCommercialStatus(s.CommercialStatus), s.MetaTitle, s.MetaDescription, s.IsSponsored, s.IsFeatured, s.NeighborhoodID, s.Active)
 	if err != nil {
 		return err
 	}
-	s.ID, _ = res.LastInsertId()
+	s.ID = id
 	return nil
 }
 
 func (r *Repository) StoreUpdate(ctx context.Context, s *model.Store) error {
 	_, err := r.db.ExecContext(ctx, `
-		UPDATE stores SET slug=$1, name=$2, description=$3, category=$4, address=$5, phone=$6, whatsapp=$7, logo_key=$8, cover_image_key=$9, is_sponsored=$10, is_featured=$11, neighborhood_id=$12, active=$13
-		WHERE id=$14`,
-		s.Slug, s.Name, s.Description, s.Category, s.Address, s.Phone, s.Whatsapp, s.LogoKey, s.CoverImageKey, s.IsSponsored, s.IsFeatured, s.NeighborhoodID, s.Active, s.ID)
+		UPDATE stores SET slug=$1, name=$2, description=$3, category=$4, address=$5, phone=$6, whatsapp=$7, website_url=$8, logo_key=$9, cover_image_key=$10, commercial_status=$11, meta_title=$12, meta_description=$13, is_sponsored=$14, is_featured=$15, neighborhood_id=$16, active=$17
+		WHERE id=$18`,
+		s.Slug, s.Name, s.Description, s.Category, s.Address, s.Phone, s.Whatsapp, s.WebsiteURL, s.LogoKey, s.CoverImageKey, normalizeStoreCommercialStatus(s.CommercialStatus), s.MetaTitle, s.MetaDescription, s.IsSponsored, s.IsFeatured, s.NeighborhoodID, s.Active, s.ID)
 	return err
 }
 
 func (r *Repository) StoreGetBySlug(ctx context.Context, slug string) (*model.Store, error) {
-	row := r.db.QueryRowContext(ctx, `SELECT id, slug, name, description, category, address, phone, whatsapp, logo_key, cover_image_key, is_sponsored, is_featured, neighborhood_id, active, created_at FROM stores WHERE slug = $1`, slug)
-	var s model.Store
-	err := row.Scan(&s.ID, &s.Slug, &s.Name, &s.Description, &s.Category, &s.Address, &s.Phone, &s.Whatsapp, &s.LogoKey, &s.CoverImageKey, &s.IsSponsored, &s.IsFeatured, &s.NeighborhoodID, &s.Active, &s.CreatedAt)
+	row := r.db.QueryRowContext(ctx, storeSelectSQL()+` WHERE slug = $1`, slug)
+	s, err := scanStore(row)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -1450,9 +1674,8 @@ func (r *Repository) StoreGetBySlug(ctx context.Context, slug string) (*model.St
 }
 
 func (r *Repository) StoreGetByID(ctx context.Context, id int64) (*model.Store, error) {
-	row := r.db.QueryRowContext(ctx, `SELECT id, slug, name, description, category, address, phone, whatsapp, logo_key, cover_image_key, is_sponsored, is_featured, neighborhood_id, active, created_at FROM stores WHERE id = $1`, id)
-	var s model.Store
-	err := row.Scan(&s.ID, &s.Slug, &s.Name, &s.Description, &s.Category, &s.Address, &s.Phone, &s.Whatsapp, &s.LogoKey, &s.CoverImageKey, &s.IsSponsored, &s.IsFeatured, &s.NeighborhoodID, &s.Active, &s.CreatedAt)
+	row := r.db.QueryRowContext(ctx, storeSelectSQL()+` WHERE id = $1`, id)
+	s, err := scanStore(row)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -1460,7 +1683,7 @@ func (r *Repository) StoreGetByID(ctx context.Context, id int64) (*model.Store, 
 }
 
 func (r *Repository) StoreList(ctx context.Context, activeOnly bool, limit int) ([]model.Store, error) {
-	q := `SELECT id, slug, name, description, category, address, phone, whatsapp, logo_key, cover_image_key, is_sponsored, is_featured, neighborhood_id, active, created_at FROM stores`
+	q := storeSelectSQL()
 	var args []any
 	if activeOnly {
 		q += ` WHERE active = true`
@@ -1474,8 +1697,8 @@ func (r *Repository) StoreList(ctx context.Context, activeOnly bool, limit int) 
 	defer rows.Close()
 	var stores []model.Store
 	for rows.Next() {
-		var s model.Store
-		if err := rows.Scan(&s.ID, &s.Slug, &s.Name, &s.Description, &s.Category, &s.Address, &s.Phone, &s.Whatsapp, &s.LogoKey, &s.CoverImageKey, &s.IsSponsored, &s.IsFeatured, &s.NeighborhoodID, &s.Active, &s.CreatedAt); err != nil {
+		s, err := scanStore(rows)
+		if err != nil {
 			return nil, err
 		}
 		stores = append(stores, s)
@@ -1484,9 +1707,8 @@ func (r *Repository) StoreList(ctx context.Context, activeOnly bool, limit int) 
 }
 
 func (r *Repository) StoreListFeatured(ctx context.Context, limit int) ([]model.Store, error) {
-	rows, err := r.db.QueryContext(ctx, `
-		SELECT id, slug, name, description, category, address, phone, whatsapp, logo_key, cover_image_key, is_sponsored, is_featured, neighborhood_id, active, created_at 
-		FROM stores WHERE active = true AND is_featured = true
+	rows, err := r.db.QueryContext(ctx, storeSelectSQL()+`
+		WHERE active = true AND is_featured = true
 		ORDER BY created_at DESC LIMIT $1`, limit)
 	if err != nil {
 		return nil, err
@@ -1494,8 +1716,8 @@ func (r *Repository) StoreListFeatured(ctx context.Context, limit int) ([]model.
 	defer rows.Close()
 	var stores []model.Store
 	for rows.Next() {
-		var s model.Store
-		if err := rows.Scan(&s.ID, &s.Slug, &s.Name, &s.Description, &s.Category, &s.Address, &s.Phone, &s.Whatsapp, &s.LogoKey, &s.CoverImageKey, &s.IsSponsored, &s.IsFeatured, &s.NeighborhoodID, &s.Active, &s.CreatedAt); err != nil {
+		s, err := scanStore(rows)
+		if err != nil {
 			return nil, err
 		}
 		stores = append(stores, s)
@@ -1514,36 +1736,70 @@ func (r *Repository) StoreSlugExists(ctx context.Context, slug string) bool {
 	return count > 0
 }
 
+func storeSelectSQL() string {
+	return `SELECT id, slug, name, description, category, address, phone, whatsapp, COALESCE(website_url, ''), logo_key, cover_image_key, COALESCE(commercial_status, 'active'), COALESCE(meta_title, ''), COALESCE(meta_description, ''), is_sponsored, is_featured, neighborhood_id, active, created_at FROM stores`
+}
+
+func scanStore(scanner interface{ Scan(dest ...any) error }) (model.Store, error) {
+	var s model.Store
+	err := scanner.Scan(
+		&s.ID,
+		&s.Slug,
+		&s.Name,
+		&s.Description,
+		&s.Category,
+		&s.Address,
+		&s.Phone,
+		&s.Whatsapp,
+		&s.WebsiteURL,
+		&s.LogoKey,
+		&s.CoverImageKey,
+		&s.CommercialStatus,
+		&s.MetaTitle,
+		&s.MetaDescription,
+		&s.IsSponsored,
+		&s.IsFeatured,
+		&s.NeighborhoodID,
+		&s.Active,
+		&s.CreatedAt,
+	)
+	return s, err
+}
+
+func normalizeStoreCommercialStatus(status string) string {
+	switch strings.ToLower(strings.TrimSpace(status)) {
+	case "lead", "paused", "inactive":
+		return strings.ToLower(strings.TrimSpace(status))
+	default:
+		return "active"
+	}
+}
+
 // Promotions
 
 func (r *Repository) PromotionCreate(ctx context.Context, p *model.Promotion) error {
-	res, err := r.db.ExecContext(ctx, `
-		INSERT INTO promotions (store_id, title, slug, description, price_display, image_key, start_date, end_date, status, is_sponsored)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-		p.StoreID, p.Title, p.Slug, p.Description, p.PriceDisplay, p.ImageKey, p.StartDate, p.EndDate, p.Status, p.IsSponsored)
+	id, err := r.insertID(ctx, `
+		INSERT INTO promotions (store_id, title, slug, description, price_display, coupon_code, image_key, start_date, end_date, status, is_sponsored, meta_title, meta_description)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+		p.StoreID, p.Title, p.Slug, p.Description, p.PriceDisplay, p.CouponCode, p.ImageKey, p.StartDate, p.EndDate, normalizePromotionStatus(p.Status), p.IsSponsored, p.MetaTitle, p.MetaDescription)
 	if err != nil {
 		return err
 	}
-	p.ID, _ = res.LastInsertId()
+	p.ID = id
 	return nil
 }
 
 func (r *Repository) PromotionUpdate(ctx context.Context, p *model.Promotion) error {
 	_, err := r.db.ExecContext(ctx, `
-		UPDATE promotions SET store_id=$1, title=$2, slug=$3, description=$4, price_display=$5, image_key=$6, start_date=$7, end_date=$8, status=$9, is_sponsored=$10
-		WHERE id=$11`,
-		p.StoreID, p.Title, p.Slug, p.Description, p.PriceDisplay, p.ImageKey, p.StartDate, p.EndDate, p.Status, p.IsSponsored, p.ID)
+		UPDATE promotions SET store_id=$1, title=$2, slug=$3, description=$4, price_display=$5, coupon_code=$6, image_key=$7, start_date=$8, end_date=$9, status=$10, is_sponsored=$11, meta_title=$12, meta_description=$13
+		WHERE id=$14`,
+		p.StoreID, p.Title, p.Slug, p.Description, p.PriceDisplay, p.CouponCode, p.ImageKey, p.StartDate, p.EndDate, normalizePromotionStatus(p.Status), p.IsSponsored, p.MetaTitle, p.MetaDescription, p.ID)
 	return err
 }
 
 func (r *Repository) PromotionGetBySlug(ctx context.Context, slug string) (*model.Promotion, error) {
-	row := r.db.QueryRowContext(ctx, `
-		SELECT p.id, p.store_id, p.title, p.slug, p.description, p.price_display, p.image_key, p.start_date, p.end_date, p.status, p.is_sponsored, p.created_at, s.name, s.slug
-		FROM promotions p
-		JOIN stores s ON s.id = p.store_id
-		WHERE p.slug = $1`, slug)
-	var p model.Promotion
-	err := row.Scan(&p.ID, &p.StoreID, &p.Title, &p.Slug, &p.Description, &p.PriceDisplay, &p.ImageKey, &p.StartDate, &p.EndDate, &p.Status, &p.IsSponsored, &p.CreatedAt, &p.StoreName, &p.StoreSlug)
+	row := r.db.QueryRowContext(ctx, promotionSelectSQL()+` WHERE p.slug = $1`, slug)
+	p, err := scanPromotion(row)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -1551,13 +1807,8 @@ func (r *Repository) PromotionGetBySlug(ctx context.Context, slug string) (*mode
 }
 
 func (r *Repository) PromotionGetByID(ctx context.Context, id int64) (*model.Promotion, error) {
-	row := r.db.QueryRowContext(ctx, `
-		SELECT p.id, p.store_id, p.title, p.slug, p.description, p.price_display, p.image_key, p.start_date, p.end_date, p.status, p.is_sponsored, p.created_at, s.name, s.slug
-		FROM promotions p
-		JOIN stores s ON s.id = p.store_id
-		WHERE p.id = $1`, id)
-	var p model.Promotion
-	err := row.Scan(&p.ID, &p.StoreID, &p.Title, &p.Slug, &p.Description, &p.PriceDisplay, &p.ImageKey, &p.StartDate, &p.EndDate, &p.Status, &p.IsSponsored, &p.CreatedAt, &p.StoreName, &p.StoreSlug)
+	row := r.db.QueryRowContext(ctx, promotionSelectSQL()+` WHERE p.id = $1`, id)
+	p, err := scanPromotion(row)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -1566,10 +1817,7 @@ func (r *Repository) PromotionGetByID(ctx context.Context, id int64) (*model.Pro
 
 func (r *Repository) PromotionListActive(ctx context.Context, limit int) ([]model.Promotion, error) {
 	today := time.Now().Format("2006-01-02")
-	rows, err := r.db.QueryContext(ctx, `
-		SELECT p.id, p.store_id, p.title, p.slug, p.description, p.price_display, p.image_key, p.start_date, p.end_date, p.status, p.is_sponsored, p.created_at, s.name, s.slug
-		FROM promotions p
-		JOIN stores s ON s.id = p.store_id
+	rows, err := r.db.QueryContext(ctx, promotionSelectSQL()+`
 		WHERE p.status = 'active' AND p.start_date <= $1 AND p.end_date >= $1
 		ORDER BY p.created_at DESC
 		LIMIT $2`, today, limit)
@@ -1579,8 +1827,30 @@ func (r *Repository) PromotionListActive(ctx context.Context, limit int) ([]mode
 	defer rows.Close()
 	var promos []model.Promotion
 	for rows.Next() {
-		var p model.Promotion
-		if err := rows.Scan(&p.ID, &p.StoreID, &p.Title, &p.Slug, &p.Description, &p.PriceDisplay, &p.ImageKey, &p.StartDate, &p.EndDate, &p.Status, &p.IsSponsored, &p.CreatedAt, &p.StoreName, &p.StoreSlug); err != nil {
+		p, err := scanPromotion(rows)
+		if err != nil {
+			return nil, err
+		}
+		promos = append(promos, p)
+	}
+	return promos, rows.Err()
+}
+
+func (r *Repository) PromotionListAdmin(ctx context.Context, limit int) ([]model.Promotion, error) {
+	if limit <= 0 || limit > 500 {
+		limit = 100
+	}
+	rows, err := r.db.QueryContext(ctx, promotionSelectSQL()+`
+		ORDER BY p.created_at DESC
+		LIMIT $1`, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var promos []model.Promotion
+	for rows.Next() {
+		p, err := scanPromotion(rows)
+		if err != nil {
 			return nil, err
 		}
 		promos = append(promos, p)
@@ -1604,20 +1874,62 @@ func (r *Repository) PromotionSlugExists(ctx context.Context, slug string) bool 
 	return count > 0
 }
 
+func promotionSelectSQL() string {
+	return `
+		SELECT p.id, p.store_id, p.title, p.slug, p.description, p.price_display, COALESCE(p.coupon_code, ''), p.image_key, p.start_date, p.end_date, p.status, p.is_sponsored, COALESCE(p.meta_title, ''), COALESCE(p.meta_description, ''), p.created_at, s.name, s.slug,
+		       COALESCE((SELECT COUNT(*) FROM metrics m WHERE m.metric_type = 'promo_click' AND m.entity_type = 'promotion' AND m.entity_id = p.id), 0)
+		FROM promotions p
+		JOIN stores s ON s.id = p.store_id`
+}
+
+func scanPromotion(scanner interface{ Scan(dest ...any) error }) (model.Promotion, error) {
+	var p model.Promotion
+	err := scanner.Scan(
+		&p.ID,
+		&p.StoreID,
+		&p.Title,
+		&p.Slug,
+		&p.Description,
+		&p.PriceDisplay,
+		&p.CouponCode,
+		&p.ImageKey,
+		&p.StartDate,
+		&p.EndDate,
+		&p.Status,
+		&p.IsSponsored,
+		&p.MetaTitle,
+		&p.MetaDescription,
+		&p.CreatedAt,
+		&p.StoreName,
+		&p.StoreSlug,
+		&p.ClickCount,
+	)
+	return p, err
+}
+
+func normalizePromotionStatus(status string) string {
+	switch strings.ToLower(strings.TrimSpace(status)) {
+	case "draft", "expired":
+		return strings.ToLower(strings.TrimSpace(status))
+	default:
+		return "active"
+	}
+}
+
 // Banners
 
 func (r *Repository) BannerCreate(ctx context.Context, b *model.Banner) error {
 	if b.Status == "" {
 		b.Status = bannerStatusFromActive(b.Active)
 	}
-	res, err := r.db.ExecContext(ctx, `
+	id, err := r.insertID(ctx, `
 		INSERT INTO banners (name, advertiser_name, contact_name, contact_phone, contact_whatsapp, price_display, notes, position, image_key, link_url, start_date, end_date, status, active, priority)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
 		b.Name, b.AdvertiserName, b.ContactName, b.ContactPhone, b.ContactWhatsapp, b.PriceDisplay, b.Notes, b.Position, b.ImageKey, b.LinkURL, b.StartDate, b.EndDate, b.Status, b.Active, b.Priority)
 	if err != nil {
 		return err
 	}
-	b.ID, _ = res.LastInsertId()
+	b.ID = id
 	return nil
 }
 
@@ -1633,46 +1945,58 @@ func (r *Repository) BannerUpdate(ctx context.Context, b *model.Banner) error {
 }
 
 func (r *Repository) BannerGetByID(ctx context.Context, id int64) (*model.Banner, error) {
-	row := r.db.QueryRowContext(ctx, `SELECT id, name, COALESCE(advertiser_name, ''), COALESCE(contact_name, ''), COALESCE(contact_phone, ''), COALESCE(contact_whatsapp, ''), COALESCE(price_display, ''), COALESCE(notes, ''), position, image_key, link_url, start_date, end_date, COALESCE(status, CASE WHEN active THEN 'active' ELSE 'paused' END), active, priority, created_at FROM banners WHERE id = $1`, id)
-	var b model.Banner
-	err := row.Scan(&b.ID, &b.Name, &b.AdvertiserName, &b.ContactName, &b.ContactPhone, &b.ContactWhatsapp, &b.PriceDisplay, &b.Notes, &b.Position, &b.ImageKey, &b.LinkURL, &b.StartDate, &b.EndDate, &b.Status, &b.Active, &b.Priority, &b.CreatedAt)
+	row := r.db.QueryRowContext(ctx, bannerSelectSQL()+` WHERE b.id = $1`, id)
+	b, err := scanBanner(row)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
-	return &b, err
+	return b, err
 }
 
 func (r *Repository) BannerGetActiveByPosition(ctx context.Context, position string) (*model.Banner, error) {
 	today := time.Now().Format("2006-01-02")
-	row := r.db.QueryRowContext(ctx, `
-		SELECT id, name, COALESCE(advertiser_name, ''), COALESCE(contact_name, ''), COALESCE(contact_phone, ''), COALESCE(contact_whatsapp, ''), COALESCE(price_display, ''), COALESCE(notes, ''), position, image_key, link_url, start_date, end_date, COALESCE(status, CASE WHEN active THEN 'active' ELSE 'paused' END), active, priority, created_at
-		FROM banners
-		WHERE position = $1 AND active = true AND COALESCE(status, 'active') = 'active' AND start_date <= $2 AND end_date >= $2 AND image_key <> ''
-		ORDER BY priority DESC, created_at DESC
+	row := r.db.QueryRowContext(ctx, bannerSelectSQL()+`
+		WHERE b.position = $1 AND b.active = true AND COALESCE(b.status, 'active') = 'active' AND b.start_date <= $2 AND b.end_date >= $2 AND b.image_key <> ''
+		ORDER BY b.priority DESC, b.created_at DESC
 		LIMIT 1`, position, today)
-	var b model.Banner
-	err := row.Scan(&b.ID, &b.Name, &b.AdvertiserName, &b.ContactName, &b.ContactPhone, &b.ContactWhatsapp, &b.PriceDisplay, &b.Notes, &b.Position, &b.ImageKey, &b.LinkURL, &b.StartDate, &b.EndDate, &b.Status, &b.Active, &b.Priority, &b.CreatedAt)
+	b, err := scanBanner(row)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
-	return &b, err
+	return b, err
 }
 
 func (r *Repository) BannerList(ctx context.Context) ([]model.Banner, error) {
-	rows, err := r.db.QueryContext(ctx, `SELECT id, name, COALESCE(advertiser_name, ''), COALESCE(contact_name, ''), COALESCE(contact_phone, ''), COALESCE(contact_whatsapp, ''), COALESCE(price_display, ''), COALESCE(notes, ''), position, image_key, link_url, start_date, end_date, COALESCE(status, CASE WHEN active THEN 'active' ELSE 'paused' END), active, priority, created_at FROM banners ORDER BY created_at DESC`)
+	rows, err := r.db.QueryContext(ctx, bannerSelectSQL()+` ORDER BY b.created_at DESC`)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 	var banners []model.Banner
 	for rows.Next() {
-		var b model.Banner
-		if err := rows.Scan(&b.ID, &b.Name, &b.AdvertiserName, &b.ContactName, &b.ContactPhone, &b.ContactWhatsapp, &b.PriceDisplay, &b.Notes, &b.Position, &b.ImageKey, &b.LinkURL, &b.StartDate, &b.EndDate, &b.Status, &b.Active, &b.Priority, &b.CreatedAt); err != nil {
+		b, err := scanBanner(rows)
+		if err != nil {
 			return nil, err
 		}
-		banners = append(banners, b)
+		banners = append(banners, *b)
 	}
 	return banners, rows.Err()
+}
+
+func bannerSelectSQL() string {
+	return `
+		SELECT b.id, b.name, COALESCE(b.advertiser_name, ''), COALESCE(b.contact_name, ''), COALESCE(b.contact_phone, ''), COALESCE(b.contact_whatsapp, ''),
+		       COALESCE(b.price_display, ''), COALESCE(b.notes, ''), b.position, b.image_key, b.link_url, b.start_date, b.end_date,
+		       COALESCE(b.status, CASE WHEN b.active THEN 'active' ELSE 'paused' END), b.active, b.priority, b.created_at,
+		       COALESCE((SELECT COUNT(*) FROM metrics m WHERE m.metric_type = 'banner_impression' AND m.entity_type = 'banner' AND m.entity_id = b.id), 0),
+		       COALESCE((SELECT COUNT(*) FROM metrics m WHERE m.metric_type = 'banner_click' AND m.entity_type = 'banner' AND m.entity_id = b.id), 0)
+		FROM banners b`
+}
+
+func scanBanner(scanner interface{ Scan(dest ...any) error }) (*model.Banner, error) {
+	var b model.Banner
+	err := scanner.Scan(&b.ID, &b.Name, &b.AdvertiserName, &b.ContactName, &b.ContactPhone, &b.ContactWhatsapp, &b.PriceDisplay, &b.Notes, &b.Position, &b.ImageKey, &b.LinkURL, &b.StartDate, &b.EndDate, &b.Status, &b.Active, &b.Priority, &b.CreatedAt, &b.ImpressionCount, &b.ClickCount)
+	return &b, err
 }
 
 func (r *Repository) BannerDelete(ctx context.Context, id int64) error {
@@ -1705,14 +2029,14 @@ func bannerStatusFromActive(active bool) string {
 // Neighborhoods
 
 func (r *Repository) NeighborhoodCreate(ctx context.Context, n *model.Neighborhood) error {
-	res, err := r.db.ExecContext(ctx, `
+	id, err := r.insertID(ctx, `
 		INSERT INTO neighborhoods (slug, name, description, meta_title, meta_description, cover_image_key)
 		VALUES ($1, $2, $3, $4, $5, $6)`,
 		n.Slug, n.Name, n.Description, n.MetaTitle, n.MetaDescription, n.CoverImageKey)
 	if err != nil {
 		return err
 	}
-	n.ID, _ = res.LastInsertId()
+	n.ID = id
 	return nil
 }
 
@@ -1765,31 +2089,29 @@ func (r *Repository) NeighborhoodSlugExists(ctx context.Context, slug string) bo
 // Influencers
 
 func (r *Repository) InfluencerCreate(ctx context.Context, i *model.Influencer) error {
-	res, err := r.db.ExecContext(ctx, `
-		INSERT INTO influencers (slug, name, bio, city_area, instagram, tiktok, youtube, whatsapp, avatar_key, cover_image_key, is_featured, is_sponsored, active)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
-		i.Slug, i.Name, i.Bio, i.CityArea, i.Instagram, i.TikTok, i.YouTube, i.Whatsapp, i.AvatarKey, i.CoverImageKey, i.IsFeatured, i.IsSponsored, i.Active)
+	id, err := r.insertID(ctx, `
+		INSERT INTO influencers (slug, name, bio, city_area, niche, instagram, tiktok, youtube, whatsapp, avatar_key, cover_image_key, meta_title, meta_description, is_featured, is_sponsored, active)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)`,
+		i.Slug, i.Name, i.Bio, i.CityArea, i.Niche, i.Instagram, i.TikTok, i.YouTube, i.Whatsapp, i.AvatarKey, i.CoverImageKey, i.MetaTitle, i.MetaDescription, i.IsFeatured, i.IsSponsored, i.Active)
 	if err != nil {
 		return err
 	}
-	i.ID, _ = res.LastInsertId()
+	i.ID = id
 	return nil
 }
 
 func (r *Repository) InfluencerUpdate(ctx context.Context, i *model.Influencer) error {
 	_, err := r.db.ExecContext(ctx, `
-		UPDATE influencers SET slug=$1, name=$2, bio=$3, city_area=$4, instagram=$5, tiktok=$6, youtube=$7, whatsapp=$8, avatar_key=$9, cover_image_key=$10, is_featured=$11, is_sponsored=$12, active=$13
-		WHERE id=$14`,
-		i.Slug, i.Name, i.Bio, i.CityArea, i.Instagram, i.TikTok, i.YouTube, i.Whatsapp, i.AvatarKey, i.CoverImageKey, i.IsFeatured, i.IsSponsored, i.Active, i.ID)
+		UPDATE influencers SET slug=$1, name=$2, bio=$3, city_area=$4, niche=$5, instagram=$6, tiktok=$7, youtube=$8, whatsapp=$9, avatar_key=$10, cover_image_key=$11, meta_title=$12, meta_description=$13, is_featured=$14, is_sponsored=$15, active=$16
+		WHERE id=$17`,
+		i.Slug, i.Name, i.Bio, i.CityArea, i.Niche, i.Instagram, i.TikTok, i.YouTube, i.Whatsapp, i.AvatarKey, i.CoverImageKey, i.MetaTitle, i.MetaDescription, i.IsFeatured, i.IsSponsored, i.Active, i.ID)
 	return err
 }
 
 func (r *Repository) InfluencerGetBySlug(ctx context.Context, slug string) (*model.Influencer, error) {
-	row := r.db.QueryRowContext(ctx, `
-		SELECT id, slug, name, bio, city_area, instagram, tiktok, youtube, whatsapp, avatar_key, cover_image_key, is_featured, is_sponsored, active, created_at
-		FROM influencers WHERE slug = $1`, slug)
+	row := r.db.QueryRowContext(ctx, influencerSelectSQL()+` WHERE i.slug = $1`, slug)
 	var i model.Influencer
-	err := row.Scan(&i.ID, &i.Slug, &i.Name, &i.Bio, &i.CityArea, &i.Instagram, &i.TikTok, &i.YouTube, &i.Whatsapp, &i.AvatarKey, &i.CoverImageKey, &i.IsFeatured, &i.IsSponsored, &i.Active, &i.CreatedAt)
+	err := scanInfluencer(row, &i)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -1797,11 +2119,9 @@ func (r *Repository) InfluencerGetBySlug(ctx context.Context, slug string) (*mod
 }
 
 func (r *Repository) InfluencerGetByID(ctx context.Context, id int64) (*model.Influencer, error) {
-	row := r.db.QueryRowContext(ctx, `
-		SELECT id, slug, name, bio, city_area, instagram, tiktok, youtube, whatsapp, avatar_key, cover_image_key, is_featured, is_sponsored, active, created_at
-		FROM influencers WHERE id = $1`, id)
+	row := r.db.QueryRowContext(ctx, influencerSelectSQL()+` WHERE i.id = $1`, id)
 	var i model.Influencer
-	err := row.Scan(&i.ID, &i.Slug, &i.Name, &i.Bio, &i.CityArea, &i.Instagram, &i.TikTok, &i.YouTube, &i.Whatsapp, &i.AvatarKey, &i.CoverImageKey, &i.IsFeatured, &i.IsSponsored, &i.Active, &i.CreatedAt)
+	err := scanInfluencer(row, &i)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
@@ -1809,12 +2129,12 @@ func (r *Repository) InfluencerGetByID(ctx context.Context, id int64) (*model.In
 }
 
 func (r *Repository) InfluencerList(ctx context.Context, activeOnly bool, limit int) ([]model.Influencer, error) {
-	q := `SELECT id, slug, name, bio, city_area, instagram, tiktok, youtube, whatsapp, avatar_key, cover_image_key, is_featured, is_sponsored, active, created_at FROM influencers`
+	q := influencerSelectSQL()
 	var args []any
 	if activeOnly {
-		q += ` WHERE active = true`
+		q += ` WHERE i.active = true`
 	}
-	q += ` ORDER BY is_featured DESC, is_sponsored DESC, created_at DESC`
+	q += ` ORDER BY i.is_featured DESC, i.is_sponsored DESC, i.created_at DESC`
 	if limit > 0 {
 		q += ` LIMIT $1`
 		args = append(args, limit)
@@ -1827,12 +2147,28 @@ func (r *Repository) InfluencerList(ctx context.Context, activeOnly bool, limit 
 	var influencers []model.Influencer
 	for rows.Next() {
 		var i model.Influencer
-		if err := rows.Scan(&i.ID, &i.Slug, &i.Name, &i.Bio, &i.CityArea, &i.Instagram, &i.TikTok, &i.YouTube, &i.Whatsapp, &i.AvatarKey, &i.CoverImageKey, &i.IsFeatured, &i.IsSponsored, &i.Active, &i.CreatedAt); err != nil {
+		if err := scanInfluencer(rows, &i); err != nil {
 			return nil, err
 		}
 		influencers = append(influencers, i)
 	}
 	return influencers, rows.Err()
+}
+
+func influencerSelectSQL() string {
+	return `
+		SELECT i.id, i.slug, i.name, i.bio, i.city_area, i.niche, i.instagram, i.tiktok, i.youtube, i.whatsapp, i.avatar_key, i.cover_image_key,
+		       i.meta_title, i.meta_description, i.is_featured, i.is_sponsored, i.active, i.created_at,
+		       COALESCE((SELECT COUNT(*) FROM metrics m WHERE m.metric_type = 'influencer_view' AND m.entity_type = 'influencer' AND m.entity_id = i.id), 0)
+		FROM influencers i`
+}
+
+type influencerScanner interface {
+	Scan(dest ...any) error
+}
+
+func scanInfluencer(scanner influencerScanner, i *model.Influencer) error {
+	return scanner.Scan(&i.ID, &i.Slug, &i.Name, &i.Bio, &i.CityArea, &i.Niche, &i.Instagram, &i.TikTok, &i.YouTube, &i.Whatsapp, &i.AvatarKey, &i.CoverImageKey, &i.MetaTitle, &i.MetaDescription, &i.IsFeatured, &i.IsSponsored, &i.Active, &i.CreatedAt, &i.ViewCount)
 }
 
 func (r *Repository) InfluencerDelete(ctx context.Context, id int64) error {
@@ -1852,14 +2188,14 @@ func (r *Repository) JobCreate(ctx context.Context, j *model.Job) error {
 	if j.MaxAttempts <= 0 {
 		j.MaxAttempts = 3
 	}
-	res, err := r.db.ExecContext(ctx, `
+	id, err := r.insertID(ctx, `
 		INSERT INTO jobs (type, payload, status, run_at, max_attempts)
 		VALUES ($1, $2, $3, $4, $5)`,
 		j.Type, j.Payload, j.Status, j.RunAt, j.MaxAttempts)
 	if err != nil {
 		return err
 	}
-	j.ID, _ = res.LastInsertId()
+	j.ID = id
 	return nil
 }
 
@@ -1895,6 +2231,37 @@ func (r *Repository) JobGetPending(ctx context.Context, limit int) ([]model.Job,
 }
 
 func (r *Repository) JobClaimPending(ctx context.Context, limit int) ([]model.Job, error) {
+	if r.driver == "postgres" {
+		now := time.Now()
+		rows, err := r.db.QueryContext(ctx, `
+			WITH due AS (
+				SELECT id
+				FROM jobs
+				WHERE status = 'pending' AND run_at <= $1
+				ORDER BY run_at ASC
+				LIMIT $2
+				FOR UPDATE SKIP LOCKED
+			)
+			UPDATE jobs
+			SET status=$3, error='', processed_at=NULL
+			FROM due
+			WHERE jobs.id = due.id
+			RETURNING jobs.id, jobs.type, jobs.payload, jobs.status, jobs.run_at, jobs.created_at, jobs.attempts, jobs.max_attempts, jobs.error, jobs.processed_at`,
+			now, limit, model.JobRunning)
+		if err != nil {
+			return nil, err
+		}
+		defer rows.Close()
+		var jobs []model.Job
+		for rows.Next() {
+			var job model.Job
+			if err := rows.Scan(&job.ID, &job.Type, &job.Payload, &job.Status, &job.RunAt, &job.CreatedAt, &job.Attempts, &job.MaxAttempts, &job.Error, &job.ProcessedAt); err != nil {
+				return nil, err
+			}
+			jobs = append(jobs, job)
+		}
+		return jobs, rows.Err()
+	}
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, err
@@ -2306,6 +2673,14 @@ func (r *Repository) SitemapEntries(ctx context.Context) ([]model.SitemapEntry, 
 			sql: `SELECT slug, created_at FROM promotions
 				WHERE status = 'active' AND start_date <= date('now') AND end_date >= date('now')
 				ORDER BY created_at DESC`,
+		},
+		{
+			prefix: "/evento/",
+			sql:    `SELECT slug, updated_at FROM events WHERE status = 'active' ORDER BY start_at ASC`,
+		},
+		{
+			prefix: "/classificado/",
+			sql:    `SELECT slug, updated_at FROM classifieds WHERE status = 'active' AND (expires_at IS NULL OR expires_at >= date('now')) ORDER BY created_at DESC`,
 		},
 		{
 			prefix: "/bairro/",

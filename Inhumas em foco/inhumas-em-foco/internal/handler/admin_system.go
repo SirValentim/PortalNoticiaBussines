@@ -147,7 +147,7 @@ func auditLogActions() []string {
 }
 
 func auditLogEntityTypes() []string {
-	return []string{"post", "user", "media", "store", "influencer", "banner", "promotion", "neighborhood"}
+	return []string{"post", "user", "media", "store", "influencer", "banner", "promotion", "event", "classified", "neighborhood", "settings"}
 }
 
 func auditLogFilterPath(values url.Values) string {

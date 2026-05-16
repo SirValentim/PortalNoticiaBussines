@@ -945,3 +945,386 @@ Proxima etapa real: concluir Sprint 5 com organizacao por ano/mes e busca por da
 - [x] Servicos `inhumas-web` e `inhumas-worker` confirmados ativos apos deploy.
 
 Proxima etapa real: iniciar Sprint 6 - Auditoria e configuracoes do portal.
+
+### Etapa 29 - Sprint 6: auditoria e configuracoes globais
+
+- [x] Auditoria administrativa consolidada com tela, filtros por usuario, acao, entidade, entidade ID e periodo.
+- [x] Filtro de auditoria passou a incluir entidade `settings`.
+- [x] `PortalSettings` criado para identidade, contatos, redes sociais, SEO global, limites de upload e automacao.
+- [x] Schema SQLite recebeu tabela `portal_settings`.
+- [x] Migration PostgreSQL inicial recebeu tabela `portal_settings`.
+- [x] Repository ganhou leitura com defaults seguros e upsert das configuracoes globais.
+- [x] Painel administrativo recebeu menu `Configuracoes`.
+- [x] Tela `/settings` permite editar nome do portal, slogan, logo, favicon, contato, redes sociais, SEO global, limite de upload e parametros de automacao.
+- [x] Logo e favicon podem ser enviados ou reutilizados a partir da biblioteca de midia.
+- [x] Biblioteca de midia passa a considerar logo e favicon como uso protegido.
+- [x] Header, footer, pagina de contato, RSS, Open Graph e JSON-LD passam a usar configuracoes globais.
+- [x] Atualizacao das configuracoes registra auditoria com IP, usuario e principais campos alterados.
+- [x] Testes adicionados para renderizacao, permissao, persistencia, auditoria e uso publico das configuracoes.
+- [x] Validado localmente com `go test ./...`.
+- [x] Validado localmente com `go build ./cmd/web ./cmd/worker ./cmd/seed-news`.
+- [x] Backup pre-deploy criado na VPS em `/var/www/inhumas/backups/pre-sprint6-settings-20260513_191104.db`.
+- [x] Publicado na VPS com novos binarios, templates, migrations e documentos.
+- [x] Servicos `inhumas-web` e `inhumas-worker` confirmados ativos apos deploy.
+- [x] Smoke remoto validou `/health`, `/contato`, login administrativo e `/painel/1c2dhviax7/settings`.
+- [x] Banco remoto confirmou tabela `portal_settings`.
+
+Proxima etapa real: iniciar Sprint 7 - eventos, classificados e modulos locais.
+
+### Etapa 30 - Sprint 7 inicial: eventos locais
+
+- [x] `model.Event` criado com titulo, slug, descricao, local, organizador, ingresso, valor, imagem, status, destaque, patrocinado e SEO.
+- [x] RBAC recebeu permissao `events:manage` para administradores, editores e comercial.
+- [x] Schema SQLite recebeu tabela `events` com indices por status/data e destaque.
+- [x] Migration PostgreSQL inicial recebeu tabela `events`.
+- [x] Repository ganhou CRUD de eventos, busca por slug/ID, listagem ativa e validacao de slug.
+- [x] Sitemap dinamico passou a incluir eventos ativos em `/evento/{slug}`.
+- [x] Biblioteca de midia passa a considerar eventos como uso protegido de imagem.
+- [x] Painel administrativo recebeu menu `Eventos`.
+- [x] Criadas rotas administrativas `/events`, `/events/new`, edicao e exclusao.
+- [x] Formulario de evento permite upload ou reutilizacao de imagem da biblioteca.
+- [x] Eventos registram auditoria em criacao, edicao e exclusao.
+- [x] Rota publica `/eventos` agora lista eventos cadastrados como produto proprio.
+- [x] Rota publica `/evento/{slug}` criada com detalhe, SEO e Schema.org `Event`.
+- [x] Testes adicionados para criacao administrativa, permissao, auditoria, listagem publica e detalhe publico.
+- [x] Validado localmente com `go test ./...`.
+- [x] Validado localmente com `go build ./cmd/web ./cmd/worker ./cmd/seed-news`.
+- [x] Backup pre-deploy criado na VPS em `/var/www/inhumas/backups/pre-sprint7-events-20260513_192242.db`.
+- [x] Publicado na VPS com novos binarios, templates, migrations e documentos.
+- [x] Servicos `inhumas-web` e `inhumas-worker` confirmados ativos apos deploy.
+- [x] Smoke remoto validou `/health`, login administrativo, `/events/new`, criacao de evento temporario, `/eventos`, `/evento/{slug}`, exclusao pelo painel e 404 apos exclusao.
+- [x] Banco remoto confirmou tabela `events`, auditoria de evento e limpeza do temporario.
+
+Proxima etapa real: continuar Sprint 7 com classificados.
+
+### Etapa 31 - Sprint 7: classificados locais
+
+- [x] `model.Classified` criado com titulo, slug, descricao, categoria, preco, contato, localizacao, imagem, status, destaque, patrocinado, validade e SEO.
+- [x] RBAC recebeu permissao `classifieds:manage` para administradores e comercial.
+- [x] Schema SQLite recebeu tabela `classifieds` com indices por status/categoria e destaque.
+- [x] Migration PostgreSQL inicial recebeu tabela `classifieds`.
+- [x] Repository ganhou CRUD de classificados, busca por slug/ID, filtros por texto/categoria e validacao de slug.
+- [x] Sitemap dinamico passou a incluir classificados ativos e nao expirados em `/classificado/{slug}`.
+- [x] Biblioteca de midia passa a considerar classificados como uso protegido de imagem.
+- [x] Painel administrativo recebeu menu `Classificados`.
+- [x] Criadas rotas administrativas `/classifieds`, `/classifieds/new`, edicao e exclusao.
+- [x] Formulario de classificado permite upload ou reutilizacao de imagem da biblioteca.
+- [x] Classificados registram auditoria em criacao, edicao e exclusao.
+- [x] Rota publica `/classificados` agora lista anuncios cadastrados com busca e filtro por categoria.
+- [x] Rota publica `/classificado/{slug}` criada com detalhe, SEO e Schema.org `Product`.
+- [x] Testes adicionados para criacao administrativa, permissao, auditoria, filtro publico e detalhe publico.
+- [x] Validado localmente com `go test ./...`.
+- [x] Validado localmente com `go build ./cmd/web ./cmd/worker ./cmd/seed-news`.
+- [x] Backup pre-deploy criado na VPS em `/var/www/inhumas/backups/pre-sprint7-classifieds-20260513_193256.db`.
+- [x] Publicado na VPS com novos binarios, templates, migrations e documentos.
+- [x] Servicos `inhumas-web` e `inhumas-worker` confirmados ativos apos deploy.
+- [x] Smoke remoto validou `/health`, login administrativo, `/classifieds/new`, criacao de classificado temporario, `/classificados?categoria=Imoveis`, `/classificado/{slug}`, exclusao pelo painel e 404 apos exclusao.
+- [x] Banco remoto confirmou tabela `classifieds`, auditoria de classificado e limpeza do temporario.
+
+Proxima etapa real: continuar Sprint 7 refinando lojas, promocoes e influencers.
+
+### Etapa 32 - Sprint 7: refinamento de lojas
+
+- [x] `model.Store` ganhou `website_url`, `commercial_status`, `meta_title` e `meta_description`.
+- [x] Schema SQLite recebeu colunas de SEO, site e status comercial em `stores`.
+- [x] Migration PostgreSQL inicial recebeu colunas equivalentes em `stores`.
+- [x] Migração automática SQLite garante as novas colunas em bancos existentes.
+- [x] Repository de lojas passou a persistir e carregar SEO, site e status comercial.
+- [x] Painel de lojas exibe status comercial por cliente.
+- [x] Formulario de loja permite editar site, status comercial, meta title e meta description.
+- [x] Detalhe publico da loja usa SEO proprio quando preenchido.
+- [x] Detalhe publico exibe link de site quando cadastrado.
+- [x] Auditoria de loja registra status comercial nas criacoes e edicoes.
+- [x] Teste adicionado para criacao administrativa com SEO/status comercial e renderizacao publica.
+- [x] Validado localmente com `go test ./...`.
+- [x] Validado localmente com `go build ./cmd/web ./cmd/worker ./cmd/seed-news`.
+- [x] Backup pre-deploy criado na VPS em `/var/www/inhumas/backups/pre-sprint7-stores-20260513_194044.db`.
+- [x] Publicado na VPS com novos binarios, templates, migrations e documentos.
+- [x] Servicos `inhumas-web` e `inhumas-worker` confirmados ativos apos deploy.
+- [x] Smoke remoto validou `/health`, login administrativo, `/stores/new`, criacao de loja temporaria com SEO/status/site, `/loja/{slug}`, exclusao pelo painel e 404 apos exclusao.
+- [x] Banco remoto confirmou colunas `website_url`, `commercial_status`, `meta_title` e `meta_description` em `stores`, auditoria de loja e limpeza do temporario.
+
+Proxima etapa real: seguir para promocoes.
+
+### Etapa 33 - Sprint 7: refinamento de promocoes
+
+- [x] `model.Promotion` ganhou `coupon_code`, `meta_title`, `meta_description` e contador transiente de cliques.
+- [x] Schema SQLite recebeu colunas de cupom e SEO em `promotions`.
+- [x] Migration PostgreSQL inicial recebeu colunas equivalentes em `promotions`.
+- [x] Migração automática SQLite garante as novas colunas em bancos existentes.
+- [x] Repository de promocoes passou a persistir e carregar cupom, SEO e contagem de cliques/resgates.
+- [x] Admin de promocoes passou a listar todas as promocoes, nao apenas as ativas.
+- [x] Admin de promocoes ganhou resumo de cadastradas, no ar/agendadas, expiradas e cliques/resgates.
+- [x] Formulario de promocao permite editar cupom, status e SEO tambem em novos cadastros.
+- [x] Página publica da promocao usa SEO proprio quando preenchido.
+- [x] Página publica exibe cupom quando cadastrado.
+- [x] Detalhe publico de promocao respeita status ativo e periodo vigente.
+- [x] Testes adicionados/atualizados para cupom, SEO, relatorio de cliques e detalhe publico.
+- [x] Validado localmente com `go test ./...`.
+- [x] Validado localmente com `go build ./cmd/web ./cmd/worker ./cmd/seed-news`.
+- [x] Backup pre-deploy criado na VPS em `/var/www/inhumas/backups/pre-sprint7-promotions-20260513_195130.db`.
+- [x] Refinamento de promocoes publicado na VPS com binarios, templates, CSS, migracoes e docs.
+- [x] Servicos `inhumas-web` e `inhumas-worker` reiniciados e ativos apos deploy.
+- [x] Smoke remoto validou `/health`, login administrativo, criacao de loja temporaria, criacao de promocao com cupom/SEO, listagem `/promocoes`, detalhe `/promocao/{slug}`, relatorio admin de promocoes e exclusao segura.
+- [x] Banco remoto confirmou colunas `coupon_code`, `meta_title` e `meta_description` em `promotions`.
+- [x] Smoke remoto confirmou limpeza dos registros temporarios e retorno `404` no detalhe da promocao excluida.
+
+Proxima etapa real: seguir para influencers com nichos/categorias, destaque, SEO e relatorio basico.
+
+### Etapa 34 - Sprint 7 final: refinamento de influencers
+
+- [x] `model.Influencer` ganhou `niche`, `meta_title`, `meta_description` e contador transiente de visualizacoes.
+- [x] Schema SQLite recebeu colunas de nicho e SEO em `influencers`.
+- [x] Migration PostgreSQL inicial recebeu colunas equivalentes em `influencers`.
+- [x] Migração automática SQLite garante as novas colunas em bancos existentes.
+- [x] Repository de influencers passou a persistir e carregar nicho, SEO e contagem de visualizacoes.
+- [x] Admin de influencers ganhou resumo de cadastrados, ativos, destaques e visualizacoes.
+- [x] Lista admin mostra nicho, views e atalho para perfil publico ativo.
+- [x] Formulario de influencer permite editar nicho/categoria e SEO.
+- [x] Lista publica de influencers ganhou filtro por nicho.
+- [x] Detalhe publico de influencer usa SEO proprio quando preenchido.
+- [x] Testes adicionados/atualizados para nicho, SEO, filtro publico, relatorio de views e detalhe publico.
+- [x] Validado localmente com `go test ./...`.
+- [x] Validado localmente com `go build ./cmd/web ./cmd/worker ./cmd/seed-news`.
+- [x] Backup pre-deploy criado na VPS em `/var/www/inhumas/backups/pre-sprint7-influencers-20260513_202342.db`.
+- [x] Refinamento de influencers publicado na VPS com binarios, templates, CSS, migracoes e docs.
+- [x] Servicos `inhumas-web` e `inhumas-worker` reiniciados e ativos apos deploy.
+- [x] Smoke remoto validou `/health`, login administrativo, criacao de influencer temporario, filtro publico por nicho, detalhe `/influencer/{slug}` com SEO, relatorio admin de visualizacoes e exclusao segura.
+- [x] Banco remoto confirmou colunas `niche`, `meta_title` e `meta_description` em `influencers`.
+- [x] Smoke remoto confirmou limpeza dos registros temporarios e retorno `404` no detalhe do influencer excluido.
+
+Sprint 7 encerrado: eventos, classificados, lojas, promocoes e influencers estao com painel, pagina publica, SEO, status e validacao em VPS.
+
+Proxima etapa real: iniciar Sprint 8 - anuncios avancados e relatorios comerciais.
+
+### Etapa 35 - Sprint 8 inicial: relatorios comerciais de banners
+
+- [x] `model.Banner` ganhou contadores transientes de impressoes e cliques.
+- [x] Repository de banners passou a carregar impressoes e cliques a partir da tabela `metrics`.
+- [x] Painel de banners ganhou bloco de relatorio comercial com anunciantes, impressoes, cliques e CTR medio.
+- [x] Listagem de campanhas passou a exibir impressoes, cliques e CTR por banner.
+- [x] Painel de banners ganhou filtro por status comercial: ativo, pausado, rascunho e expirado.
+- [x] Criada rota administrativa `GET /banners/export.csv` para exportacao CSV do relatorio filtrado.
+- [x] Testes adicionados para relatorio comercial, CTR e exportacao CSV.
+- [x] Validado localmente com `go test ./...`.
+- [x] Validado localmente com `go build ./cmd/web ./cmd/worker ./cmd/seed-news`.
+- [x] Backup pre-deploy criado na VPS em `/var/www/inhumas/backups/pre-sprint8-banner-reports-20260514_125359.db`.
+- [x] Relatorios comerciais de banners publicados na VPS com binarios, templates, CSS, migracoes e docs.
+- [x] Servicos `inhumas-web` e `inhumas-worker` reiniciados e ativos apos deploy.
+- [x] Smoke remoto validou `/health`, login administrativo, criacao de banner temporario em rascunho, metricas de impressao/clique, filtro por status, relatorio com CTR, exportacao CSV e exclusao segura.
+- [x] Smoke remoto confirmou limpeza dos banners e metricas temporarios.
+
+Proxima etapa real: seguir nos produtos comerciais de destaque para classificados, eventos e lojas.
+
+### Etapa 36 - Sprint 8 final: produtos comerciais locais
+
+- [x] Painel de lojas ganhou inventario comercial com total, ativas, destaques vendidos e patrocinadas.
+- [x] Painel de eventos ganhou inventario comercial com total, ativos, destaques vendidos e patrocinados.
+- [x] Painel de classificados ganhou inventario comercial com total, ativos, destaques vendidos e patrocinados.
+- [x] Pagina publica de lojas ganhou bloco `Destaques comerciais` para lojas destacadas ou patrocinadas.
+- [x] Pagina publica de eventos ganhou bloco `Destaques comerciais` para eventos destacados ou patrocinados.
+- [x] Pagina publica de classificados ganhou bloco `Destaques comerciais` para classificados destacados ou patrocinados.
+- [x] Listagens publicas separam destaques comerciais da listagem organica para deixar o produto vendavel e claro.
+- [x] Banners in-feed foram deslocados para depois do conteudo/filtros nas paginas de lojas, eventos e classificados, evitando anuncios consecutivos no topo/feed.
+- [x] Testes atualizados para validar blocos comerciais publicos e resumos comerciais administrativos.
+- [x] Validado localmente com `go test ./...`.
+- [x] Validado localmente com `go build ./cmd/web ./cmd/worker ./cmd/seed-news`.
+- [x] Backup pre-deploy criado na VPS em `/var/www/inhumas/backups/pre-sprint8-commercial-products-20260514_131327.db`.
+- [x] Produtos comerciais locais publicados na VPS com binarios, templates, CSS, migracoes e docs.
+- [x] Servicos `inhumas-web` e `inhumas-worker` reiniciados e ativos apos deploy.
+- [x] Smoke remoto validou `/health`, login administrativo, blocos comerciais publicos em lojas/eventos/classificados, resumos comerciais nos paineis e regra visual com banner deslocado para depois do conteudo.
+- [x] Smoke remoto confirmou limpeza dos registros temporarios de lojas, eventos e classificados.
+
+Sprint 8 encerrado: banners tem relatorio comercial/CSV e os modulos locais possuem produtos de destaque/patrocinio vendaveis no painel e no portal publico.
+
+Proxima etapa real: iniciar Sprint 9 - automacao de noticias com fontes RSS/oficiais, fila de revisao e logs de execucao.
+
+### Etapa 37 - Sprint 9: automacao de noticias
+
+- [x] `model.AutomationSource` criado para fontes RSS e fontes oficiais com categoria padrao, status e ultima coleta.
+- [x] `model.AutomationRun` criado para registrar execucoes, status, itens encontrados, rascunhos, duplicados, erro e log.
+- [x] `JobCollectNews` criado para coleta recorrente pelo worker.
+- [x] Schema SQLite recebeu tabelas `automation_sources` e `automation_runs`.
+- [x] Migration PostgreSQL inicial recebeu tabelas equivalentes e o tipo de job `collect_news`.
+- [x] Repository ganhou CRUD de fontes, historico de execucoes, fila de rascunhos importados e verificacao de duplicidade exata.
+- [x] Servico `internal/automation` criado com parser RSS/Atom, HTTP client com limite de leitura e `User-Agent` proprio.
+- [x] Deduplicacao por URL implementada antes da criacao de rascunhos.
+- [x] Deduplicacao por titulo identico implementada.
+- [x] Similaridade basica por tokens implementada para reduzir repeticao editorial.
+- [x] Coleta cria posts sempre como `draft`, preservando `source_name`, `source_url`, resumo, meta description e nota editorial de revisao obrigatoria.
+- [x] Worker agenda coleta recorrente quando `PortalSettings.AutomationEnabled` esta ativo e respeita `AutomationIntervalMinutes`.
+- [x] Execucao automatica nunca publica conteudo; publicacao continua dependendo do fluxo editorial humano.
+- [x] RBAC recebeu permissao `automation:manage` para administradores e editores.
+- [x] Middleware administrativo permite editores acessarem a area de automacao sem liberar areas comerciais/usuarios/configuracoes.
+- [x] Painel recebeu menu `Automacao`.
+- [x] Tela `/automation` lista fontes, fila de revisao, historico de execucoes e logs visiveis.
+- [x] Tela `/automation/sources/new` permite cadastrar fonte RSS ou oficial.
+- [x] Edicao, exclusao, execucao por fonte e botao `Executar agora` para todas as fontes ativas foram adicionados.
+- [x] Auditoria registra criacao, edicao, exclusao e execucoes manuais de automacao.
+- [x] Testes adicionados para criar rascunhos automatizados, preservar fonte original e bloquear duplicados.
+- [x] Validado localmente com `go test ./...`.
+- [x] Validado localmente com `go build ./cmd/web ./cmd/worker ./cmd/seed-news`.
+- [x] Backup pre-deploy criado na VPS em `/var/www/inhumas/backups/pre-sprint9-automation-20260514_163229-db.tar.gz`.
+- [x] Sprint 9 publicado na VPS com binarios, templates, migrations e documentos.
+- [x] Servicos `inhumas-web` e `inhumas-worker` reiniciados e ativos apos deploy.
+- [x] Smoke remoto validou `/health`, login administrativo e `/painel/1c2dhviax7/automation`.
+- [x] Banco remoto confirmou tabelas `automation_sources` e `automation_runs`.
+
+Sprint 9 encerrado: o CMS agora tem automacao de noticias com fontes RSS/oficiais, execucoes auditaveis, logs, deduplicacao, rascunhos rastreaveis e revisao humana obrigatoria.
+
+Proxima etapa real: iniciar Sprint 10 - IA editorial desacoplada.
+
+### Etapa 38 - Sprint 10: IA editorial desacoplada
+
+- [x] Pacote `internal/editorialai` criado com interface `Provider`/`EditorialAIProvider` desacoplada do fornecedor.
+- [x] Provider mock `mock-editorial` implementado para desenvolvimento, testes e operacao sem custo externo.
+- [x] Acoes editoriais implementadas: melhorar titulo, criar subtitulo, gerar resumo, gerar meta description, sugerir tags, reescrever em tom jornalistico, criar chamada social e verificar duplicidade.
+- [x] Guardrail centralizado informa que a sugestao usa apenas titulo, resumo, conteudo e fonte cadastrados.
+- [x] Guardrail alerta quando a fonte original esta ausente.
+- [x] Provider preserva `source_name` e `source_url` em todas as sugestoes.
+- [x] Acoes de IA nao alteram status, nao publicam, nao aprovam e nao substituem o fluxo editorial humano.
+- [x] Rascunhos automatizados continuam como `draft`; a IA atua apenas como assistente de sugestao.
+- [x] Schema SQLite recebeu tabela `ai_usage_logs`.
+- [x] Migration PostgreSQL inicial recebeu tabela `ai_usage_logs`.
+- [x] Repository ganhou criacao de log de uso de IA e listagem por noticia.
+- [x] Handler administrativo recebeu rota `POST /posts/{id}/ai/{action}`.
+- [x] Formulario de noticia recebeu bloco `IA editorial` com botoes de sugestao para cada acao.
+- [x] Sugestoes aparecem no editor com notas de guardrail e sem gravar automaticamente nos campos.
+- [x] Historico recente de uso de IA aparece no formulario da noticia.
+- [x] Auditoria administrativa registra cada acao de IA por noticia.
+- [x] Testes adicionados para provider mock, guardrails, fonte preservada, duplicidade, log de uso e garantia de que status continua rascunho.
+- [x] Validado localmente com `go test ./...`.
+- [x] Validado localmente com `go build ./cmd/web ./cmd/worker ./cmd/seed-news`.
+- [x] Backup pre-deploy criado na VPS em `/var/www/inhumas/backups/pre-sprint10-ai-20260514_165127-db.tar.gz`.
+- [x] Sprint 10 publicado na VPS com binarios, templates, CSS, migrations e documentos.
+- [x] Servicos `inhumas-web` e `inhumas-worker` reiniciados e ativos apos deploy.
+- [x] Smoke remoto validou `/health`, login administrativo, criacao de noticia temporaria em rascunho, bloco `IA editorial`, acao `meta_description`, guardrail visivel e limpeza do post temporario.
+- [x] Banco remoto confirmou tabela `ai_usage_logs`.
+
+Sprint 10 encerrado: a IA editorial esta pronta para trocar de fornecedor no futuro sem reescrever o CMS.
+
+Proxima etapa real: iniciar Sprint 11 - PostgreSQL e migrations versionadas.
+
+### Etapa 39 - Sprint 11: PostgreSQL e migrations versionadas
+
+- [x] Estrategia definida: SQLite continua como runtime padrao/seguro e PostgreSQL entra por `DB_DRIVER=postgres` ou autodeteccao de URL `postgres://`.
+- [x] Driver PostgreSQL `github.com/lib/pq` adicionado ao projeto.
+- [x] Configuracao recebeu `DB_DRIVER` e `MIGRATIONS_DIR`.
+- [x] `cmd/web`, `cmd/worker` e `cmd/seed-news` passaram a abrir banco por driver configuravel.
+- [x] Repository recebeu dialeto interno (`sqlite`/`postgres`) sem quebrar a API atual.
+- [x] Runner de migrations versionadas criado para PostgreSQL com tabela `schema_migrations`.
+- [x] SQLite passa a registrar `schema_migrations` com versao `sqlite_auto`, mantendo compatibilidade com o migrador automatico atual.
+- [x] Migration PostgreSQL inicial revisada para refletir colunas comerciais atuais de banners e `dead_jobs` com sequence propria.
+- [x] Inserts do repository passaram por helper compativel: `LastInsertId` no SQLite e `RETURNING id` no PostgreSQL.
+- [x] Busca de posts ganhou caminho PostgreSQL com `search_vector`, `plainto_tsquery` e ranking por `ts_rank_cd`.
+- [x] Worker ganhou claim PostgreSQL concorrente com `FOR UPDATE SKIP LOCKED`.
+- [x] Comando `cmd/migrate-sqlite-postgres` criado para copiar dados do SQLite para PostgreSQL em ordem segura.
+- [x] Migrador ajusta booleans, preserva IDs, roda migrations no destino, ajusta sequences e valida contagem por tabela.
+- [x] Documentacao de ambiente atualizada com `DB_DRIVER`, `MIGRATIONS_DIR`, exemplo PostgreSQL e comando de migracao.
+- [x] Guia de operacao atualizado com rotina de homologacao da migracao SQLite -> PostgreSQL.
+- [x] Testes adicionados para abertura SQLite com `schema_migrations` e deteccao de driver.
+- [x] Validado localmente com `go test ./...`.
+- [x] Validado localmente com `go build ./cmd/web ./cmd/worker ./cmd/seed-news ./cmd/migrate-sqlite-postgres`.
+- [x] Backup pre-deploy criado na VPS em `/var/www/inhumas/backups/pre-sprint11-postgres-20260515_214147-db.tar.gz`.
+- [x] Sprint 11 publicado na VPS com binarios, comando de migracao, templates, CSS, migrations e documentos.
+- [x] Servicos `inhumas-web` e `inhumas-worker` reiniciados e ativos apos deploy.
+- [x] Smoke remoto validou `/health`, login administrativo e `/painel/1c2dhviax7/posts`.
+- [x] Banco remoto SQLite confirmou `schema_migrations` com versao `sqlite_auto`.
+- [x] Binario remoto `/var/www/inhumas/bin/migrate-sqlite-postgres` confirmado executavel e falhando corretamente quando `POSTGRES_DATABASE_URL` nao esta configurado.
+
+Sprint 11 encerrado: o CMS esta pronto para operar em PostgreSQL por configuracao e possui caminho documentado de migracao de dados.
+
+Proxima etapa real: iniciar Sprint 12 - operacao, observabilidade e hardening.
+
+### Etapa 40 - Sprint 12: operacao, observabilidade e hardening
+
+- [x] Middleware de logs estruturados JSON adicionado ao `cmd/web`, com `request_id`, metodo, rota, query, status, bytes, IP, user agent e duracao.
+- [x] Header `X-Request-ID` passa a ser emitido em toda requisicao e fica disponivel no contexto da request.
+- [x] CSP revisada com `object-src 'none'`, `connect-src 'self'`, `base-uri 'self'`, `form-action 'self'` e `upgrade-insecure-requests` quando a request chega por HTTPS.
+- [x] Modo `Content-Security-Policy-Report-Only` configuravel por `CSP_REPORT_ONLY` e `CSP_REPORT_URI` para auditar a remocao futura de scripts/styles inline.
+- [x] Nginx example atualizado com headers CSP/Permissions-Policy mais restritivos e bloco report-only comentado.
+- [x] `scripts/backup.sh` agora alerta em falha e pode acionar backup externo automaticamente quando `RCLONE_REMOTE` ou `OFFSITE_BACKUP_DIR` estiver configurado.
+- [x] `scripts/backup-offsite.sh` criado para copiar backups recentes para rclone ou volume externo fora da VPS.
+- [x] `scripts/backup-check.sh` criado para validar idade maxima do ultimo backup de banco e disparar alerta.
+- [x] `scripts/disk-check.sh` recebeu limite configuravel por `DISK_ALERT_THRESHOLD`.
+- [x] `scripts/journal-retention.sh` criado para aplicar retencao de logs do systemd.
+- [x] `scripts/smoke-test.sh` criado para validar `/health`, home e, quando credenciais forem fornecidas por ambiente, login administrativo.
+- [x] `docs/ENVIRONMENT.md` atualizado com variaveis de CSP, backup externo, alertas, disco e retencao de logs.
+- [x] `docs/OPERATIONS_GUIDE.md` atualizado com monitor externo, cron operacional, backup externo, smoke pos-deploy e checklist de rollback.
+- [x] `docs/SECURITY_PREPROD_CHECKLIST.md` atualizado com CSP report-only, backup externo, backup-check e smoke test.
+- [x] `docs/CMS_PLANO_GERAL.md` marcou o Sprint 12 como concluido no escopo atual.
+- [x] Validado localmente com `go test ./...`.
+- [x] Validado localmente com `go build ./cmd/web ./cmd/worker ./cmd/seed-news ./cmd/migrate-sqlite-postgres`.
+- [x] Validacao local de shell scripts via `bash -n` nao executou porque o Windows atual nao tem WSL/distro instalada.
+- [x] Sintaxe dos scripts validada no Linux da VPS com `bash -n` antes da instalacao.
+- [x] Backup pre-deploy criado na VPS em `/var/www/inhumas/backups/pre-sprint12-operational-20260516_002000-db.tar.gz`.
+- [x] Backup operacional recorrente executado em `/var/backups/inhumas/db_20260516_002145.db.gz`.
+- [x] `scripts/backup-check.sh` validou backup recente com `Backup OK`.
+- [x] Sprint 12 publicado na VPS com binarios, templates, CSS, migrations, docs, scripts e exemplos de deploy.
+- [x] Binarios alinhados aos nomes reais dos services systemd: `/var/www/inhumas/bin/web` e `/var/www/inhumas/bin/worker`.
+- [x] Servicos `inhumas-web` e `inhumas-worker` reiniciados e ativos apos deploy.
+- [x] Smoke remoto validou `/health` e home publica via `scripts/smoke-test.sh`.
+- [x] Smoke administrativo validou login com a conta admin e acesso ao dashboard.
+- [x] Journal da VPS confirmou logs estruturados JSON com evento `http_request` e `request_id`.
+- [x] Header local do backend confirmou `X-Request-ID`, CSP revisada e `Permissions-Policy`.
+
+Sprint 12 encerrado: o CMS agora possui base operacional mais robusta, com logs estruturados, smoke pos-deploy, backup-check, backup externo preparado, alertas documentados, CSP report-only e checklist de rollback.
+
+Proxima etapa real: iniciar Sprint 13 - refinamento premium de UX do painel administrativo.
+
+### Etapa 41 - Sprint 13: refinamento premium de UX do painel administrativo
+
+- [x] Layout administrativo reorganizado com sidebar por grupos: Operacao, Editorial, Comercial local e Sistema.
+- [x] Marca do CMS adicionada ao topo da sidebar com identificacao `Inhumas em Foco / CMS Editorial`.
+- [x] Header administrativo fixo criado com titulo da tela, usuario logado, papel, atalho de nova noticia, link para o site e logout.
+- [x] Alertas de sucesso/erro do painel migrados para toasts flutuantes com `aria-live`.
+- [x] Loading state generico adicionado aos formularios administrativos ao enviar dados.
+- [x] Confirmacoes de exclusao migradas de `confirm()` nativo para modal unico do painel.
+- [x] Formularios destrutivos de noticias, categorias, tags, midia, usuarios, banners, lojas, promocoes, influencers, eventos, classificados, bairros e automacao usam `data-confirm`.
+- [x] Filtros administrativos passam a salvar valores por tela no `localStorage`, ajudando o operador a manter contexto de listagens.
+- [x] Estados vazios receberam visual consistente com borda tracejada, espacamento e peso de texto padronizado.
+- [x] Tabelas administrativas receberam contorno consistente e cabecalho sticky dentro da area rolavel.
+- [x] CSS responsivo revisado para sidebar, topbar, toasts, modal e formularios longos.
+- [x] Query string do CSS atualizada para `20260516-admin-ux-v1`.
+- [x] `docs/CMS_PLANO_GERAL.md` marcou o Sprint 13 como concluido no escopo atual.
+- [x] Validado localmente com `go test ./...`.
+- [x] Validado localmente com `go build ./cmd/web ./cmd/worker ./cmd/seed-news ./cmd/migrate-sqlite-postgres`.
+- [x] Pacote Linux gerado com binarios `web`, `worker`, `seed-news` e `migrate-sqlite-postgres`.
+- [x] Backup pre-deploy criado na VPS em `/var/www/inhumas/backups/pre-sprint13-admin-ux-20260516_004035-db.tar.gz`.
+- [x] Sprint 13 publicado na VPS com binarios, templates, CSS, migrations, docs, scripts e exemplos de deploy.
+- [x] Sintaxe dos scripts validada no Linux da VPS com `bash -n` antes da instalacao.
+- [x] Servicos `inhumas-web` e `inhumas-worker` reiniciados e ativos apos deploy.
+- [x] Smoke remoto validou `/health` e home publica via `scripts/smoke-test.sh`.
+- [x] Smoke administrativo validou login, dashboard e presenca do novo layout (`admin-brand`, `admin-topbar`, `data-confirm-modal`).
+- [x] CSS remoto confirmou a versao `20260516-admin-ux-v1` com regras de topbar, toast e modal.
+
+Sprint 13 encerrado: o painel administrativo recebeu uma camada premium de UX com navegacao hierarquica, header operacional, toasts, loading states, confirmacao customizada, filtros persistentes e responsividade revisada.
+
+Proxima etapa real: iniciar Sprint 14 - revisao final corporativa, estabilizacao, backlog residual e preparacao para operacao continua.
+
+### Etapa 42 - Sprint 14: revisao final corporativa, estabilizacao e operacao continua
+
+- [x] `docs/CMS_REVISAO_FINAL.md` criado como documento executivo de fechamento do CMS.
+- [x] Revisao final consolidou modulos concluidos: painel admin, usuarios/RBAC, noticias, fluxo editorial, midia, taxonomia, auditoria, configuracoes, modulos locais, anuncios, automacao, IA editorial, SEO, PostgreSQL-ready e hardening operacional.
+- [x] Backlog residual consolidado por prioridade: backup externo real, monitor externo, SMTP real, remocao de bootstrap, homologacao PostgreSQL, CSP sem inline e WAF/CDN.
+- [x] `scripts/production-readiness.sh` criado para validar ambiente, secrets minimos, binarios, services, health, home, protecao admin, backup recente, disco, Nginx e backup externo.
+- [x] `.env.example` atualizado com `DB_DRIVER`, `MIGRATIONS_DIR`, CSP report-only, backup externo, alertas e retencao.
+- [x] `README.md` atualizado com documentos oficiais, build completo, readiness e status corporativo atual.
+- [x] `docs/DEPLOY_GUIDE.md` atualizado com binarios atuais, PostgreSQL suportado por configuracao e etapa de readiness.
+- [x] `Makefile` atualizado com build completo, alias `build-linux`, alvo `smoke` e alvo `readiness`.
+- [x] `docs/CMS_PLANO_GERAL.md` recebeu Sprint 14 concluido e substituiu a prioridade antiga por backlog residual curto.
+- [x] Validado localmente com `go test ./...`.
+- [x] Validado localmente com `go build ./cmd/web ./cmd/worker ./cmd/seed-news ./cmd/migrate-sqlite-postgres`.
+- [x] Pacote Linux gerado com binarios `web`, `worker`, `seed-news` e `migrate-sqlite-postgres`.
+- [x] Backup pre-deploy criado na VPS em `/var/www/inhumas/backups/pre-sprint14-readiness-20260516_005444-db.tar.gz`.
+- [x] Sprint 14 publicado na VPS com binarios, templates, CSS, migrations, docs, scripts, README, Makefile e `.env.example`.
+- [x] Sintaxe dos scripts validada no Linux da VPS com `bash -n` antes da instalacao.
+- [x] Servicos `inhumas-web` e `inhumas-worker` reiniciados e ativos apos deploy.
+- [x] Smoke remoto validou `/health` e home publica via `scripts/smoke-test.sh`.
+- [x] Readiness remoto validou ambiente, services, health, home, admin protegido, backup recente, disco, Nginx e arquivos oficiais.
+- [x] Readiness remoto registrou aviso esperado: backup externo real ainda nao configurado (`RCLONE_REMOTE` ou `OFFSITE_BACKUP_DIR`).
+- [x] Documento final e script de readiness confirmados na VPS.
+
+Sprint 14 encerrado: o CMS esta estabilizado para operacao inicial com revisao corporativa, readiness repetivel, documentacao oficial alinhada e backlog residual concentrado em infraestrutura externa/governanca.
+
+Proxima etapa real: executar pendencias externas de producao, com prioridade para backup externo real, monitor externo de uptime e SMTP transacional.

@@ -1,0 +1,38 @@
+{{define "content"}}
+<section class="detail-hero store-detail-hero">
+    <div class="container detail-hero-inner">
+        <img class="detail-cover" src="{{if .Event.ImageKey}}{{imageURL .Event.ImageKey}}{{else}}/static/images/inhumas-hero.png{{end}}" alt="{{.Event.Title}}" loading="eager">
+        <div class="detail-hero-content">
+            <span class="badge">Evento</span>
+            {{if .Event.IsSponsored}}<span class="sponsored-badge">Patrocinado</span>{{end}}
+            <h1>{{.Event.Title}}</h1>
+            <p>{{.Event.Description}}</p>
+            <div class="detail-actions">
+                {{if .Event.TicketURL}}<a href="{{.Event.TicketURL}}" target="_blank" class="btn btn-primary">Ingressos</a>{{end}}
+                <a href="/eventos" class="btn">Agenda completa</a>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="section">
+    <div class="container detail-grid">
+        <article class="detail-panel">
+            <h2>Informacoes</h2>
+            <div class="info-list">
+                <p><strong>Inicio</strong><span>{{.Event.StartAt | formatDateTime}}</span></p>
+                {{if .Event.EndAt}}<p><strong>Fim</strong><span>{{.Event.EndAt | formatDateTime}}</span></p>{{end}}
+                {{if .Event.Location}}<p><strong>Local</strong><span>{{.Event.Location}}</span></p>{{end}}
+                {{if .Event.Organizer}}<p><strong>Organizador</strong><span>{{.Event.Organizer}}</span></p>{{end}}
+                {{if .Event.PriceDisplay}}<p><strong>Entrada</strong><span>{{.Event.PriceDisplay}}</span></p>{{end}}
+            </div>
+        </article>
+        <aside class="detail-panel side-ad">
+            <span class="badge badge-accent">Agenda</span>
+            <strong>Divulgue seu evento</strong>
+            <small>Inclua sua agenda no portal e alcance o publico local.</small>
+            <a href="/contato" class="btn btn-primary">Falar com comercial</a>
+        </aside>
+    </div>
+</section>
+{{end}}

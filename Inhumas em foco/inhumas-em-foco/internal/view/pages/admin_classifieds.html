@@ -1,0 +1,60 @@
+{{define "admin_content"}}
+<div class="admin-page-header">
+    <div>
+        <p class="admin-kicker">Mercado local</p>
+        <h1>Classificados</h1>
+    </div>
+    <a href="{{.AdminPath}}/classifieds/new" class="btn btn-primary">+ Novo Classificado</a>
+</div>
+
+<section class="admin-form-section">
+    <div class="stats-grid commercial-stats-grid">
+        <div class="stat-card"><h3>{{.Summary.Total}}</h3><p>classificados cadastrados</p></div>
+        <div class="stat-card"><h3>{{.Summary.Active}}</h3><p>ativos</p></div>
+        <div class="stat-card"><h3>{{.Summary.Featured}}</h3><p>destaques vendidos</p></div>
+        <div class="stat-card"><h3>{{.Summary.Sponsored}}</h3><p>patrocinados</p></div>
+    </div>
+</section>
+
+<section class="admin-form-section">
+    <div class="admin-table-wrap">
+        <table class="table editorial-table">
+            <thead>
+                <tr>
+                    <th>Anuncio</th>
+                    <th>Categoria</th>
+                    <th>Preco</th>
+                    <th>Status</th>
+                    <th>Acoes</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{range .Classifieds}}
+                <tr>
+                    <td>
+                        <strong>{{.Title}}</strong>
+                        {{if .IsFeatured}}<span class="sponsored-badge sponsored-badge-success">Destaque</span>{{end}}
+                        {{if .IsSponsored}}<span class="sponsored-badge">Patrocinado</span>{{end}}
+                    </td>
+                    <td>{{.Category}}</td>
+                    <td>{{.PriceDisplay}}</td>
+                    <td><span class="status-pill">{{classifiedStatusLabel .Status}}</span></td>
+                    <td class="admin-row-actions">
+                        {{if eq .Status "active"}}<a href="/classificado/{{.Slug}}" class="btn btn-sm" target="_blank">Ver</a>{{end}}
+                        <a href="{{$.AdminPath}}/classifieds/{{.ID}}/edit" class="btn btn-sm btn-primary">Editar</a>
+                        <form method="POST" action="{{$.AdminPath}}/classifieds/{{.ID}}/delete" data-confirm="Excluir este classificado?">
+                            <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+                            <button type="submit" class="btn btn-sm btn-danger">Excluir</button>
+                        </form>
+                    </td>
+                </tr>
+                {{else}}
+                <tr>
+                    <td colspan="5" class="empty-state">Nenhum classificado cadastrado</td>
+                </tr>
+                {{end}}
+            </tbody>
+        </table>
+    </div>
+</section>
+{{end}}

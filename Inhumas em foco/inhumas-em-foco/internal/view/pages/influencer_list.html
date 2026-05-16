@@ -15,6 +15,14 @@
         {{else}}
         {{template "ad_placeholder_horizontal" .}}
         {{end}}
+        {{if .Niches}}
+        <div class="filter-chips">
+            <a href="/influencers" class="filter-chip {{if not .ActiveNiche}}active{{end}}">Todos</a>
+            {{range .Niches}}
+            <a href="/influencers?niche={{urlquery .}}" class="filter-chip {{if eq $.ActiveNiche .}}active{{end}}">{{.}}</a>
+            {{end}}
+        </div>
+        {{end}}
         <div class="influencer-grid">
             {{range .Influencers}}
             <article class="card influencer-card-v2">
@@ -23,7 +31,7 @@
                 </a>
                 <div class="card-body">
                     <h2><a href="/influencer/{{.Slug}}">{{.Name}}</a></h2>
-                    <span>{{.CityArea}}</span>
+                    <span>{{if .Niche}}{{.Niche}}{{else}}{{.CityArea}}{{end}}</span>
                     <p>{{.Bio}}</p>
                     {{if .IsSponsored}}<small>Patrocinado</small>{{end}}
                 </div>

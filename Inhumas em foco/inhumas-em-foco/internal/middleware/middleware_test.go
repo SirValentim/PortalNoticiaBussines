@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"bytes"
+	"encoding/json"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
@@ -10,6 +11,7 @@ import (
 	"time"
 
 	"inhumas-em-foco/internal/auth"
+	"inhumas-em-foco/internal/config"
 	"inhumas-em-foco/internal/model"
 )
 
@@ -62,6 +64,55 @@ func TestSecurityHeadersSetsHSTSBehindHTTPSProxy(t *testing.T) {
 
 	if rec.Header().Get("Strict-Transport-Security") == "" {
 		t.Fatal("expected HSTS header behind HTTPS proxy")
+	}
+}
+
+func TestSecurityHeadersWithConfigCanEmitReportOnlyCSP(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	rec := httptest.NewRecorder()
+
+	SecurityHeadersWithConfig(&config.Config{CSPReportOnly: true, CSPReportURI: "/csp-report"})(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {})).ServeHTTP(rec, req)
+
+	enforced := rec.Header().Get("Content-Security-Policy")
+	if !strings.Contains(enforced, "'unsafe-inline'") || !strings.Contains(enforced, "object-src 'none'") {
+		t.Fatalf("unexpected enforced CSP: %s", enforced)
+	}
+	reportOnly := rec.Header().Get("Content-Security-Policy-Report-Only")
+	if strings.Contains(reportOnly, "'unsafe-inline'") || !strings.Contains(reportOnly, "report-uri /csp-report") {
+		t.Fatalf("unexpected report-only CSP: %s", reportOnly)
+	}
+}
+
+func TestStructuredLoggerWritesJSONAndRequestID(t *testing.T) {
+	var logs bytes.Buffer
+	restore := SetStructuredLogWriter(&logs)
+	defer restore()
+
+	req := httptest.NewRequest(http.MethodPost, "/painel/posts?status=draft", nil)
+	req.RemoteAddr = "203.0.113.10:1234"
+	req.Header.Set("User-Agent", "cms-test")
+	rec := httptest.NewRecorder()
+
+	StructuredLogger(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if RequestID(r.Context()) == "" {
+			t.Fatal("expected request id in context")
+		}
+		w.WriteHeader(http.StatusCreated)
+		_, _ = w.Write([]byte("ok"))
+	})).ServeHTTP(rec, req)
+
+	if rec.Header().Get("X-Request-ID") == "" {
+		t.Fatal("expected X-Request-ID header")
+	}
+	var entry map[string]any
+	if err := json.Unmarshal(bytes.TrimSpace(logs.Bytes()), &entry); err != nil {
+		t.Fatalf("invalid json log: %v", err)
+	}
+	if entry["event"] != "http_request" || entry["method"] != http.MethodPost || entry["path"] != "/painel/posts" {
+		t.Fatalf("unexpected log entry: %#v", entry)
+	}
+	if entry["status"].(float64) != http.StatusCreated {
+		t.Fatalf("status = %v, want %d", entry["status"], http.StatusCreated)
 	}
 }
 

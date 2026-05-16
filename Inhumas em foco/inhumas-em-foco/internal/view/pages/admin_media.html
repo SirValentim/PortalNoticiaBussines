@@ -84,7 +84,7 @@
                     <input type="text" name="alt_text" class="form-control" value="{{.AltText}}" required>
                     <button type="submit" class="btn btn-sm btn-primary">Salvar</button>
                 </form>
-                <form method="POST" action="{{$.AdminPath}}/media/{{.ID}}/delete" onsubmit="return confirm('Remover esta midia?')">
+                <form method="POST" action="{{$.AdminPath}}/media/{{.ID}}/delete" data-confirm="Remover esta midia?">
                     <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
                     <button type="submit" class="btn btn-sm btn-danger" {{if gt .UsageCount 0}}disabled title="Midia em uso"{{end}}>Excluir</button>
                 </form>

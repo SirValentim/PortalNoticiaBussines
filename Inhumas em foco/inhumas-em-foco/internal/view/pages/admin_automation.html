@@ -1,0 +1,173 @@
+{{define "admin_content"}}
+<div class="admin-page-header">
+    <div>
+        <p class="admin-kicker">Editorial</p>
+        <h1>Automacao de Noticias</h1>
+    </div>
+    <div class="admin-actions">
+        <form method="POST" action="{{.AdminPath}}/automation/run-all">
+            <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+            <button type="submit" class="btn btn-secondary">Executar agora</button>
+        </form>
+        <a href="{{.AdminPath}}/automation/sources/new" class="btn btn-primary">+ Nova Fonte</a>
+    </div>
+</div>
+
+<div class="dashboard-grid">
+    <div class="dashboard-card">
+        <span class="card-label">Fontes cadastradas</span>
+        <strong>{{.SourceCount}}</strong>
+    </div>
+    <div class="dashboard-card">
+        <span class="card-label">Fontes ativas</span>
+        <strong>{{.ActiveCount}}</strong>
+    </div>
+    <div class="dashboard-card">
+        <span class="card-label">Fila de revisao</span>
+        <strong>{{len .DraftQueue}}</strong>
+    </div>
+    <div class="dashboard-card">
+        <span class="card-label">Intervalo</span>
+        <strong>{{.Settings.AutomationIntervalMinutes}} min</strong>
+    </div>
+</div>
+
+<section class="admin-section">
+    <div class="admin-section-header">
+        <div>
+            <p class="admin-kicker">Fontes</p>
+            <h2>RSS e fontes oficiais</h2>
+        </div>
+        {{if .Settings.AutomationEnabled}}
+        <span class="sponsored-badge">Automacao ativa</span>
+        {{else}}
+        <span class="status-badge status-draft">Automacao pausada</span>
+        {{end}}
+    </div>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Fonte</th>
+                <th>Tipo</th>
+                <th>Categoria</th>
+                <th>Ultima coleta</th>
+                <th>Status</th>
+                <th>Acoes</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range .Sources}}
+            <tr>
+                <td>
+                    <strong>{{.Name}}</strong><br>
+                    <small>{{.URL}}</small>
+                </td>
+                <td>{{.SourceType}}</td>
+                <td>{{if .CategoryName}}{{.CategoryName}}{{else}}Noticias{{end}}</td>
+                <td>{{if .LastRunAt}}{{.LastRunAt | formatDateTime}}{{else}}Nunca{{end}}</td>
+                <td>{{if .Active}}Ativa{{else}}Inativa{{end}}</td>
+                <td>
+                    <div class="table-actions">
+                        <form method="POST" action="{{$.AdminPath}}/automation/sources/{{.ID}}/run">
+                            <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+                            <button type="submit" class="btn btn-sm">Rodar</button>
+                        </form>
+                        <a href="{{$.AdminPath}}/automation/sources/{{.ID}}/edit" class="btn btn-sm btn-primary">Editar</a>
+                        <form method="POST" action="{{$.AdminPath}}/automation/sources/{{.ID}}/delete" data-confirm="Excluir esta fonte?">
+                            <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+                            <button type="submit" class="btn btn-sm btn-danger">Excluir</button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            {{else}}
+            <tr>
+                <td colspan="6" class="empty-state">Nenhuma fonte cadastrada.</td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+</section>
+
+<section class="admin-section">
+    <div class="admin-section-header">
+        <div>
+            <p class="admin-kicker">Revisao humana</p>
+            <h2>Rascunhos importados</h2>
+        </div>
+        <a href="{{.AdminPath}}/posts?status=draft" class="btn btn-sm">Ver todos</a>
+    </div>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Noticia</th>
+                <th>Categoria</th>
+                <th>Criada em</th>
+                <th>Acoes</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range .DraftQueue}}
+            <tr>
+                <td>
+                    <strong>{{.Title}}</strong><br>
+                    <small>{{.Excerpt}}</small>
+                </td>
+                <td>{{.CategoryName}}</td>
+                <td>{{.CreatedAt | formatDateTime}}</td>
+                <td>
+                    <a href="{{$.AdminPath}}/posts/{{.ID}}/edit" class="btn btn-sm btn-primary">Revisar</a>
+                    <a href="{{$.AdminPath}}/posts/{{.ID}}/preview" class="btn btn-sm">Preview</a>
+                </td>
+            </tr>
+            {{else}}
+            <tr>
+                <td colspan="4" class="empty-state">Nenhum rascunho importado aguardando revisao.</td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+</section>
+
+<section class="admin-section">
+    <div class="admin-section-header">
+        <div>
+            <p class="admin-kicker">Execucoes</p>
+            <h2>Historico e logs</h2>
+        </div>
+    </div>
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Quando</th>
+                <th>Fonte</th>
+                <th>Status</th>
+                <th>Itens</th>
+                <th>Rascunhos</th>
+                <th>Duplicados</th>
+                <th>Log</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range .Runs}}
+            <tr>
+                <td>{{.StartedAt | formatDateTime}}</td>
+                <td>{{if .SourceName}}{{.SourceName}}{{else}}Todas{{end}}</td>
+                <td>{{.Status}}</td>
+                <td>{{.ItemsFound}}</td>
+                <td>{{.DraftsCreated}}</td>
+                <td>{{.Duplicates}}</td>
+                <td>
+                    {{if .Error}}<strong>{{.Error}}</strong><br>{{end}}
+                    <small style="white-space:pre-wrap;">{{.Log}}</small>
+                </td>
+            </tr>
+            {{else}}
+            <tr>
+                <td colspan="7" class="empty-state">Nenhuma execucao registrada.</td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+</section>
+{{end}}

@@ -1,0 +1,73 @@
+{{define "content"}}
+<section class="page-shell">
+    <div class="container">
+        <div class="page-header">
+            <span class="page-kicker">Agenda local</span>
+            <h1>Eventos</h1>
+            <p>Agenda cultural, gastronomica, comercial e comunitaria de Inhumas.</p>
+        </div>
+
+        {{if .FeaturedEvents}}
+        <section class="commercial-featured-block">
+            <div class="section-header">
+                <div>
+                    <span class="page-kicker">Destaques comerciais</span>
+                    <h2>Eventos em evidencia</h2>
+                </div>
+                <a href="/contato">Vender destaque</a>
+            </div>
+            <div class="news-list">
+                {{range .FeaturedEvents}}
+                <article class="news-row commercial-product-card">
+                    <a href="/evento/{{.Slug}}">
+                        <img src="{{if .ImageKey}}{{imageURL .ImageKey}}{{else}}/static/images/inhumas-hero.png{{end}}" alt="{{.Title}}" loading="lazy">
+                    </a>
+                    <div>
+                        <span class="badge">{{.StartAt | formatDateTime}}</span>
+                        {{if .IsSponsored}}<span class="sponsored-badge">Patrocinado</span>{{else}}<span class="sponsored-badge sponsored-badge-success">Destaque</span>{{end}}
+                        <h2><a href="/evento/{{.Slug}}">{{.Title}}</a></h2>
+                        <p>{{.Description}}</p>
+                        <small>{{.Location}}</small>
+                    </div>
+                </article>
+                {{end}}
+            </div>
+        </section>
+        {{end}}
+
+        <div class="news-list">
+            {{range .Events}}
+            <article class="news-row">
+                <a href="/evento/{{.Slug}}">
+                    <img src="{{if .ImageKey}}{{imageURL .ImageKey}}{{else}}/static/images/inhumas-hero.png{{end}}" alt="{{.Title}}" loading="lazy">
+                </a>
+                <div>
+                    <span class="badge">{{.StartAt | formatDateTime}}</span>
+                    {{if .IsSponsored}}<span class="sponsored-badge">Patrocinado</span>{{end}}
+                    <h2><a href="/evento/{{.Slug}}">{{.Title}}</a></h2>
+                    <p>{{.Description}}</p>
+                    <small>{{.Location}}</small>
+                </div>
+            </article>
+            {{else}}
+            {{if not .HasEvents}}
+            <div class="empty-state empty-state-rich">
+                <strong>Nenhum evento publicado.</strong>
+                <span>A agenda local aparece aqui assim que um evento ativo for cadastrado.</span>
+            </div>
+            {{end}}
+            {{end}}
+        </div>
+
+        {{if .ListBanner}}
+        <a class="ad-banner ad-banner-list ad-banner-after-content" href="{{.ListBanner.LinkURL}}" target="_blank" onclick="trackMetric('banner_click','banner','{{.ListBanner.ID}}')">
+            <span class="badge badge-accent">Patrocinado</span>
+            <strong>{{.ListBanner.Name}}</strong>
+            <img src="{{imageURL .ListBanner.ImageKey}}" alt="{{.ListBanner.Name}}" loading="lazy">
+        </a>
+        {{else}}
+        <div class="ad-banner-after-content">{{template "ad_placeholder_horizontal" .}}</div>
+        {{end}}
+    </div>
+</section>
+{{end}}

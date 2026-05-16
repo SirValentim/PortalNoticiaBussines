@@ -25,7 +25,9 @@ Use antes de expor o projeto publicamente.
 - [ ] `X-Content-Type-Options: nosniff`.
 - [ ] `Referrer-Policy: strict-origin-when-cross-origin`.
 - [ ] `Permissions-Policy` restritivo.
-- [ ] `Content-Security-Policy` revisada; hoje ainda permite `unsafe-inline` por compatibilidade com templates.
+- [ ] `Content-Security-Policy` aplicada com `object-src 'none'`, `base-uri 'self'` e `form-action 'self'`.
+- [ ] `CSP_REPORT_ONLY=true` habilitado temporariamente em homologacao para auditar remocao futura de `unsafe-inline`.
+- [ ] `unsafe-inline` ainda permitido no header aplicado por compatibilidade com templates; remover apenas depois de migrar scripts/styles inline.
 
 ## Formularios e autenticacao
 
@@ -46,8 +48,10 @@ Use antes de expor o projeto publicamente.
 ## Operacao
 
 - [ ] Backup diario ativo.
+- [ ] Backup externo fora da VPS ativo e testado.
+- [ ] `scripts/backup-check.sh` agendado apos backup diario.
 - [ ] Restauracao testada.
 - [ ] Alerta de disco ativo.
 - [ ] `/health` monitorado.
 - [ ] Logs revisados apos primeiro dia de producao.
-
+- [ ] Smoke test pos-deploy executado.

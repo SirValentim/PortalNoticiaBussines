@@ -1,0 +1,54 @@
+{{define "admin_content"}}
+<div class="admin-page-header">
+    <div>
+        <p class="admin-kicker">Automacao</p>
+        <h1>{{.Title}}</h1>
+    </div>
+    <a href="{{.AdminPath}}/automation" class="btn btn-sm">Voltar</a>
+</div>
+
+<form class="admin-form" method="POST" action="{{if .Source.ID}}{{.AdminPath}}/automation/sources/{{.Source.ID}}{{else}}{{.AdminPath}}/automation/sources{{end}}">
+    <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+
+    <section class="admin-form-section">
+        <h3>Origem</h3>
+        <div class="admin-form-grid">
+            <div class="form-group">
+                <label>Nome da fonte</label>
+                <input type="text" name="name" class="form-control" value="{{.Source.Name}}" maxlength="200" required>
+            </div>
+            <div class="form-group">
+                <label>Tipo</label>
+                <select name="source_type" class="form-control">
+                    <option value="rss" {{if selected .Source.SourceType "rss"}}selected{{end}}>RSS</option>
+                    <option value="official" {{if selected .Source.SourceType "official"}}selected{{end}}>Fonte oficial</option>
+                </select>
+            </div>
+            <div class="form-group form-group-wide">
+                <label>URL</label>
+                <input type="url" name="url" class="form-control" value="{{.Source.URL}}" placeholder="https://..." required>
+            </div>
+            <div class="form-group">
+                <label>Categoria padrao</label>
+                <select name="default_category_id" class="form-control">
+                    <option value="">Noticias</option>
+                    {{range .Categories}}
+                    <option value="{{.ID}}" {{if idPtrEq $.Source.DefaultCategoryID .ID}}selected{{end}}>{{.Name}}</option>
+                    {{end}}
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="checkbox-control">
+                    <input type="checkbox" name="active" {{if .Source.Active}}checked{{end}}>
+                    <span>Fonte ativa</span>
+                </label>
+            </div>
+        </div>
+    </section>
+
+    <div class="form-actions">
+        <button type="submit" class="btn btn-primary">Salvar Fonte</button>
+        <a href="{{.AdminPath}}/automation" class="btn">Cancelar</a>
+    </div>
+</form>
+{{end}}

@@ -104,7 +104,7 @@
                         </form>
                         {{end}}
                         {{if $.CanDelete}}
-                        <form method="POST" action="{{$.AdminPath}}/posts/{{.ID}}/delete" onsubmit="return confirm('Tem certeza?')">
+                        <form method="POST" action="{{$.AdminPath}}/posts/{{.ID}}/delete" data-confirm="Tem certeza?">
                             <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
                             <button type="submit" class="btn btn-sm btn-danger">Excluir</button>
                         </form>

@@ -1,0 +1,41 @@
+{{define "content"}}
+<section class="detail-hero store-detail-hero">
+    <div class="container detail-hero-inner">
+        <img class="detail-cover" src="{{if .Classified.ImageKey}}{{imageURL .Classified.ImageKey}}{{else}}/static/images/inhumas-hero.png{{end}}" alt="{{.Classified.Title}}" loading="eager">
+        <div class="detail-hero-content">
+            <span class="badge">{{.Classified.Category}}</span>
+            {{if .Classified.IsSponsored}}<span class="sponsored-badge">Patrocinado</span>{{end}}
+            <h1>{{.Classified.Title}}</h1>
+            {{if .Classified.PriceDisplay}}<strong class="promo-price">{{.Classified.PriceDisplay}}</strong>{{end}}
+            <p>{{.Classified.Description}}</p>
+            <div class="detail-actions">
+                {{if .Classified.ContactWhatsapp}}<a href="https://wa.me/{{.Classified.ContactWhatsapp}}" target="_blank" class="btn btn-success">WhatsApp</a>{{end}}
+                {{if .Classified.ContactPhone}}<a href="tel:{{.Classified.ContactPhone}}" class="btn btn-primary">Ligar</a>{{end}}
+                <a href="/classificados" class="btn">Ver classificados</a>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="section">
+    <div class="container detail-grid">
+        <article class="detail-panel">
+            <h2>Informacoes</h2>
+            <div class="info-list">
+                {{if .Classified.Category}}<p><strong>Categoria</strong><span>{{.Classified.Category}}</span></p>{{end}}
+                {{if .Classified.Location}}<p><strong>Localizacao</strong><span>{{.Classified.Location}}</span></p>{{end}}
+                {{if .Classified.ContactName}}<p><strong>Contato</strong><span>{{.Classified.ContactName}}</span></p>{{end}}
+                {{if .Classified.ContactPhone}}<p><strong>Telefone</strong><span>{{.Classified.ContactPhone}}</span></p>{{end}}
+                {{if .Classified.ContactWhatsapp}}<p><strong>WhatsApp</strong><span>{{.Classified.ContactWhatsapp}}</span></p>{{end}}
+                {{if .Classified.ExpiresAt}}<p><strong>Validade</strong><span>{{.Classified.ExpiresAt | formatDate}}</span></p>{{end}}
+            </div>
+        </article>
+        <aside class="detail-panel side-ad">
+            <span class="badge badge-accent">Classificados</span>
+            <strong>Venda ou divulgue em Inhumas</strong>
+            <small>Anuncios locais com destaque e contato direto.</small>
+            <a href="/contato" class="btn btn-primary">Falar com comercial</a>
+        </aside>
+    </div>
+</section>
+{{end}}

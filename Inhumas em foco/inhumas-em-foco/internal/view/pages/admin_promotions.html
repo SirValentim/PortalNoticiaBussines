@@ -7,6 +7,15 @@
     <a href="{{.AdminPath}}/promotions/new" class="btn btn-primary">+ Nova Promocao</a>
 </div>
 
+<section class="admin-form-section">
+    <div class="stats-grid">
+        <div class="stat-card"><h3>{{.Summary.Total}}</h3><p>Promocoes cadastradas</p></div>
+        <div class="stat-card"><h3>{{.Summary.Active}}</h3><p>No ar/agendadas</p></div>
+        <div class="stat-card"><h3>{{.Summary.Expired}}</h3><p>Expiradas</p></div>
+        <div class="stat-card"><h3>{{.Summary.Clicks}}</h3><p>Cliques/resgates</p></div>
+    </div>
+</section>
+
 <table class="table">
     <thead>
         <tr>
@@ -14,6 +23,8 @@
             <th>Loja</th>
             <th>Preco</th>
             <th>Validade</th>
+            <th>Cliques</th>
+            <th>Status</th>
             <th>Acoes</th>
         </tr>
     </thead>
@@ -26,17 +37,20 @@
             </td>
             <td>{{.StoreName}}</td>
             <td>{{.PriceDisplay}}</td>
-            <td>{{.EndDate | formatDate}}</td>
+            <td>{{.StartDate | formatDate}} ate {{.EndDate | formatDate}}</td>
+            <td>{{.ClickCount}}</td>
+            <td><span class="status-pill">{{promoValidityLabel .}}</span></td>
             <td class="admin-row-actions">
+                {{if eq .Status "active"}}<a href="/promocao/{{.Slug}}" class="btn btn-sm" target="_blank">Ver</a>{{end}}
                 <a href="{{$.AdminPath}}/promotions/{{.ID}}/edit" class="btn btn-sm btn-primary">Editar</a>
-                <form method="POST" action="{{$.AdminPath}}/promotions/{{.ID}}/delete" onsubmit="return confirm('Tem certeza?')">
+                <form method="POST" action="{{$.AdminPath}}/promotions/{{.ID}}/delete" data-confirm="Tem certeza?">
     <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
                     <button type="submit" class="btn btn-sm btn-danger">Excluir</button>
                 </form>
             </td>
         </tr>
         {{else}}
-        <tr><td colspan="5" class="empty-state">Nenhuma promocao cadastrada</td></tr>
+        <tr><td colspan="7" class="empty-state">Nenhuma promocao cadastrada</td></tr>
         {{end}}
     </tbody>
 </table>

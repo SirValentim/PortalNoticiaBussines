@@ -16,8 +16,12 @@
                 <input type="text" name="name" class="form-control" value="{{if .Influencer}}{{.Influencer.Name}}{{end}}" required>
             </div>
             <div class="form-group">
-                <label>Area / bairro / nicho</label>
-                <input type="text" name="city_area" class="form-control" value="{{if .Influencer}}{{.Influencer.CityArea}}{{end}}" placeholder="Ex: moda, gastronomia, Centro">
+                <label>Bairro / area de atuacao</label>
+                <input type="text" name="city_area" class="form-control" value="{{if .Influencer}}{{.Influencer.CityArea}}{{end}}" placeholder="Ex: Centro, Goiania, Inhumas">
+            </div>
+            <div class="form-group">
+                <label>Nicho / categoria</label>
+                <input type="text" name="niche" class="form-control" value="{{if .Influencer}}{{.Influencer.Niche}}{{end}}" placeholder="Ex: gastronomia, moda, humor, esporte">
             </div>
         </div>
         <div class="form-group">
@@ -88,6 +92,20 @@
             <label class="checkbox-control"><input type="checkbox" name="is_featured" {{if .Influencer}}{{if .Influencer.IsFeatured}}checked{{end}}{{end}}><span>Destaque</span></label>
             <label class="checkbox-control"><input type="checkbox" name="is_sponsored" {{if .Influencer}}{{if .Influencer.IsSponsored}}checked{{end}}{{end}}><span>Patrocinado</span></label>
             <label class="checkbox-control"><input type="checkbox" name="active" {{if .Influencer}}{{if .Influencer.Active}}checked{{end}}{{else}}checked{{end}}><span>Ativo</span></label>
+        </div>
+    </section>
+
+    <section class="admin-form-section">
+        <h3>SEO</h3>
+        <div class="admin-form-grid">
+            <div class="form-group">
+                <label>Meta title</label>
+                <input type="text" name="meta_title" class="form-control" value="{{if .Influencer}}{{.Influencer.MetaTitle}}{{end}}" maxlength="200">
+            </div>
+            <div class="form-group">
+                <label>Meta description</label>
+                <textarea name="meta_description" class="form-control" rows="4" maxlength="300">{{if .Influencer}}{{.Influencer.MetaDescription}}{{end}}</textarea>
+            </div>
         </div>
     </section>
 

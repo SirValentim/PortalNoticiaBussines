@@ -2,9 +2,9 @@
     <div class="container">
         <div class="footer-brand">
             <a href="/" class="site-logo">
-                <img src="/static/images/logo.png?v=20260429-frontend-fix" alt="Inhumas em Foco" class="brand-logo-img" width="220" height="54" style="display:block;width:auto;max-width:220px;height:54px;object-fit:contain;">
+                <img src="{{if .PortalSettings.LogoKey}}{{imageURL .PortalSettings.LogoKey}}{{else}}/static/images/logo.png?v=20260429-frontend-fix{{end}}" alt="{{.PortalSettings.SiteName}}" class="brand-logo-img" width="220" height="54" style="display:block;width:auto;max-width:220px;height:54px;object-fit:contain;">
             </a>
-            <p>O portal de noticias e comercio local que conecta Inhumas em um so lugar.</p>
+            <p>{{.PortalSettings.Tagline}}</p>
         </div>
         <div>
             <h4>Navegacao</h4>
@@ -23,10 +23,10 @@
         </div>
         <div>
             <h4>Contato</h4>
-            <p>(62) 99999-9999</p>
-            <p>contato@inhumasemfoco.online</p>
-            <p>Inhumas, Goias</p>
+            <p>{{.PortalSettings.ContactPhone}}</p>
+            <p>{{.PortalSettings.ContactEmail}}</p>
+            <p>{{.PortalSettings.City}}, {{.PortalSettings.State}}</p>
         </div>
     </div>
-    <div class="footer-bottom">&copy; {{.Year}} Inhumas em Foco. Todos os direitos reservados.</div>
+    <div class="footer-bottom">&copy; {{.Year}} {{.PortalSettings.SiteName}}. Todos os direitos reservados.</div>
 </footer>

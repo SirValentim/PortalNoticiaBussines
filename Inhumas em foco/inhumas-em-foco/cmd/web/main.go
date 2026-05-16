@@ -31,7 +31,7 @@ func main() {
 	}
 
 	// Setup database
-	repo, err := repository.New(cfg.DatabaseURL)
+	repo, err := repository.Open(cfg.DBDriver, cfg.DatabaseURL, cfg.MigrationsDir)
 	if err != nil {
 		log.Fatal("Erro ao conectar ao banco: ", err)
 	}
@@ -60,7 +60,7 @@ func main() {
 	// Chain middleware
 	var root http.Handler = mux
 	root = middleware.Recovery(root)
-	root = middleware.SecurityHeaders(root)
+	root = middleware.SecurityHeadersWithConfig(cfg)(root)
 	root = middleware.RequestTimeout(30 * time.Second)(root)
 	root = middleware.RateLimitByIPWhen(10, time.Minute, func(r *http.Request) bool {
 		return r.URL.Path == "/login" && r.Method == http.MethodPost
@@ -73,6 +73,7 @@ func main() {
 	root = middleware.AuthMiddleware(sessionMgr, repo, authSvc)(root)
 	root = middleware.CSRFProtection(cfg.AdminPathPrefix, secure, cfg.MaxUploadSize)(root)
 	root = middleware.MetricsMiddleware(repo)(root)
+	root = middleware.StructuredLogger(root)
 
 	// Create server
 	server := &http.Server{

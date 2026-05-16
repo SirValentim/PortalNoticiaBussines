@@ -8,10 +8,12 @@
                 <h1>{{.Promo.Title}}</h1>
                 {{if .Promo.IsSponsored}}<span class="sponsored-badge">Patrocinado</span>{{end}}
                 <strong class="promo-detail-price">{{.Promo.PriceDisplay}}</strong>
+                {{if .Promo.CouponCode}}<span class="sponsored-badge sponsored-badge-success">Cupom {{.Promo.CouponCode}}</span>{{end}}
                 <div class="article-content">{{.Promo.Description | htmlSafe}}</div>
                 <div class="info-list">
                     <p><strong>Validade</strong><span>{{.Promo.StartDate | formatDate}} ate {{.Promo.EndDate | formatDate}}</span></p>
                     <p><strong>Loja</strong><span><a href="/loja/{{.Promo.StoreSlug}}">{{.Promo.StoreName}}</a></span></p>
+                    {{if .Promo.CouponCode}}<p><strong>Cupom</strong><span>{{.Promo.CouponCode}}</span></p>{{end}}
                 </div>
                 {{if .Store.Whatsapp}}
                 <a href="https://wa.me/{{.Store.Whatsapp}}" target="_blank" class="btn btn-success btn-lg" onclick="trackMetric('promo_click','promotion','{{.Promo.ID}}')">Resgatar no WhatsApp</a>

@@ -7,6 +7,19 @@ ENV_FILE="${ENV_FILE:-/etc/inhumas.env}"
 CONFIG_FILE="${CONFIG_FILE:-$ENV_FILE}"
 DATE="$(date +%Y%m%d_%H%M%S)"
 
+notify_failure() {
+  code="$1"
+  [ "$code" -eq 0 ] && return
+  MESSAGE="Falha no backup Inhumas em Foco em $(hostname) - codigo $code"
+  if command -v mail >/dev/null 2>&1; then
+    echo "$MESSAGE" | mail -s "Inhumas - Falha no backup" "${ALERT_EMAIL:-admin@inhumasemfoco.com.br}"
+  else
+    logger -t inhumas-backup "$MESSAGE"
+  fi
+}
+
+trap 'notify_failure "$?"' EXIT
+
 if [ -z "${DATABASE_URL:-}" ] && [ -f "$ENV_FILE" ]; then
   set -a
   # shellcheck disable=SC1090
@@ -43,4 +56,10 @@ tar -czf "$BACKUP_DIR/uploads_$DATE.tar.gz" "$UPLOAD_DIR" 2>/dev/null || true
 tar -czf "$BACKUP_DIR/config_$DATE.tar.gz" "$CONFIG_FILE" /etc/nginx/sites-available /etc/systemd/system 2>/dev/null || true
 
 find "$BACKUP_DIR" -name "*.gz" -mtime +30 -delete
+
+if [ -n "${OFFSITE_BACKUP_DIR:-}" ] || [ -n "${RCLONE_REMOTE:-}" ]; then
+  SCRIPT_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+  BACKUP_DIR="$BACKUP_DIR" OFFSITE_BACKUP_DIR="${OFFSITE_BACKUP_DIR:-}" RCLONE_REMOTE="${RCLONE_REMOTE:-}" "$SCRIPT_DIR/backup-offsite.sh"
+fi
+
 echo "Backup: $DATE"

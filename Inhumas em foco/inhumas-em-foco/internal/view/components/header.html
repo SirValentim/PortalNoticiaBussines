@@ -1,7 +1,7 @@
 <header class="site-header">
     <div class="container">
-        <a href="/" class="site-logo" aria-label="Inhumas em Foco">
-            <img src="/static/images/logo.png?v=20260429-frontend-fix" alt="Inhumas em Foco" class="brand-logo-img" width="190" height="46" style="display:block;width:auto;max-width:190px;height:46px;object-fit:contain;">
+        <a href="/" class="site-logo" aria-label="{{.PortalSettings.SiteName}}">
+            <img src="{{if .PortalSettings.LogoKey}}{{imageURL .PortalSettings.LogoKey}}{{else}}/static/images/logo.png?v=20260429-frontend-fix{{end}}" alt="{{.PortalSettings.SiteName}}" class="brand-logo-img" width="190" height="46" style="display:block;width:auto;max-width:190px;height:46px;object-fit:contain;">
         </a>
         <nav class="site-nav">
             <a href="/">Home</a>

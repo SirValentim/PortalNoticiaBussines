@@ -6,15 +6,15 @@
     <title>{{.SEO.Title}}</title>
     <meta name="description" content="{{.SEO.Description}}">
     {{if .SEO.Tags}}<meta name="keywords" content="{{range $i, $tag := .SEO.Tags}}{{if $i}}, {{end}}{{$tag}}{{end}}">{{end}}
-    <meta name="author" content="{{if .SEO.Author}}{{.SEO.Author}}{{else}}Inhumas em Foco{{end}}">
+    <meta name="author" content="{{if .SEO.Author}}{{.SEO.Author}}{{else}}{{.PortalSettings.SiteName}}{{end}}">
     <meta name="theme-color" content="#1F7A63">
     {{if .SEO.NoIndex}}<meta name="robots" content="noindex,nofollow">{{else}}<meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1">{{end}}
     <link rel="canonical" href="{{.SEO.CanonicalURL}}">
-    <link rel="alternate" type="application/rss+xml" title="Inhumas em Foco RSS" href="/rss.xml">
+    <link rel="alternate" type="application/rss+xml" title="{{.PortalSettings.SiteName}} RSS" href="/rss.xml">
     <meta property="og:title" content="{{.SEO.Title}}">
     <meta property="og:description" content="{{.SEO.Description}}">
     <meta property="og:type" content="{{.SEO.Type}}">
-    <meta property="og:site_name" content="Inhumas em Foco">
+    <meta property="og:site_name" content="{{.PortalSettings.SiteName}}">
     <meta property="og:locale" content="pt_BR">
     {{if .SEO.Image}}<meta property="og:image" content="{{.SEO.Image}}"><meta property="og:image:alt" content="{{.SEO.Title}}"><meta name="twitter:image" content="{{.SEO.Image}}">{{end}}
     <meta property="og:url" content="{{.SEO.URL}}">
@@ -27,6 +27,7 @@
     {{if .JSONLD}}<script type="application/ld+json">{{.JSONLD}}</script>{{end}}
     <link rel="stylesheet" href="/static/css/style.css?v=20260430-public-v1">
     <script defer src="/static/js/htmx-lite.js?v=20260429-frontend-fix"></script>
+    {{if .PortalSettings.FaviconKey}}<link rel="icon" href="{{imageURL .PortalSettings.FaviconKey}}">{{end}}
     <script>
         function trackMetric(type, entityType, entityID) {
             fetch('/api/metrics/' + type + '?entity_type=' + entityType + '&entity_id=' + entityID, {method: 'POST'});

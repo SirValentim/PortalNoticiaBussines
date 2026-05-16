@@ -1,0 +1,123 @@
+{{define "admin_content"}}
+<div class="admin-page-header">
+    <div>
+        <p class="admin-kicker">Mercado local</p>
+        <h1>{{if .Classified}}Editar{{else}}Novo{{end}} Classificado</h1>
+    </div>
+    <a href="{{.AdminPath}}/classifieds" class="btn btn-sm">Voltar</a>
+</div>
+
+<form class="admin-form" method="POST" action="{{if .Classified}}{{.AdminPath}}/classifieds/{{.Classified.ID}}{{else}}{{.AdminPath}}/classifieds{{end}}" enctype="multipart/form-data">
+    <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+
+    <section class="admin-form-section">
+        <div class="admin-form-grid">
+            <div class="form-group">
+                <label>Titulo</label>
+                <input type="text" name="title" class="form-control" value="{{if .Classified}}{{.Classified.Title}}{{end}}" required maxlength="300">
+            </div>
+            <div class="form-group">
+                <label>Categoria</label>
+                <select name="category" class="form-control" required>
+                    <option value="">Selecione</option>
+                    <option value="Imoveis" {{if .Classified}}{{if selected .Classified.Category "Imoveis"}}selected{{end}}{{end}}>Imoveis</option>
+                    <option value="Veiculos" {{if .Classified}}{{if selected .Classified.Category "Veiculos"}}selected{{end}}{{end}}>Veiculos</option>
+                    <option value="Empregos" {{if .Classified}}{{if selected .Classified.Category "Empregos"}}selected{{end}}{{end}}>Empregos</option>
+                    <option value="Servicos" {{if .Classified}}{{if selected .Classified.Category "Servicos"}}selected{{end}}{{end}}>Servicos</option>
+                    <option value="Outros" {{if .Classified}}{{if selected .Classified.Category "Outros"}}selected{{end}}{{end}}>Outros</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Status</label>
+                <select name="status" class="form-control">
+                    <option value="active" {{if .Classified}}{{if selected .Classified.Status "active"}}selected{{end}}{{else}}selected{{end}}>Ativo</option>
+                    <option value="draft" {{if .Classified}}{{if selected .Classified.Status "draft"}}selected{{end}}{{end}}>Rascunho</option>
+                    <option value="sold" {{if .Classified}}{{if selected .Classified.Status "sold"}}selected{{end}}{{end}}>Vendido</option>
+                    <option value="archived" {{if .Classified}}{{if selected .Classified.Status "archived"}}selected{{end}}{{end}}>Arquivado</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Validade</label>
+                <input type="date" name="expires_at" class="form-control" value="{{if .Classified}}{{dateInput .Classified.ExpiresAt}}{{end}}">
+            </div>
+        </div>
+        <div class="form-group">
+            <label>Descricao</label>
+            <textarea name="description" class="form-control" rows="7">{{if .Classified}}{{.Classified.Description}}{{end}}</textarea>
+        </div>
+    </section>
+
+    <section class="admin-form-section">
+        <div class="admin-form-grid">
+            <div class="form-group">
+                <label>Preco/valor</label>
+                <input type="text" name="price_display" class="form-control" value="{{if .Classified}}{{.Classified.PriceDisplay}}{{end}}" placeholder="R$ 1.500,00, A combinar...">
+            </div>
+            <div class="form-group">
+                <label>Localizacao</label>
+                <input type="text" name="location" class="form-control" value="{{if .Classified}}{{.Classified.Location}}{{end}}" placeholder="Centro, Inhumas GO">
+            </div>
+            <div class="form-group">
+                <label>Nome do contato</label>
+                <input type="text" name="contact_name" class="form-control" value="{{if .Classified}}{{.Classified.ContactName}}{{end}}">
+            </div>
+            <div class="form-group">
+                <label>Telefone</label>
+                <input type="text" name="contact_phone" class="form-control" value="{{if .Classified}}{{.Classified.ContactPhone}}{{end}}">
+            </div>
+            <div class="form-group">
+                <label>WhatsApp</label>
+                <input type="text" name="contact_whatsapp" class="form-control" value="{{if .Classified}}{{.Classified.ContactWhatsapp}}{{end}}">
+            </div>
+        </div>
+    </section>
+
+    <section class="admin-form-section">
+        <div class="admin-form-grid">
+            <div class="form-group">
+                <label>Imagem</label>
+                {{if and .Classified .Classified.ImageKey}}
+                <img class="admin-cover-preview" src="{{imageURL .Classified.ImageKey}}" alt="{{.Classified.Title}}">
+                <label class="checkbox-control"><input type="checkbox" name="remove_image"><span>Remover imagem atual</span></label>
+                {{end}}
+                <input type="file" name="image" class="form-control" accept="image/*">
+                {{if .MediaAssets}}
+                <label>Ou escolher da biblioteca</label>
+                <select name="image_media_key" class="form-control">
+                    <option value="">Manter / nenhuma</option>
+                    {{range .MediaAssets}}
+                    <option value="{{.Key}}" {{if and $.Classified (eq $.Classified.ImageKey .Key)}}selected{{end}}>{{if .Title}}{{.Title}}{{else}}{{.OriginalName}}{{end}}</option>
+                    {{end}}
+                </select>
+                {{end}}
+            </div>
+            <div class="form-group">
+                <label>Promocao comercial</label>
+                <div class="admin-check-grid">
+                    <label class="checkbox-control"><input type="checkbox" name="is_featured" {{if .Classified}}{{if .Classified.IsFeatured}}checked{{end}}{{end}}><span>Destaque</span></label>
+                    <label class="checkbox-control"><input type="checkbox" name="is_sponsored" {{if .Classified}}{{if .Classified.IsSponsored}}checked{{end}}{{end}}><span>Patrocinado</span></label>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="admin-form-section">
+        <h3>SEO</h3>
+        <div class="admin-form-grid">
+            <div class="form-group">
+                <label>Meta title</label>
+                <input type="text" name="meta_title" class="form-control" value="{{if .Classified}}{{.Classified.MetaTitle}}{{end}}" maxlength="200">
+            </div>
+            <div class="form-group">
+                <label>Meta description</label>
+                <textarea name="meta_description" class="form-control" rows="4" maxlength="300">{{if .Classified}}{{.Classified.MetaDescription}}{{end}}</textarea>
+            </div>
+        </div>
+    </section>
+
+    <div class="admin-form-actions">
+        <a href="{{.AdminPath}}/classifieds" class="btn">Cancelar</a>
+        <button type="submit" class="btn btn-primary btn-lg">Salvar classificado</button>
+    </div>
+</form>
+{{end}}

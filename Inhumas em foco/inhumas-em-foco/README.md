@@ -13,7 +13,7 @@ Backend principal do portal local Inhumas em Foco. A aplicacao oficial usa Go, t
 - Novos uploads geram original preservado, WebP principal e thumb WebP.
 - RSS publico em `/rss.xml`.
 - Sitemap, robots, JSON-LD, metricas operacionais e health check estao implementados.
-- Migration PostgreSQL inicial existe, mas PostgreSQL fica classificado como evolucao planejada do CMS.
+- PostgreSQL e suportado por configuracao, com migrations versionadas e comando de migracao SQLite -> PostgreSQL; a producao atual segue em SQLite.
 
 ## Documentos Oficiais do CMS
 
@@ -21,8 +21,9 @@ A evolucao do CMS premium passa a usar estes documentos como fonte principal:
 
 - `docs/CHECKLIST_STATUS.md`: checklist vivo de execucao, status e historico.
 - `docs/CMS_PLANO_GERAL.md`: cronograma macro, sprints e criterios de pronto.
+- `docs/CMS_REVISAO_FINAL.md`: revisao executiva final, readiness operacional e backlog residual.
 
-Os demais documentos em `docs/` ficam como referencia historica/operacional ate serem consolidados nesses dois arquivos.
+Os demais documentos em `docs/` ficam como referencia operacional ou historica. Quando houver conflito, prevalecem o checklist vivo, o plano geral e a revisao final.
 
 ## Rodar Localmente
 
@@ -59,11 +60,28 @@ go run ./cmd/worker
 go test ./...
 ```
 
+## Build e readiness
+
+```powershell
+go build ./cmd/web ./cmd/worker ./cmd/seed-news ./cmd/migrate-sqlite-postgres
+```
+
+Na VPS, depois de deploy ou manutencao:
+
+```bash
+BASE_URL=https://inhumasemfoco.online \
+ADMIN_PATH=/painel/1c2dhviax7 \
+BACKUP_DIR=/var/backups/inhumas \
+/var/www/inhumas/scripts/production-readiness.sh
+```
+
 ## Variaveis Principais
 
 - `PORT`: porta HTTP, padrao `8080`.
 - `SITE_URL`: URL publica usada no sitemap.
 - `DATABASE_URL`: caminho SQLite no runtime atual.
+- `DB_DRIVER`: `sqlite`, `postgres` ou vazio para autodeteccao.
+- `MIGRATIONS_DIR`: diretorio de migrations versionadas.
 - `SESSION_SECRET`: segredo com pelo menos 32 caracteres.
 - `PREVIOUS_SESSION_SECRET`: segredo anterior para rotacao gradual de sessoes.
 - `INITIAL_ADMIN_PASSWORD`: cria admin inicial se ainda nao houver usuarios.
@@ -81,6 +99,9 @@ go test ./...
 - `APP_ENV`: use `production` em producao.
 - `FORCE_SECURE_COOKIES`: use `true` para forcar cookies `Secure`.
 - `MAINTENANCE_MODE`: ativa modo manutencao nas rotas publicas.
+- `CSP_REPORT_ONLY`, `CSP_REPORT_URI`: auditoria de CSP mais restritiva.
+- `RCLONE_REMOTE`, `OFFSITE_BACKUP_DIR`: destino de backup externo.
+- `MAX_BACKUP_AGE_HOURS`, `DISK_ALERT_THRESHOLD`, `JOURNAL_RETENTION`: operacao e alertas.
 
 ## Health Check
 
@@ -105,8 +126,9 @@ Retorna uptime, total de requests, conexoes do banco, jobs pendentes/dead e tama
 - `docs/OPERATIONS_GUIDE.md`: rotina diaria, backup, restauracao e incidentes.
 - `docs/SECURITY_PREPROD_CHECKLIST.md`: checklist antes de expor em producao.
 - `docs/ENVIRONMENT.md`: referencia completa de variaveis de ambiente.
+- `docs/CMS_REVISAO_FINAL.md`: status executivo, readiness e backlog residual.
 - `docs/ARCHITECTURE_DECISIONS.md`: decisoes do MVP, incluindo React como prototipo visual.
 
 ## Status
 
-O MVP operacional em Go + SQLite esta publicado e validado na VPS. A fase atual transforma essa base em um CMS corporativo premium, com foco em permissoes por acao, fluxo editorial, biblioteca de midia, automacoes, IA editorial, anuncios, modulos locais, PostgreSQL e hardening operacional.
+O CMS Go esta publicado e validado na VPS como base corporativa premium para operacao inicial. O backlog residual principal agora e externo/operacional: backup fora da VPS, monitor externo, SMTP real, homologacao PostgreSQL e remocao futura de `unsafe-inline` da CSP.

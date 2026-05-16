@@ -67,9 +67,12 @@ const (
 	PermInfluencersManage Permission = "influencers:manage"
 	PermBannersManage     Permission = "banners:manage"
 	PermPromosManage      Permission = "promos:manage"
+	PermEventsManage      Permission = "events:manage"
+	PermClassifiedsManage Permission = "classifieds:manage"
 	PermMediaManage       Permission = "media:manage"
 	PermUsersManage       Permission = "users:manage"
 	PermSettingsManage    Permission = "settings:manage"
+	PermAutomationManage  Permission = "automation:manage"
 )
 
 func (s *Service) HasPermission(user *model.User, perm Permission) bool {
@@ -93,7 +96,7 @@ func RolePermissions(role model.UserRole) []Permission {
 		return []Permission{"*"}
 	case model.RoleEditor:
 		return []Permission{
-			PermPostsCreate, PermPostsEditAny, PermPostsDelete, PermPostsPublish, PermPostsApprove, PermMediaManage,
+			PermPostsCreate, PermPostsEditAny, PermPostsDelete, PermPostsPublish, PermPostsApprove, PermEventsManage, PermMediaManage, PermAutomationManage,
 		}
 	case model.RoleRedator:
 		return []Permission{
@@ -105,7 +108,7 @@ func RolePermissions(role model.UserRole) []Permission {
 		}
 	case model.RoleComercial:
 		return []Permission{
-			PermStoresManage, PermInfluencersManage, PermBannersManage, PermPromosManage, PermMediaManage,
+			PermStoresManage, PermInfluencersManage, PermBannersManage, PermPromosManage, PermEventsManage, PermClassifiedsManage, PermMediaManage,
 		}
 	default:
 		return []Permission{}

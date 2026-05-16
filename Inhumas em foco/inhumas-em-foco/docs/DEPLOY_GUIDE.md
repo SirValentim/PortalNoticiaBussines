@@ -1,6 +1,6 @@
 # Guia de Deploy - Inhumas em Foco
 
-Este guia descreve o caminho recomendado para publicar o backend Go em uma VPS Debian 12. O runtime atual do projeto ainda usa SQLite; PostgreSQL ja tem migration inicial, mas nao esta ligado ao codigo principal.
+Este guia descreve o caminho recomendado para publicar o backend Go em uma VPS Debian 12. O runtime atual de producao segue em SQLite por decisao conservadora; PostgreSQL ja e suportado por configuracao, migrations versionadas e comando de migracao.
 
 ## 1. Preparar servidor
 
@@ -30,7 +30,7 @@ No ambiente de build:
 make build-linux
 ```
 
-Envie os binarios `bin/web` e `bin/worker`, alem de `internal/view`, `static`, `migrations`, `scripts`, `deploy` e `.env.example` para a VPS. O diretorio final esperado pelo exemplo e:
+Envie os binarios `bin/web`, `bin/worker`, `bin/seed-news` e `bin/migrate-sqlite-postgres`, alem de `internal/view`, `static`, `migrations`, `scripts`, `deploy`, `docs` e `.env.example` para a VPS. O diretorio final esperado pelo exemplo e:
 
 ```text
 /var/www/inhumas
@@ -118,7 +118,7 @@ Exemplo:
 */30 * * * * /var/www/inhumas/scripts/disk-check.sh >> /var/log/inhumas-disk.log 2>&1
 ```
 
-## 7. Smoke test
+## 7. Smoke test e readiness
 
 Antes de considerar o deploy pronto:
 
@@ -129,3 +129,12 @@ Antes de considerar o deploy pronto:
 - Criar post publicado aparece na home, em `/rss.xml` e no proximo sitemap.
 - Worker esta ativo e sem erros repetidos no journal.
 - Backup gera arquivo restauravel.
+
+Execute tambem:
+
+```bash
+BASE_URL=https://inhumasemfoco.online \
+ADMIN_PATH=/painel/1c2dhviax7 \
+BACKUP_DIR=/var/backups/inhumas \
+/var/www/inhumas/scripts/production-readiness.sh
+```
