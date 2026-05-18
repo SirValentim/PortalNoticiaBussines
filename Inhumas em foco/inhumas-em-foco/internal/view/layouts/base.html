@@ -1,33 +1,51 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="{{.Branding.PortalLanguage}}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{.SEO.Title}}</title>
     <meta name="description" content="{{.SEO.Description}}">
     {{if .SEO.Tags}}<meta name="keywords" content="{{range $i, $tag := .SEO.Tags}}{{if $i}}, {{end}}{{$tag}}{{end}}">{{end}}
-    <meta name="author" content="{{if .SEO.Author}}{{.SEO.Author}}{{else}}{{.PortalSettings.SiteName}}{{end}}">
-    <meta name="theme-color" content="#1F7A63">
+    <meta name="author" content="{{if .SEO.Author}}{{.SEO.Author}}{{else}}{{.Branding.PortalName}}{{end}}">
+    <meta name="theme-color" content="{{.Branding.PrimaryColor}}">
     {{if .SEO.NoIndex}}<meta name="robots" content="noindex,nofollow">{{else}}<meta name="robots" content="index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1">{{end}}
     <link rel="canonical" href="{{.SEO.CanonicalURL}}">
-    <link rel="alternate" type="application/rss+xml" title="{{.PortalSettings.SiteName}} RSS" href="/rss.xml">
+    <link rel="alternate" type="application/rss+xml" title="{{.Branding.PortalName}} RSS" href="/rss.xml">
+    <link rel="manifest" href="/manifest.json">
     <meta property="og:title" content="{{.SEO.Title}}">
     <meta property="og:description" content="{{.SEO.Description}}">
     <meta property="og:type" content="{{.SEO.Type}}">
-    <meta property="og:site_name" content="{{.PortalSettings.SiteName}}">
-    <meta property="og:locale" content="pt_BR">
+    <meta property="og:site_name" content="{{.Branding.PortalName}}">
+    <meta property="og:locale" content="{{.Branding.PortalLocale}}">
     {{if .SEO.Image}}<meta property="og:image" content="{{.SEO.Image}}"><meta property="og:image:alt" content="{{.SEO.Title}}"><meta name="twitter:image" content="{{.SEO.Image}}">{{end}}
     <meta property="og:url" content="{{.SEO.URL}}">
     {{if .SEO.PublishedAt}}<meta property="article:published_time" content="{{.SEO.PublishedAt.Format "2006-01-02T15:04:05Z07:00"}}">{{end}}
     {{if .SEO.ModifiedAt}}<meta property="article:modified_time" content="{{.SEO.ModifiedAt.Format "2006-01-02T15:04:05Z07:00"}}">{{end}}
     {{range .SEO.Tags}}<meta property="article:tag" content="{{.}}">{{end}}
     <meta name="twitter:card" content="summary_large_image">
+    {{if .Branding.TwitterHandle}}<meta name="twitter:site" content="{{.Branding.TwitterHandle}}">{{end}}
     <meta name="twitter:title" content="{{.SEO.Title}}">
     <meta name="twitter:description" content="{{.SEO.Description}}">
     {{if .JSONLD}}<script type="application/ld+json">{{.JSONLD}}</script>{{end}}
     <link rel="stylesheet" href="/static/css/style.css?v=20260430-public-v1">
     <script defer src="/static/js/htmx-lite.js?v=20260429-frontend-fix"></script>
-    {{if .PortalSettings.FaviconKey}}<link rel="icon" href="{{imageURL .PortalSettings.FaviconKey}}">{{end}}
+    <link rel="icon" href="{{if .PortalSettings.FaviconKey}}{{imageURL .PortalSettings.FaviconKey}}{{else}}{{.Branding.FaviconPath}}{{end}}">
+    <style>
+        :root {
+            --portal-primary: {{.Branding.PrimaryColor}};
+            --portal-secondary: {{.Branding.SecondaryColor}};
+            --portal-accent: {{.Branding.AccentColor}};
+        }
+    </style>
+    {{if .Branding.GoogleAnalyticsID}}
+    <script async src="https://www.googletagmanager.com/gtag/js?id={{.Branding.GoogleAnalyticsID}}"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', '{{.Branding.GoogleAnalyticsID}}');
+    </script>
+    {{end}}
     <script>
         function trackMetric(type, entityType, entityID) {
             fetch('/api/metrics/' + type + '?entity_type=' + entityType + '&entity_id=' + entityID, {method: 'POST'});

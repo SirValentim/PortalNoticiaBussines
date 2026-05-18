@@ -1,9 +1,9 @@
 {{define "content"}}
 <section class="detail-hero store-detail-hero">
     <div class="container detail-hero-inner">
-        <img class="detail-cover" src="{{if .Store.CoverImageKey}}{{imageURL .Store.CoverImageKey}}{{else}}/static/images/inhumas-hero.png{{end}}" alt="{{.Store.Name}}" loading="eager">
+        <img class="detail-cover" src="{{if .Store.CoverImageKey}}{{imageURL .Store.CoverImageKey}}{{else}}{{imageURL ""}}{{end}}" alt="{{.Store.Name}}" loading="eager">
         <div class="detail-hero-content">
-            <img class="store-detail-logo" src="{{if .Store.LogoKey}}{{imageURL .Store.LogoKey}}{{else}}/static/images/logo.png{{end}}" alt="{{.Store.Name}}">
+            <img class="store-detail-logo" src="{{if .Store.LogoKey}}{{imageURL .Store.LogoKey}}{{else}}{{.Branding.LogoPath}}{{end}}" alt="{{.Store.Name}}">
             <span class="badge">{{.Store.Category}}</span>
             <h1>{{.Store.Name}}</h1>
             {{if .Store.IsSponsored}}<span class="sponsored-badge">Patrocinado</span>{{end}}
@@ -48,7 +48,7 @@
             {{range .Promos}}
             <article class="card promo-card">
                 <a href="/promocao/{{.Slug}}">
-                    <img src="{{if .ImageKey}}{{imageURL .ImageKey}}{{else}}/static/images/inhumas-hero.png{{end}}" alt="{{.Title}}" loading="lazy">
+                    <img src="{{if .ImageKey}}{{imageURL .ImageKey}}{{else}}{{imageURL ""}}{{end}}" alt="{{.Title}}" loading="lazy">
                 </a>
                 <div class="card-body">
                     <span>{{.StoreName}}</span>

@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -21,7 +22,10 @@ import (
 )
 
 func main() {
-	cfg := config.Load()
+	cfg, err := config.LoadWithError()
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	if !cfg.IsValidSessionSecret() {
 		log.Fatal("SESSION_SECRET deve ter pelo menos 32 caracteres")
@@ -72,6 +76,7 @@ func main() {
 	root = middleware.RequireAdmin(cfg.AdminPathPrefix)(root)
 	root = middleware.AuthMiddleware(sessionMgr, repo, authSvc)(root)
 	root = middleware.CSRFProtection(cfg.AdminPathPrefix, secure, cfg.MaxUploadSize)(root)
+	root = middleware.InjectBranding(cfg.Branding)(root)
 	root = middleware.MetricsMiddleware(repo)(root)
 	root = middleware.StructuredLogger(root)
 
@@ -85,7 +90,7 @@ func main() {
 	}
 
 	// Seed default admin user if none exists
-	go seedDefaultAdmin(repo, authSvc, cfg.DefaultBcryptCost)
+	go seedDefaultAdmin(repo, authSvc, cfg)
 
 	// Graceful shutdown
 	go func() {
@@ -105,7 +110,7 @@ func main() {
 	}
 }
 
-func seedDefaultAdmin(repo *repository.Repository, authSvc *auth.Service, cost int) {
+func seedDefaultAdmin(repo *repository.Repository, authSvc *auth.Service, cfg *config.Config) {
 	time.Sleep(1 * time.Second)
 	ctx := context.Background()
 
@@ -121,7 +126,7 @@ func seedDefaultAdmin(repo *repository.Repository, authSvc *auth.Service, cost i
 		return
 	}
 
-	hash, err := authSvc.HashPassword(initialPassword, cost)
+	hash, err := authSvc.HashPassword(initialPassword, cfg.DefaultBcryptCost)
 	if err != nil {
 		log.Println("Erro ao criar senha padrao:", err)
 		return
@@ -129,7 +134,7 @@ func seedDefaultAdmin(repo *repository.Repository, authSvc *auth.Service, cost i
 
 	admin := &model.User{
 		Name:         "Administrador",
-		Email:        "admin@inhumasemfoco.com.br",
+		Email:        firstNonEmpty(os.Getenv("INITIAL_ADMIN_EMAIL"), "admin@"+strings.TrimPrefix(strings.TrimPrefix(cfg.Branding.SiteURL, "https://"), "http://")),
 		PasswordHash: hash,
 		Role:         "admin",
 		Active:       true,
@@ -140,6 +145,15 @@ func seedDefaultAdmin(repo *repository.Repository, authSvc *auth.Service, cost i
 		return
 	}
 
-	fmt.Println("Default admin created: admin@inhumasemfoco.com.br")
+	fmt.Println("Default admin created:", admin.Email)
 	fmt.Println("IMPORTANTE: Altere a senha padrao apos o primeiro acesso!")
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if value != "" {
+			return value
+		}
+	}
+	return ""
 }

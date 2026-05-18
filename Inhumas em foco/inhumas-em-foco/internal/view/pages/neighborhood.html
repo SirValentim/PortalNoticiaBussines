@@ -1,7 +1,7 @@
 {{define "content"}}
 <section class="detail-hero neighborhood-hero">
     <div class="container detail-hero-inner">
-        <img class="detail-cover" src="{{if .Neighborhood.CoverImageKey}}{{imageURL .Neighborhood.CoverImageKey}}{{else}}/static/images/inhumas-hero.png{{end}}" alt="{{.Neighborhood.Name}}" loading="eager">
+        <img class="detail-cover" src="{{if .Neighborhood.CoverImageKey}}{{imageURL .Neighborhood.CoverImageKey}}{{else}}{{imageURL ""}}{{end}}" alt="{{.Neighborhood.Name}}" loading="eager">
         <div class="detail-hero-content">
             <span class="badge">Bairro</span>
             <h1>{{.Neighborhood.Name}}</h1>
@@ -19,7 +19,7 @@
         <div class="store-grid">
             {{range .Stores}}
             <a class="store-tile store-tile-large" href="/loja/{{.Slug}}">
-                <img src="{{if .LogoKey}}{{imageURL .LogoKey}}{{else}}/static/images/logo.png{{end}}" alt="{{.Name}}" loading="lazy">
+                <img src="{{if .LogoKey}}{{imageURL .LogoKey}}{{else}}{{$.Branding.LogoPath}}{{end}}" alt="{{.Name}}" loading="lazy">
                 <strong>{{.Name}}</strong>
                 <span>{{.Category}}</span>
                 <small>*****</small>

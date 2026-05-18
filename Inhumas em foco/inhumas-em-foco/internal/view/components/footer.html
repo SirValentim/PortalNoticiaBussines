@@ -2,9 +2,9 @@
     <div class="container">
         <div class="footer-brand">
             <a href="/" class="site-logo">
-                <img src="{{if .PortalSettings.LogoKey}}{{imageURL .PortalSettings.LogoKey}}{{else}}/static/images/logo.png?v=20260429-frontend-fix{{end}}" alt="{{.PortalSettings.SiteName}}" class="brand-logo-img" width="220" height="54" style="display:block;width:auto;max-width:220px;height:54px;object-fit:contain;">
+                <img src="{{if .PortalSettings.LogoKey}}{{imageURL .PortalSettings.LogoKey}}{{else}}{{.Branding.LogoPath}}{{end}}" alt="{{.Branding.LogoAltText}}" class="brand-logo-img" width="220" height="54" style="display:block;width:auto;max-width:220px;height:54px;object-fit:contain;">
             </a>
-            <p>{{.PortalSettings.Tagline}}</p>
+            <p>{{if .Branding.PortalTagline}}{{.Branding.PortalTagline}}{{else}}{{.PortalSettings.Tagline}}{{end}}</p>
         </div>
         <div>
             <h4>Navegacao</h4>
@@ -23,10 +23,10 @@
         </div>
         <div>
             <h4>Contato</h4>
-            <p>{{.PortalSettings.ContactPhone}}</p>
-            <p>{{.PortalSettings.ContactEmail}}</p>
-            <p>{{.PortalSettings.City}}, {{.PortalSettings.State}}</p>
+            <p>{{if .Branding.ContactPhone}}{{.Branding.ContactPhone}}{{else}}{{.PortalSettings.ContactPhone}}{{end}}</p>
+            <p>{{if .Branding.ContactEmail}}{{.Branding.ContactEmail}}{{else}}{{.PortalSettings.ContactEmail}}{{end}}</p>
+            <p>{{if .Branding.ContactCity}}{{.Branding.ContactCity}}{{else}}{{.PortalSettings.City}}{{end}}, {{if .Branding.ContactState}}{{.Branding.ContactState}}{{else}}{{.PortalSettings.State}}{{end}}</p>
         </div>
     </div>
-    <div class="footer-bottom">&copy; {{.Year}} {{.PortalSettings.SiteName}}. Todos os direitos reservados.</div>
+    <div class="footer-bottom">&copy; {{.Year}} {{.Branding.CopyrightHolder}}. {{.Branding.FooterLegalText}}</div>
 </footer>

@@ -112,7 +112,10 @@ func (h *Handler) funcMap() template.FuncMap {
 		},
 		"imageURL": func(key string) string {
 			if key == "" {
-				return "/static/images/inhumas-hero.png"
+				if h.cfg != nil && h.cfg.Branding != nil {
+					return h.cfg.Branding.SEODefaultImage
+				}
+				return "/static/branding/og-default.jpg"
 			}
 			return h.storage.URL(context.Background(), key)
 		},
@@ -168,6 +171,10 @@ func (h *Handler) Render(w http.ResponseWriter, r *http.Request, name string, da
 	if data == nil {
 		data = make(map[string]any)
 	}
+	branding := h.branding(r.Context())
+	if _, ok := data["Branding"]; !ok {
+		data["Branding"] = branding
+	}
 	settings := h.portalSettings(r.Context())
 	if _, ok := data["PortalSettings"]; !ok {
 		data["PortalSettings"] = settings
@@ -177,7 +184,7 @@ func (h *Handler) Render(w http.ResponseWriter, r *http.Request, name string, da
 		data["SEO"] = seo
 	}
 	data["User"] = user
-	data["AdminPath"] = h.cfg.AdminPathPrefix
+	data["AdminPath"] = branding.AdminPathPrefix
 	data["Year"] = time.Now().Year()
 	data["CSRFToken"] = middleware.CSRFToken(r.Context())
 	if _, ok := data["Active"]; !ok {
@@ -209,7 +216,8 @@ func (h *Handler) Render(w http.ResponseWriter, r *http.Request, name string, da
 }
 
 func (h *Handler) normalizeSEO(r *http.Request, seo *model.SEOData) {
-	siteURL := strings.TrimRight(h.cfg.SiteURL, "/")
+	branding := h.branding(r.Context())
+	siteURL := strings.TrimRight(branding.SiteURL, "/")
 	if siteURL == "" {
 		scheme := "http"
 		if r.TLS != nil || strings.EqualFold(r.Header.Get("X-Forwarded-Proto"), "https") {
@@ -237,9 +245,54 @@ func (h *Handler) normalizeSEO(r *http.Request, seo *model.SEOData) {
 		if settings.LogoKey != "" {
 			seo.Image = h.storage.URL(r.Context(), settings.LogoKey)
 		} else {
-			seo.Image = siteURL + "/static/images/logo.png"
+			seo.Image = branding.SEODefaultImage
 		}
 	}
+}
+
+func (h *Handler) branding(ctx context.Context) *config.TenantBrandingConfig {
+	if branding := middleware.BrandingFromContext(ctx); branding != nil {
+		return branding
+	}
+	if h.cfg != nil && h.cfg.Branding != nil {
+		return h.cfg.Branding
+	}
+	siteURL := ""
+	adminPath := "/painel"
+	if h.cfg != nil {
+		siteURL = strings.TrimRight(h.cfg.SiteURL, "/")
+		adminPath = h.cfg.AdminPathPrefix
+	}
+	return &config.TenantBrandingConfig{
+		PortalName:        "Portal",
+		PortalLocale:      "pt_BR",
+		PortalLanguage:    "pt-BR",
+		PortalCategory:    "news",
+		SiteURL:           siteURL,
+		AdminPathPrefix:   adminPath,
+		LogoPath:          "/static/branding/logo.svg",
+		LogoAltText:       "Portal",
+		FaviconPath:       "/static/branding/favicon.ico",
+		PrimaryColor:      "#1a4a3a",
+		SecondaryColor:    "#f5c518",
+		AccentColor:       "#2d6a52",
+		SEOTitleSuffix:    " | Portal",
+		SEODefaultImage:   strings.TrimRight(siteURL, "/") + "/static/branding/og-default.jpg",
+		ContactCountry:    "BR",
+		ArticlesPerPage:   12,
+		FeaturedTagSlug:   "destaque",
+		BreakingNewsLabel: "Ao vivo",
+		CopyrightHolder:   "Portal",
+		FooterLegalText:   "Todos os direitos reservados.",
+	}
+}
+
+func (h *Handler) siteURL(ctx context.Context) string {
+	return strings.TrimRight(h.branding(ctx).SiteURL, "/")
+}
+
+func (h *Handler) pageTitle(ctx context.Context, title string) string {
+	return h.branding(ctx).FullTitle(title)
 }
 
 func (h *Handler) portalSettings(ctx context.Context) model.PortalSettings {
@@ -336,6 +389,7 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /robots.txt", h.Robots)
 	mux.HandleFunc("GET /sitemap.xml", h.Sitemap)
 	mux.HandleFunc("GET /rss.xml", h.RSS)
+	mux.HandleFunc("GET /manifest.json", h.Manifest)
 
 	// Static
 	mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServer(http.Dir(h.cfg.StaticDir))))
@@ -492,11 +546,11 @@ func (h *Handler) Home(w http.ResponseWriter, r *http.Request) {
 	influencers, _ := h.repo.InfluencerList(ctx, true, 6)
 
 	seo := model.SEOData{
-		Title:       "Inhumas em Foco - Noticias e Comercio Local",
-		Description: "Portal de noticias, comercio e eventos de Inhumas, Goias. Fique por dentro do que acontece na sua cidade.",
-		URL:         h.cfg.SiteURL + "/",
+		Title:       h.pageTitle(ctx, ""),
+		Description: firstNonEmpty(h.branding(ctx).PortalDescription, "Portal de noticias, comercio e eventos locais."),
+		URL:         h.siteURL(ctx) + "/",
 		Type:        "website",
-		Tags:        []string{"Inhumas", "Inhumas GO", "noticias de Inhumas", "comercio local"},
+		Tags:        []string{h.branding(ctx).PortalName, h.branding(ctx).PortalCategory},
 	}
 
 	data := map[string]any{
@@ -559,10 +613,10 @@ func (h *Handler) PostDetail(w http.ResponseWriter, r *http.Request) {
 	sidebarBottomBanner, _ := h.repo.BannerGetActiveByPosition(r.Context(), "sidebar_bottom")
 
 	seo := model.SEOData{
-		Title:        firstNonEmpty(post.MetaTitle, post.Title+" | Inhumas em Foco"),
+		Title:        firstNonEmpty(post.MetaTitle, h.pageTitle(r.Context(), post.Title)),
 		Description:  firstNonEmpty(post.MetaDescription, post.Excerpt),
-		URL:          h.cfg.SiteURL + "/noticia/" + post.Slug,
-		CanonicalURL: firstNonEmpty(post.CanonicalURL, h.cfg.SiteURL+"/noticia/"+post.Slug),
+		URL:          h.siteURL(r.Context()) + "/noticia/" + post.Slug,
+		CanonicalURL: firstNonEmpty(post.CanonicalURL, h.siteURL(r.Context())+"/noticia/"+post.Slug),
 		Type:         "article",
 		PublishedAt:  post.PublishedAt,
 		ModifiedAt:   &post.UpdatedAt,
@@ -586,12 +640,12 @@ func (h *Handler) PostDetail(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) Robots(w http.ResponseWriter, r *http.Request) {
-	siteURL := strings.TrimRight(h.cfg.SiteURL, "/")
+	siteURL := h.siteURL(r.Context())
 	if siteURL == "" {
 		siteURL = "https://" + r.Host
 	}
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	fmt.Fprintf(w, "User-agent: *\nAllow: /\nDisallow: %s/\nDisallow: /login\nDisallow: /busca\n\nSitemap: %s/sitemap.xml\n", strings.TrimRight(h.cfg.AdminPathPrefix, "/"), siteURL)
+	fmt.Fprintf(w, "User-agent: *\nAllow: /\nDisallow: %s/\nDisallow: /login\nDisallow: /busca\n\nSitemap: %s/sitemap.xml\n", strings.TrimRight(h.branding(r.Context()).AdminPathPrefix, "/"), siteURL)
 }
 
 func (h *Handler) Sitemap(w http.ResponseWriter, r *http.Request) {
@@ -610,7 +664,7 @@ func (h *Handler) Sitemap(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Erro ao gerar sitemap", http.StatusInternalServerError)
 		return
 	}
-	data, err := sitemap.Build(h.cfg.SiteURL, entries)
+	data, err := sitemap.Build(h.siteURL(r.Context()), entries)
 	if err != nil {
 		http.Error(w, "Erro ao gerar sitemap", http.StatusInternalServerError)
 		return
@@ -639,9 +693,9 @@ func (h *Handler) CategoryPosts(w http.ResponseWriter, r *http.Request) {
 	listBanner, _ := h.repo.BannerGetActiveByPosition(r.Context(), "in_feed")
 
 	seo := model.SEOData{
-		Title:       firstNonEmpty(cat.MetaTitle, cat.Name+" | Inhumas em Foco"),
+		Title:       firstNonEmpty(cat.MetaTitle, h.pageTitle(r.Context(), cat.Name)),
 		Description: firstNonEmpty(cat.MetaDescription, cat.Description, "Noticias sobre "+cat.Name+" em Inhumas, Goias"),
-		URL:         h.cfg.SiteURL + "/categoria/" + cat.Slug,
+		URL:         h.siteURL(r.Context()) + "/categoria/" + cat.Slug,
 		Tags:        []string{"Inhumas", "Inhumas GO", cat.Name},
 	}
 
@@ -676,9 +730,9 @@ func (h *Handler) TagPosts(w http.ResponseWriter, r *http.Request) {
 	}
 
 	seo := model.SEOData{
-		Title:       firstNonEmpty(tag.MetaTitle, tag.Name+" | Inhumas em Foco"),
+		Title:       firstNonEmpty(tag.MetaTitle, h.pageTitle(r.Context(), tag.Name)),
 		Description: firstNonEmpty(tag.MetaDescription, description),
-		URL:         h.cfg.SiteURL + "/tag/" + tag.Slug,
+		URL:         h.siteURL(r.Context()) + "/tag/" + tag.Slug,
 		Tags:        []string{"Inhumas", "Inhumas GO", tag.Name},
 	}
 
@@ -706,9 +760,9 @@ func (h *Handler) NewsList(w http.ResponseWriter, r *http.Request) {
 		Description: "Tudo que acontece em Inhumas e regiao.",
 	}
 	seo := model.SEOData{
-		Title:       "Noticias | Inhumas em Foco",
+		Title:       h.pageTitle(r.Context(), "Noticias"),
 		Description: "Ultimas noticias de Inhumas GO, politica local, cidade, eventos, comercio e servicos para moradores.",
-		URL:         h.cfg.SiteURL + "/noticias",
+		URL:         h.siteURL(r.Context()) + "/noticias",
 		Tags:        []string{"noticias de Inhumas", "Inhumas GO", "portal de noticias Inhumas"},
 	}
 	h.Render(w, r, "category.html", map[string]any{
@@ -743,7 +797,7 @@ func (h *Handler) renderNewsRows(w http.ResponseWriter, posts []model.Post, hasM
 	const partial = `{{range .Posts}}
 <article class="news-row">
 	<a href="/noticia/{{.Slug}}">
-		<img src="{{if .CoverImageKey}}{{imageURL .CoverImageKey}}{{else}}/static/images/inhumas-hero.png{{end}}" alt="{{.Title}}" loading="lazy">
+		<img src="{{if .CoverImageKey}}{{imageURL .CoverImageKey}}{{else}}{{imageURL ""}}{{end}}" alt="{{.Title}}" loading="lazy">
 	</a>
 	<div>
 		<span class="badge">{{.CategoryName}}</span>
@@ -774,9 +828,9 @@ func (h *Handler) EventList(w http.ResponseWriter, r *http.Request) {
 	featuredEvents, regularEvents := splitCommercialEvents(events, 6)
 	listBanner, _ := h.repo.BannerGetActiveByPosition(r.Context(), "in_feed")
 	seo := model.SEOData{
-		Title:       "Eventos | Inhumas em Foco",
+		Title:       h.pageTitle(r.Context(), "Eventos"),
 		Description: "Eventos e agenda local de Inhumas, Goias.",
-		URL:         h.cfg.SiteURL + "/eventos",
+		URL:         h.siteURL(r.Context()) + "/eventos",
 		Tags:        []string{"eventos em Inhumas", "agenda Inhumas", "Inhumas GO"},
 	}
 	h.Render(w, r, "event_list.html", map[string]any{
@@ -796,9 +850,9 @@ func (h *Handler) EventDetail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	seo := model.SEOData{
-		Title:       firstNonEmpty(event.MetaTitle, event.Title+" | Inhumas em Foco"),
+		Title:       firstNonEmpty(event.MetaTitle, h.pageTitle(r.Context(), event.Title)),
 		Description: firstNonEmpty(event.MetaDescription, event.Description),
-		URL:         h.cfg.SiteURL + "/evento/" + event.Slug,
+		URL:         h.siteURL(r.Context()) + "/evento/" + event.Slug,
 		Type:        "event",
 		Tags:        []string{"eventos em Inhumas", event.Title, event.Location},
 	}
@@ -839,9 +893,9 @@ func (h *Handler) StoreDetail(w http.ResponseWriter, r *http.Request) {
 	}
 
 	seo := model.SEOData{
-		Title:       firstNonEmpty(store.MetaTitle, store.Name+" | Inhumas em Foco"),
+		Title:       firstNonEmpty(store.MetaTitle, h.pageTitle(r.Context(), store.Name)),
 		Description: firstNonEmpty(store.MetaDescription, store.Description),
-		URL:         h.cfg.SiteURL + "/loja/" + store.Slug,
+		URL:         h.siteURL(r.Context()) + "/loja/" + store.Slug,
 		Type:        "profile",
 		Tags:        []string{store.Name, store.Category, "lojas em Inhumas", "Inhumas GO"},
 	}
@@ -880,9 +934,9 @@ func (h *Handler) StoreList(w http.ResponseWriter, r *http.Request) {
 	featuredStores, regularStores := splitCommercialStores(stores, 6)
 
 	seo := model.SEOData{
-		Title:       "Lojas e Comercios | Inhumas em Foco",
+		Title:       h.pageTitle(r.Context(), "Lojas e Comercios"),
 		Description: "Guia comercial de Inhumas GO com lojas, servicos, contato, bairros e empresas locais.",
-		URL:         h.cfg.SiteURL + "/lojas",
+		URL:         h.siteURL(r.Context()) + "/lojas",
 		Tags:        []string{"lojas em Inhumas", "guia comercial Inhumas", "empresas em Inhumas GO"},
 	}
 	listBanner, _ := h.repo.BannerGetActiveByPosition(r.Context(), "in_feed")
@@ -912,9 +966,9 @@ func (h *Handler) InfluencerList(w http.ResponseWriter, r *http.Request) {
 		influencers = filtered
 	}
 	seo := model.SEOData{
-		Title:       "Influencers da Cidade | Inhumas em Foco",
+		Title:       h.pageTitle(r.Context(), "Influencers da Cidade"),
 		Description: "Conheca criadores, comunicadores e personalidades de Inhumas.",
-		URL:         h.cfg.SiteURL + "/influencers",
+		URL:         h.siteURL(r.Context()) + "/influencers",
 		Tags:        []string{"influencers de Inhumas", "criadores de Inhumas", "Inhumas GO"},
 	}
 	listBanner, _ := h.repo.BannerGetActiveByPosition(r.Context(), "in_feed")
@@ -944,7 +998,7 @@ func (h *Handler) InfluencerDetail(w http.ResponseWriter, r *http.Request) {
 	seo := model.SEOData{
 		Title:       firstNonEmpty(influencer.MetaTitle, influencer.Name+" | Influencers da Cidade"),
 		Description: firstNonEmpty(influencer.MetaDescription, influencer.Bio),
-		URL:         h.cfg.SiteURL + "/influencer/" + influencer.Slug,
+		URL:         h.siteURL(r.Context()) + "/influencer/" + influencer.Slug,
 		Type:        "profile",
 		Tags:        influencerSEOTags(influencer),
 	}
@@ -1101,9 +1155,9 @@ func (h *Handler) PromoDetail(w http.ResponseWriter, r *http.Request) {
 	store, _ := h.repo.StoreGetBySlug(r.Context(), promo.StoreSlug)
 
 	seo := model.SEOData{
-		Title:       firstNonEmpty(promo.MetaTitle, promo.Title+" | Inhumas em Foco"),
+		Title:       firstNonEmpty(promo.MetaTitle, h.pageTitle(r.Context(), promo.Title)),
 		Description: firstNonEmpty(promo.MetaDescription, promo.Description),
-		URL:         h.cfg.SiteURL + "/promocao/" + promo.Slug,
+		URL:         h.siteURL(r.Context()) + "/promocao/" + promo.Slug,
 		Type:        "article",
 		Tags:        []string{"promocoes em Inhumas", promo.StoreName, "Inhumas GO"},
 	}
@@ -1133,9 +1187,9 @@ func (h *Handler) PromoList(w http.ResponseWriter, r *http.Request) {
 	}
 
 	seo := model.SEOData{
-		Title:       "Promocoes do Dia | Inhumas em Foco",
+		Title:       h.pageTitle(r.Context(), "Promocoes do Dia"),
 		Description: "Promocoes em Inhumas GO, ofertas de lojas locais, servicos, alimentacao e comercio da cidade.",
-		URL:         h.cfg.SiteURL + "/promocoes",
+		URL:         h.siteURL(r.Context()) + "/promocoes",
 		Tags:        []string{"promocoes em Inhumas", "ofertas Inhumas", "comercio local Inhumas"},
 	}
 	listBanner, _ := h.repo.BannerGetActiveByPosition(r.Context(), "in_feed")
@@ -1159,9 +1213,9 @@ func (h *Handler) Classifieds(w http.ResponseWriter, r *http.Request) {
 	featuredClassifieds, regularClassifieds := splitCommercialClassifieds(classifieds, 6)
 	listBanner, _ := h.repo.BannerGetActiveByPosition(r.Context(), "in_feed")
 	seo := model.SEOData{
-		Title:       "Classificados | Inhumas em Foco",
+		Title:       h.pageTitle(r.Context(), "Classificados"),
 		Description: "Anuncios locais de imoveis, veiculos, empregos, servicos e oportunidades em Inhumas.",
-		URL:         h.cfg.SiteURL + "/classificados",
+		URL:         h.siteURL(r.Context()) + "/classificados",
 		Tags:        []string{"classificados Inhumas", "empregos Inhumas", "imoveis Inhumas"},
 	}
 	h.Render(w, r, "classifieds.html", map[string]any{
@@ -1183,9 +1237,9 @@ func (h *Handler) ClassifiedDetail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	seo := model.SEOData{
-		Title:       firstNonEmpty(classified.MetaTitle, classified.Title+" | Classificados Inhumas"),
+		Title:       firstNonEmpty(classified.MetaTitle, h.pageTitle(r.Context(), classified.Title)),
 		Description: firstNonEmpty(classified.MetaDescription, classified.Description),
-		URL:         h.cfg.SiteURL + "/classificado/" + classified.Slug,
+		URL:         h.siteURL(r.Context()) + "/classificado/" + classified.Slug,
 		Type:        "product",
 		Tags:        []string{"classificados Inhumas", classified.Category, classified.Title},
 	}
@@ -1213,12 +1267,12 @@ func (h *Handler) NeighborhoodDetail(w http.ResponseWriter, r *http.Request) {
 		Description: neighborhood.MetaDescription,
 	}
 	if seo.Title == "" {
-		seo.Title = neighborhood.Name + " | Inhumas em Foco"
+		seo.Title = h.pageTitle(r.Context(), neighborhood.Name)
 	}
 	if seo.Description == "" {
 		seo.Description = "Noticias e comercio do bairro " + neighborhood.Name + " em Inhumas, GO"
 	}
-	seo.URL = h.cfg.SiteURL + "/bairro/" + neighborhood.Slug
+	seo.URL = h.siteURL(r.Context()) + "/bairro/" + neighborhood.Slug
 	seo.Tags = []string{neighborhood.Name, "bairro em Inhumas", "Inhumas GO"}
 
 	stores, _ := h.repo.StoreList(r.Context(), true, 20)
@@ -1245,9 +1299,9 @@ func (h *Handler) Search(w http.ResponseWriter, r *http.Request) {
 	}
 
 	seo := model.SEOData{
-		Title:       "Busca: " + query + " | Inhumas em Foco",
+		Title:       h.pageTitle(r.Context(), "Busca: "+query),
 		Description: "Resultados da busca por " + query,
-		URL:         h.cfg.SiteURL + "/busca",
+		URL:         h.siteURL(r.Context()) + "/busca",
 		NoIndex:     true,
 	}
 	listBanner, _ := h.repo.BannerGetActiveByPosition(r.Context(), "in_feed")
@@ -1314,8 +1368,8 @@ func (h *Handler) PasswordResetRequestPage(w http.ResponseWriter, r *http.Reques
 	}
 	h.Render(w, r, "password_reset_request.html", map[string]any{
 		"SEO": model.SEOData{
-			Title:       "Recuperar senha | Inhumas em Foco",
-			Description: "Solicite a redefinicao de senha do painel Inhumas em Foco.",
+			Title:       h.pageTitle(r.Context(), "Recuperar senha"),
+			Description: "Solicite a redefinicao de senha do painel " + h.branding(r.Context()).PortalName + ".",
 			NoIndex:     true,
 		},
 	})
@@ -1325,8 +1379,8 @@ func (h *Handler) PasswordResetRequestPost(w http.ResponseWriter, r *http.Reques
 	email := strings.TrimSpace(strings.ToLower(r.FormValue("email")))
 	data := map[string]any{
 		"SEO": model.SEOData{
-			Title:       "Recuperar senha | Inhumas em Foco",
-			Description: "Solicite a redefinicao de senha do painel Inhumas em Foco.",
+			Title:       h.pageTitle(r.Context(), "Recuperar senha"),
+			Description: "Solicite a redefinicao de senha do painel " + h.branding(r.Context()).PortalName + ".",
 			NoIndex:     true,
 		},
 		"Success": "Se o e-mail estiver cadastrado e ativo, enviaremos instrucoes para redefinir a senha.",
@@ -1365,8 +1419,8 @@ func (h *Handler) PasswordResetPage(w http.ResponseWriter, r *http.Request) {
 	reset, user, ok := h.resetSvc.Context(r.Context(), tokenValue)
 	data := map[string]any{
 		"SEO": model.SEOData{
-			Title:       "Redefinir senha | Inhumas em Foco",
-			Description: "Defina uma nova senha de acesso ao painel Inhumas em Foco.",
+			Title:       h.pageTitle(r.Context(), "Redefinir senha"),
+			Description: "Defina uma nova senha de acesso ao painel " + h.branding(r.Context()).PortalName + ".",
 			NoIndex:     true,
 		},
 		"Token": tokenValue,
@@ -1385,8 +1439,8 @@ func (h *Handler) PasswordResetPost(w http.ResponseWriter, r *http.Request) {
 	reset, user, ok := h.resetSvc.Context(r.Context(), tokenValue)
 	data := map[string]any{
 		"SEO": model.SEOData{
-			Title:       "Redefinir senha | Inhumas em Foco",
-			Description: "Defina uma nova senha de acesso ao painel Inhumas em Foco.",
+			Title:       h.pageTitle(r.Context(), "Redefinir senha"),
+			Description: "Defina uma nova senha de acesso ao painel " + h.branding(r.Context()).PortalName + ".",
 			NoIndex:     true,
 		},
 		"Token": tokenValue,
@@ -1584,18 +1638,18 @@ func (h *Handler) RSS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	settings := h.portalSettings(r.Context())
+	branding := h.branding(r.Context())
 	feed := rssFeed{
 		Version: "2.0",
 		AtomNS:  "http://www.w3.org/2005/Atom",
 		Channel: rssChannel{
-			Title:       settings.SiteName,
-			Link:        h.cfg.SiteURL + "/",
-			Description: settings.SEODescription,
-			Language:    "pt-BR",
+			Title:       branding.PortalName,
+			Link:        h.siteURL(r.Context()) + "/",
+			Description: branding.PortalDescription,
+			Language:    branding.PortalLanguage,
 			LastBuild:   time.Now().Format(time.RFC1123Z),
 			AtomLink: rssAtomLink{
-				Href: h.cfg.SiteURL + "/rss.xml",
+				Href: h.siteURL(r.Context()) + "/rss.xml",
 				Rel:  "self",
 				Type: "application/rss+xml",
 			},
@@ -1609,8 +1663,8 @@ func (h *Handler) RSS(w http.ResponseWriter, r *http.Request) {
 		}
 		item := rssItem{
 			Title:       post.Title,
-			Link:        h.cfg.SiteURL + "/noticia/" + post.Slug,
-			GUID:        h.cfg.SiteURL + "/noticia/" + post.Slug,
+			Link:        h.siteURL(r.Context()) + "/noticia/" + post.Slug,
+			GUID:        h.siteURL(r.Context()) + "/noticia/" + post.Slug,
 			Description: post.Excerpt,
 			PubDate:     publishedAt.Format(time.RFC1123Z),
 		}
@@ -1628,28 +1682,51 @@ func (h *Handler) RSS(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (h *Handler) Manifest(w http.ResponseWriter, r *http.Request) {
+	branding := h.branding(r.Context())
+	manifest := map[string]any{
+		"name":             branding.PortalName,
+		"short_name":       branding.PortalName,
+		"description":      branding.PortalDescription,
+		"start_url":        "/",
+		"display":          "standalone",
+		"background_color": branding.PrimaryColor,
+		"theme_color":      branding.PrimaryColor,
+		"icons": []map[string]string{
+			{"src": "/static/branding/icon-192.png", "sizes": "192x192", "type": "image/png"},
+			{"src": "/static/branding/icon-512.png", "sizes": "512x512", "type": "image/png"},
+		},
+	}
+
+	w.Header().Set("Content-Type", "application/manifest+json")
+	w.Header().Set("Cache-Control", "public, max-age=3600")
+	if err := json.NewEncoder(w).Encode(manifest); err != nil {
+		http.Error(w, "erro ao serializar manifest", http.StatusInternalServerError)
+	}
+}
+
 func (h *Handler) organizationJSONLD(seo model.SEOData) template.JS {
 	return mustJSONScript(h.organizationPayload(seo))
 }
 
 func (h *Handler) homeJSONLD(seo model.SEOData) template.JS {
-	settings := h.portalSettings(context.Background())
+	branding := h.branding(context.Background())
 	return graphJSONScript(h.organizationPayload(seo), map[string]any{
 		"@type":       "WebSite",
-		"name":        settings.SiteName,
-		"url":         h.cfg.SiteURL + "/",
-		"inLanguage":  "pt-BR",
+		"name":        branding.PortalName,
+		"url":         h.siteURL(context.Background()) + "/",
+		"inLanguage":  branding.PortalLanguage,
 		"description": seo.Description,
 		"potentialAction": map[string]any{
 			"@type":       "SearchAction",
-			"target":      h.cfg.SiteURL + "/busca?q={search_term_string}",
+			"target":      h.siteURL(context.Background()) + "/busca?q={search_term_string}",
 			"query-input": "required name=search_term_string",
 		},
 	})
 }
 
 func (h *Handler) collectionJSONLD(seo model.SEOData, name string, path string) template.JS {
-	settings := h.portalSettings(context.Background())
+	branding := h.branding(context.Background())
 	return graphJSONScript(
 		h.organizationPayload(seo),
 		map[string]any{
@@ -1657,11 +1734,11 @@ func (h *Handler) collectionJSONLD(seo model.SEOData, name string, path string) 
 			"name":        name,
 			"description": seo.Description,
 			"url":         seo.URL,
-			"inLanguage":  "pt-BR",
+			"inLanguage":  branding.PortalLanguage,
 			"isPartOf": map[string]any{
 				"@type": "WebSite",
-				"name":  settings.SiteName,
-				"url":   h.cfg.SiteURL + "/",
+				"name":  branding.PortalName,
+				"url":   h.siteURL(context.Background()) + "/",
 			},
 		},
 		h.breadcrumbPayload([]breadcrumbItem{
@@ -1673,12 +1750,13 @@ func (h *Handler) collectionJSONLD(seo model.SEOData, name string, path string) 
 
 func (h *Handler) storeJSONLD(store *model.Store, seo model.SEOData) template.JS {
 	settings := h.portalSettings(context.Background())
+	branding := h.branding(context.Background())
 	payload := map[string]any{
 		"@type":       "LocalBusiness",
 		"name":        store.Name,
 		"description": firstNonEmpty(store.Description, seo.Description),
 		"url":         seo.URL,
-		"inLanguage":  "pt-BR",
+		"inLanguage":  branding.PortalLanguage,
 		"address": map[string]any{
 			"@type":           "PostalAddress",
 			"streetAddress":   store.Address,
@@ -1794,14 +1872,15 @@ func (h *Handler) classifiedJSONLD(classified *model.Classified, seo model.SEODa
 
 func (h *Handler) organizationPayload(seo model.SEOData) map[string]any {
 	settings := h.portalSettings(context.Background())
-	logoURL := h.cfg.SiteURL + "/static/images/logo.png"
+	branding := h.branding(context.Background())
+	logoURL := branding.AbsoluteURL(branding.LogoPath)
 	if settings.LogoKey != "" {
 		logoURL = h.storage.URL(context.Background(), settings.LogoKey)
 	}
 	payload := map[string]any{
 		"@type": "NewsMediaOrganization",
-		"name":  settings.SiteName,
-		"url":   h.cfg.SiteURL + "/",
+		"name":  branding.PortalName,
+		"url":   h.siteURL(context.Background()) + "/",
 		"logo": map[string]any{
 			"@type": "ImageObject",
 			"url":   logoURL,
@@ -1829,8 +1908,9 @@ func (h *Handler) organizationPayload(seo model.SEOData) map[string]any {
 }
 
 func (h *Handler) articleJSONLD(post *model.Post, seo model.SEOData) template.JS {
+	branding := h.branding(context.Background())
+	logoURL := branding.AbsoluteURL(branding.LogoPath)
 	settings := h.portalSettings(context.Background())
-	logoURL := h.cfg.SiteURL + "/static/images/logo.png"
 	if settings.LogoKey != "" {
 		logoURL = h.storage.URL(context.Background(), settings.LogoKey)
 	}
@@ -1840,12 +1920,12 @@ func (h *Handler) articleJSONLD(post *model.Post, seo model.SEOData) template.JS
 		"description":      firstNonEmpty(post.MetaDescription, post.Excerpt),
 		"mainEntityOfPage": seo.URL,
 		"url":              seo.URL,
-		"inLanguage":       "pt-BR",
+		"inLanguage":       branding.PortalLanguage,
 		"articleSection":   post.CategoryName,
 		"publisher": map[string]any{
 			"@type": "NewsMediaOrganization",
-			"name":  settings.SiteName,
-			"url":   h.cfg.SiteURL + "/",
+			"name":  branding.PortalName,
+			"url":   h.siteURL(context.Background()) + "/",
 			"logo": map[string]any{
 				"@type": "ImageObject",
 				"url":   logoURL,
@@ -1897,7 +1977,7 @@ func (h *Handler) breadcrumbPayload(items []breadcrumbItem) map[string]any {
 			"@type":    "ListItem",
 			"position": i + 1,
 			"name":     item.Name,
-			"item":     strings.TrimRight(h.cfg.SiteURL, "/") + item.Path,
+			"item":     h.siteURL(context.Background()) + item.Path,
 		})
 	}
 	return map[string]any{
@@ -1961,13 +2041,14 @@ type rssItem struct {
 
 // Static pages
 func (h *Handler) About(w http.ResponseWriter, r *http.Request) {
-	seo := model.SEOData{Title: "Sobre | Inhumas em Foco", Description: "Sobre o portal Inhumas em Foco", URL: h.cfg.SiteURL + "/sobre"}
+	seo := model.SEOData{Title: h.pageTitle(r.Context(), "Sobre"), Description: "Sobre o portal " + h.branding(r.Context()).PortalName, URL: h.siteURL(r.Context()) + "/sobre"}
 	h.Render(w, r, "about.html", map[string]any{"SEO": seo})
 }
 
 func (h *Handler) Contact(w http.ResponseWriter, r *http.Request) {
+	branding := h.branding(r.Context())
 	settings := h.portalSettings(r.Context())
-	seo := model.SEOData{Title: "Contato | " + settings.SiteName, Description: "Entre em contato com " + settings.SiteName, URL: h.cfg.SiteURL + "/contato", NoIndex: true}
+	seo := model.SEOData{Title: h.pageTitle(r.Context(), "Contato"), Description: "Entre em contato com " + firstNonEmpty(settings.SiteName, branding.PortalName), URL: h.siteURL(r.Context()) + "/contato", NoIndex: true}
 	h.Render(w, r, "contact.html", map[string]any{"SEO": seo})
 }
 

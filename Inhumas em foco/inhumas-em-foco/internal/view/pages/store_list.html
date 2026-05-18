@@ -39,7 +39,7 @@
             <div class="store-grid">
                 {{range .FeaturedStores}}
                 <a class="store-tile store-tile-large commercial-product-card" href="/loja/{{.Slug}}">
-                    <img src="{{if .LogoKey}}{{imageURL .LogoKey}}{{else}}/static/images/inhumas-hero.png{{end}}" alt="{{.Name}}" loading="lazy">
+                    <img src="{{if .LogoKey}}{{imageURL .LogoKey}}{{else}}{{imageURL ""}}{{end}}" alt="{{.Name}}" loading="lazy">
                     <strong>{{.Name}}</strong>
                     <span>{{.Category}}</span>
                     {{if .IsSponsored}}<em>Patrocinado</em>{{else}}<em>Destaque</em>{{end}}
@@ -52,7 +52,7 @@
         <div class="store-grid">
             {{range .Stores}}
             <a class="store-tile store-tile-large" href="/loja/{{.Slug}}">
-                <img src="{{if .LogoKey}}{{imageURL .LogoKey}}{{else}}/static/images/inhumas-hero.png{{end}}" alt="{{.Name}}" loading="lazy">
+                <img src="{{if .LogoKey}}{{imageURL .LogoKey}}{{else}}{{imageURL ""}}{{end}}" alt="{{.Name}}" loading="lazy">
                 <strong>{{.Name}}</strong>
                 <span>{{.Category}}</span>
                 <small>*****</small>

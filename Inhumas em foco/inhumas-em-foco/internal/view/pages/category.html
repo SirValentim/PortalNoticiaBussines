@@ -26,7 +26,7 @@
             {{range .Posts}}
             <article class="news-row">
                 <a href="/noticia/{{.Slug}}">
-                    <img src="{{if .CoverImageKey}}{{imageURL .CoverImageKey}}{{else}}/static/images/inhumas-hero.png{{end}}" alt="{{.Title}}" loading="lazy">
+                    <img src="{{if .CoverImageKey}}{{imageURL .CoverImageKey}}{{else}}{{imageURL ""}}{{end}}" alt="{{.Title}}" loading="lazy">
                 </a>
                 <div>
                     <span class="badge">{{.CategoryName}}</span>

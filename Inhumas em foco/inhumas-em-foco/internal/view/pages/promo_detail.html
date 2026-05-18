@@ -2,7 +2,7 @@
 <section class="page-shell">
     <div class="container promo-detail-layout">
         <article class="promo-detail-card">
-            <img class="promo-detail-image" src="{{if .Promo.ImageKey}}{{imageURL .Promo.ImageKey}}{{else}}/static/images/inhumas-hero.png{{end}}" alt="{{.Promo.Title}}" loading="eager">
+            <img class="promo-detail-image" src="{{if .Promo.ImageKey}}{{imageURL .Promo.ImageKey}}{{else}}{{imageURL ""}}{{end}}" alt="{{.Promo.Title}}" loading="eager">
             <div class="promo-detail-body">
                 <span class="badge">{{.Promo.StoreName}}</span>
                 <h1>{{.Promo.Title}}</h1>

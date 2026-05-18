@@ -20,7 +20,10 @@ import (
 )
 
 func main() {
-	cfg := config.Load()
+	cfg, err := config.LoadWithError()
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	repo, err := repository.Open(cfg.DBDriver, cfg.DatabaseURL, cfg.MigrationsDir)
 	if err != nil {

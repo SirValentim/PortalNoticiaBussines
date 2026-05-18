@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"strconv"
 	"strings"
@@ -33,9 +34,18 @@ type Config struct {
 	MaxUploadSize         int64
 	DefaultBcryptCost     int
 	OriginalRetentionDays int
+	Branding              *TenantBrandingConfig
 }
 
 func Load() *Config {
+	cfg, err := LoadWithError()
+	if err != nil {
+		panic(err)
+	}
+	return cfg
+}
+
+func LoadWithError() (*Config, error) {
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
@@ -54,7 +64,11 @@ func Load() *Config {
 	}
 	maintMode, _ := strconv.ParseBool(os.Getenv("MAINTENANCE_MODE"))
 	cspReportOnly, _ := strconv.ParseBool(os.Getenv("CSP_REPORT_ONLY"))
-	return &Config{
+	branding, err := LoadTenantBrandingConfig()
+	if err != nil {
+		return nil, fmt.Errorf("falha ao carregar branding config: %w", err)
+	}
+	cfg := &Config{
 		Port:                  port,
 		DBDriver:              strings.ToLower(strings.TrimSpace(getEnv("DB_DRIVER", ""))),
 		DatabaseURL:           getEnv("DATABASE_URL", "./inhumas.db"),
@@ -65,7 +79,7 @@ func Load() *Config {
 		MaintenanceMode:       maintMode,
 		UploadDir:             getEnv("UPLOAD_DIR", "./uploads"),
 		StaticDir:             getEnv("STATIC_DIR", "./static"),
-		SiteURL:               strings.TrimRight(getEnv("SITE_URL", "https://inhumasemfoco.com.br"), "/"),
+		SiteURL:               branding.SiteURL,
 		ProjectRoot:           getEnv("PROJECT_ROOT", "."),
 		MetricsToken:          os.Getenv("METRICS_TOKEN"),
 		BackupDir:             os.Getenv("BACKUP_DIR"),
@@ -77,11 +91,15 @@ func Load() *Config {
 		SMTPUsername:          os.Getenv("SMTP_USERNAME"),
 		SMTPPassword:          os.Getenv("SMTP_PASSWORD"),
 		SMTPFrom:              os.Getenv("SMTP_FROM"),
-		SMTPFromName:          getEnv("SMTP_FROM_NAME", "Inhumas em Foco"),
+		SMTPFromName:          getEnv("SMTP_FROM_NAME", branding.PortalName),
 		MaxUploadSize:         maxUploadSize,
 		DefaultBcryptCost:     bcryptCost,
 		OriginalRetentionDays: originalRetentionDays,
+		Branding:              branding,
 	}
+	cfg.SiteURL = strings.TrimRight(branding.SiteURL, "/")
+	cfg.AdminPathPrefix = branding.AdminPathPrefix
+	return cfg, nil
 }
 
 func getEnv(key, defaultVal string) string {

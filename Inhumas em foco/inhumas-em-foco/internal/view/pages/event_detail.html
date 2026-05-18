@@ -1,7 +1,7 @@
 {{define "content"}}
 <section class="detail-hero store-detail-hero">
     <div class="container detail-hero-inner">
-        <img class="detail-cover" src="{{if .Event.ImageKey}}{{imageURL .Event.ImageKey}}{{else}}/static/images/inhumas-hero.png{{end}}" alt="{{.Event.Title}}" loading="eager">
+        <img class="detail-cover" src="{{if .Event.ImageKey}}{{imageURL .Event.ImageKey}}{{else}}{{imageURL ""}}{{end}}" alt="{{.Event.Title}}" loading="eager">
         <div class="detail-hero-content">
             <span class="badge">Evento</span>
             {{if .Event.IsSponsored}}<span class="sponsored-badge">Patrocinado</span>{{end}}

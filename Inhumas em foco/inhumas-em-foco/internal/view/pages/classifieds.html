@@ -10,7 +10,7 @@
         <div class="commercial-callout">
             <div>
                 <span class="ad-label">Para anunciantes</span>
-                <strong>Publique seu anuncio no Inhumas em Foco</strong>
+                <strong>Publique seu anuncio no {{.Branding.PortalName}}</strong>
                 <p>Classificados locais com foto, contato direto e destaque comercial.</p>
             </div>
             <a href="/contato" class="btn btn-primary">Falar com comercial</a>
@@ -43,7 +43,7 @@
             <div class="store-grid">
                 {{range .FeaturedClassifieds}}
                 <a class="store-tile store-tile-large commercial-product-card" href="/classificado/{{.Slug}}">
-                    <img src="{{if .ImageKey}}{{imageURL .ImageKey}}{{else}}/static/images/inhumas-hero.png{{end}}" alt="{{.Title}}" loading="lazy">
+                    <img src="{{if .ImageKey}}{{imageURL .ImageKey}}{{else}}{{imageURL ""}}{{end}}" alt="{{.Title}}" loading="lazy">
                     <strong>{{.Title}}</strong>
                     <span>{{.Category}}</span>
                     {{if .PriceDisplay}}<small>{{.PriceDisplay}}</small>{{end}}
@@ -57,7 +57,7 @@
         <div class="store-grid">
             {{range .Classifieds}}
             <a class="store-tile store-tile-large" href="/classificado/{{.Slug}}">
-                <img src="{{if .ImageKey}}{{imageURL .ImageKey}}{{else}}/static/images/inhumas-hero.png{{end}}" alt="{{.Title}}" loading="lazy">
+                <img src="{{if .ImageKey}}{{imageURL .ImageKey}}{{else}}{{imageURL ""}}{{end}}" alt="{{.Title}}" loading="lazy">
                 <strong>{{.Title}}</strong>
                 <span>{{.Category}}</span>
                 {{if .PriceDisplay}}<small>{{.PriceDisplay}}</small>{{end}}

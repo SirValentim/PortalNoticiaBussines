@@ -27,7 +27,7 @@
             {{range .Influencers}}
             <article class="card influencer-card-v2">
                 <a href="/influencer/{{.Slug}}">
-                    <img src="{{if .AvatarKey}}{{imageURL .AvatarKey}}{{else}}/static/images/inhumas-hero.png{{end}}" alt="{{.Name}}" loading="lazy">
+                    <img src="{{if .AvatarKey}}{{imageURL .AvatarKey}}{{else}}{{imageURL ""}}{{end}}" alt="{{.Name}}" loading="lazy">
                 </a>
                 <div class="card-body">
                     <h2><a href="/influencer/{{.Slug}}">{{.Name}}</a></h2>

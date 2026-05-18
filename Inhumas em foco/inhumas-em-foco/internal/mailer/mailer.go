@@ -55,17 +55,25 @@ func Send(ctx context.Context, cfg *config.Config, msg Message) error {
 }
 
 func SendPasswordReset(ctx context.Context, cfg *config.Config, to, resetURL string) error {
+	portalName := "portal"
+	if cfg != nil && cfg.Branding != nil && cfg.Branding.PortalName != "" {
+		portalName = cfg.Branding.PortalName
+	}
 	return Send(ctx, cfg, Message{
 		To:      to,
-		Subject: "Redefinicao de senha - Inhumas em Foco",
-		Text: "Voce solicitou a redefinicao de senha do painel Inhumas em Foco.\n\n" +
+		Subject: "Redefinicao de senha - " + portalName,
+		Text: "Voce solicitou a redefinicao de senha do painel " + portalName + ".\n\n" +
 			"Acesse o link abaixo em ate 30 minutos:\n" + resetURL + "\n\n" +
 			"Se voce nao solicitou essa alteracao, ignore esta mensagem.",
 	})
 }
 
 func buildMessage(cfg *config.Config, to string, msg Message) string {
-	from := (&mail.Address{Name: cfg.SMTPFromName, Address: cfg.SMTPFrom}).String()
+	fromName := cfg.SMTPFromName
+	if fromName == "" && cfg.Branding != nil {
+		fromName = cfg.Branding.PortalName
+	}
+	from := (&mail.Address{Name: fromName, Address: cfg.SMTPFrom}).String()
 	headers := []string{
 		"From: " + from,
 		"To: " + to,

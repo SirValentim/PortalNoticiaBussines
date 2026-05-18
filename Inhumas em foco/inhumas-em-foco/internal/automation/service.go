@@ -208,7 +208,7 @@ func (s *Service) fetchFeed(ctx context.Context, source model.AutomationSource) 
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Set("User-Agent", "InhumasEmFocoBot/1.0 (+https://inhumasemfoco.online)")
+	req.Header.Set("User-Agent", "PortalNewsBot/1.0")
 	resp, err := s.client.Do(req)
 	if err != nil {
 		return nil, err

@@ -20,7 +20,7 @@
                 {{range .FeaturedEvents}}
                 <article class="news-row commercial-product-card">
                     <a href="/evento/{{.Slug}}">
-                        <img src="{{if .ImageKey}}{{imageURL .ImageKey}}{{else}}/static/images/inhumas-hero.png{{end}}" alt="{{.Title}}" loading="lazy">
+                        <img src="{{if .ImageKey}}{{imageURL .ImageKey}}{{else}}{{imageURL ""}}{{end}}" alt="{{.Title}}" loading="lazy">
                     </a>
                     <div>
                         <span class="badge">{{.StartAt | formatDateTime}}</span>
@@ -39,7 +39,7 @@
             {{range .Events}}
             <article class="news-row">
                 <a href="/evento/{{.Slug}}">
-                    <img src="{{if .ImageKey}}{{imageURL .ImageKey}}{{else}}/static/images/inhumas-hero.png{{end}}" alt="{{.Title}}" loading="lazy">
+                    <img src="{{if .ImageKey}}{{imageURL .ImageKey}}{{else}}{{imageURL ""}}{{end}}" alt="{{.Title}}" loading="lazy">
                 </a>
                 <div>
                     <span class="badge">{{.StartAt | formatDateTime}}</span>

@@ -261,10 +261,10 @@ func (h *Handler) AdminPostPreview(w http.ResponseWriter, r *http.Request) {
 	sidebarTopBanner, _ := h.repo.BannerGetActiveByPosition(r.Context(), "sidebar_top")
 	sidebarBottomBanner, _ := h.repo.BannerGetActiveByPosition(r.Context(), "sidebar_bottom")
 	seo := model.SEOData{
-		Title:        "[Preview] " + firstNonEmpty(post.MetaTitle, post.Title+" | Inhumas em Foco"),
+		Title:        "[Preview] " + firstNonEmpty(post.MetaTitle, h.pageTitle(r.Context(), post.Title)),
 		Description:  firstNonEmpty(post.MetaDescription, post.Excerpt),
-		URL:          h.cfg.SiteURL + "/noticia/" + post.Slug,
-		CanonicalURL: firstNonEmpty(post.CanonicalURL, h.cfg.SiteURL+"/noticia/"+post.Slug),
+		URL:          h.siteURL(r.Context()) + "/noticia/" + post.Slug,
+		CanonicalURL: firstNonEmpty(post.CanonicalURL, h.siteURL(r.Context())+"/noticia/"+post.Slug),
 		Type:         "article",
 		NoIndex:      true,
 		PublishedAt:  post.PublishedAt,

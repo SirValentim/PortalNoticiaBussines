@@ -1,18 +1,25 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="{{.Branding.PortalLanguage}}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{.Title}} | Painel Inhumas em Foco</title>
+    <title>{{.Title}} | Painel {{.Branding.PortalName}}</title>
     <link rel="stylesheet" href="/static/css/style.css?v=20260516-admin-ux-v1">
+    <style>
+        :root {
+            --portal-primary: {{.Branding.PrimaryColor}};
+            --portal-secondary: {{.Branding.SecondaryColor}};
+            --portal-accent: {{.Branding.AccentColor}};
+        }
+    </style>
 </head>
 <body>
     <div class="admin-layout">
         <aside class="admin-sidebar">
             <div class="admin-brand">
-                <span class="admin-brand-mark">IF</span>
+                <span class="admin-brand-mark">{{printf "%.2s" .Branding.PortalName}}</span>
                 <div>
-                    <strong>Inhumas em Foco</strong>
+                    <strong>{{.Branding.PortalName}}</strong>
                     <small>CMS Editorial</small>
                 </div>
             </div>

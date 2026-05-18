@@ -7,7 +7,7 @@
             <h1>{{.Post.Title}}</h1>
             {{if .Post.Excerpt}}<p class="article-lead">{{.Post.Excerpt}}</p>{{end}}
             <div class="article-meta">
-                {{if .Post.AuthorName}}<strong>{{.Post.AuthorName}}</strong>{{else}}<strong>Redacao Inhumas em Foco</strong>{{end}}
+                {{if .Post.AuthorName}}<strong>{{.Post.AuthorName}}</strong>{{else}}<strong>Redacao {{.Branding.PortalName}}</strong>{{end}}
                 {{if .Post.PublishedAt}}<span>{{.Post.PublishedAt | formatDateTime}}</span>{{end}}
                 {{if .Post.ReadingTimeMinutes}}<span>{{.Post.ReadingTimeMinutes}} min de leitura</span>{{end}}
                 {{if .Post.IsSponsored}}<span class="sponsored-badge">Conteudo Patrocinado</span>{{end}}

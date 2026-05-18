@@ -35,7 +35,7 @@
             {{range .Promos}}
             <article class="card promo-card">
                 <a href="/promocao/{{.Slug}}">
-                    <img src="{{if .ImageKey}}{{imageURL .ImageKey}}{{else}}/static/images/inhumas-hero.png{{end}}" alt="{{.Title}}" loading="lazy">
+                    <img src="{{if .ImageKey}}{{imageURL .ImageKey}}{{else}}{{imageURL ""}}{{end}}" alt="{{.Title}}" loading="lazy">
                 </a>
                 <div class="card-body">
                     <span>{{.StoreName}}</span>
