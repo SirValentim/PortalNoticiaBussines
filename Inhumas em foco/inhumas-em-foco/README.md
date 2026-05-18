@@ -6,6 +6,7 @@ Backend principal do portal local Inhumas em Foco. A aplicacao oficial usa Go, t
 
 - Servidor HTTP em `cmd/web`.
 - Worker de jobs em `cmd/worker`.
+- Servidor MCP em `cmd/mcp` para integracao editorial controlada com clientes compativeis.
 - Painel admin protegido por `ADMIN_PATH_PREFIX`.
 - Auth com bcrypt, sessoes HttpOnly/SameSiteStrict, CSRF e RBAC editorial/comercial.
 - Upload local com validacao de MIME, limite de corpo e protecao contra path traversal.
@@ -64,6 +65,12 @@ go test ./...
 
 ```powershell
 go build ./cmd/web ./cmd/worker ./cmd/seed-news ./cmd/migrate-sqlite-postgres
+```
+
+Para compilar o servidor MCP:
+
+```powershell
+go build -o bin/inhumas-mcp.exe ./cmd/mcp
 ```
 
 Na VPS, depois de deploy ou manutencao:
@@ -126,6 +133,7 @@ Retorna uptime, total de requests, conexoes do banco, jobs pendentes/dead e tama
 - `docs/OPERATIONS_GUIDE.md`: rotina diaria, backup, restauracao e incidentes.
 - `docs/SECURITY_PREPROD_CHECKLIST.md`: checklist antes de expor em producao.
 - `docs/ENVIRONMENT.md`: referencia completa de variaveis de ambiente.
+- `docs/MCP_INTEGRATION.md`: uso do servidor MCP, build e exemplos de configuracao.
 - `docs/CMS_REVISAO_FINAL.md`: status executivo, readiness e backlog residual.
 - `docs/ARCHITECTURE_DECISIONS.md`: decisoes do MVP, incluindo React como prototipo visual.
 

@@ -18,9 +18,13 @@ dados do VPS/
 # Build outputs and temporary binaries
 bin/
 tmp-*
+*.exe
 *.exe~
 *.tmp
 *.log
+
+# Local update drop folders
+Inhumas em foco/atualizações/
 
 # Editor and OS files
 .DS_Store
