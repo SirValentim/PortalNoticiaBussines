@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"context"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -174,7 +173,7 @@ func (h *Handler) APITrackMetric(w http.ResponseWriter, r *http.Request) {
 	entityType := r.URL.Query().Get("entity_type")
 	entityID, _ := strconv.ParseInt(r.URL.Query().Get("entity_id"), 10, 64)
 
-	go h.repo.MetricTrack(context.Background(), &model.Metric{
+	go h.repo.MetricTrack(h.metricContext(r), &model.Metric{
 		MetricType: metricType,
 		EntityType: entityType,
 		EntityID:   entityID,

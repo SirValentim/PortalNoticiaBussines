@@ -22,12 +22,18 @@ func (h *Handler) AdminAutomationSourceNew(w http.ResponseWriter, r *http.Reques
 	if _, ok := h.requirePermission(w, r, auth.PermAutomationManage); !ok {
 		return
 	}
+	if !h.requireAutomationFeature(w, r) {
+		return
+	}
 	h.renderAutomationSourceForm(w, r, nil, "")
 }
 
 func (h *Handler) AdminAutomationSourceCreate(w http.ResponseWriter, r *http.Request) {
 	user, ok := h.requirePermission(w, r, auth.PermAutomationManage)
 	if !ok {
+		return
+	}
+	if !h.requireAutomationFeature(w, r) {
 		return
 	}
 	if err := r.ParseForm(); err != nil {
@@ -56,6 +62,9 @@ func (h *Handler) AdminAutomationSourceEdit(w http.ResponseWriter, r *http.Reque
 	if _, ok := h.requirePermission(w, r, auth.PermAutomationManage); !ok {
 		return
 	}
+	if !h.requireAutomationFeature(w, r) {
+		return
+	}
 	source := h.automationSourceFromPath(w, r)
 	if source == nil {
 		return
@@ -66,6 +75,9 @@ func (h *Handler) AdminAutomationSourceEdit(w http.ResponseWriter, r *http.Reque
 func (h *Handler) AdminAutomationSourceUpdate(w http.ResponseWriter, r *http.Request) {
 	user, ok := h.requirePermission(w, r, auth.PermAutomationManage)
 	if !ok {
+		return
+	}
+	if !h.requireAutomationFeature(w, r) {
 		return
 	}
 	source := h.automationSourceFromPath(w, r)
@@ -99,6 +111,9 @@ func (h *Handler) AdminAutomationSourceDelete(w http.ResponseWriter, r *http.Req
 	if !ok {
 		return
 	}
+	if !h.requireAutomationFeature(w, r) {
+		return
+	}
 	source := h.automationSourceFromPath(w, r)
 	if source == nil {
 		return
@@ -116,6 +131,9 @@ func (h *Handler) AdminAutomationSourceDelete(w http.ResponseWriter, r *http.Req
 func (h *Handler) AdminAutomationSourceRun(w http.ResponseWriter, r *http.Request) {
 	user, ok := h.requirePermission(w, r, auth.PermAutomationManage)
 	if !ok {
+		return
+	}
+	if !h.requireAutomationFeature(w, r) {
 		return
 	}
 	source := h.automationSourceFromPath(w, r)
@@ -145,6 +163,9 @@ func (h *Handler) AdminAutomationRunAll(w http.ResponseWriter, r *http.Request) 
 	if !ok {
 		return
 	}
+	if !h.requireAutomationFeature(w, r) {
+		return
+	}
 	runs, err := automation.NewService(h.repo).RunAllActive(r.Context())
 	h.auditAdminAction(r, user, "run_all", "automation", nil, map[string]any{
 		"runs": len(runs),
@@ -160,6 +181,7 @@ func (h *Handler) renderAutomationDashboard(w http.ResponseWriter, r *http.Reque
 	sources, _ := h.repo.AutomationSourceList(r.Context(), false, 200)
 	runs, _ := h.repo.AutomationRunList(r.Context(), 40)
 	queue, _ := h.repo.AutomationDraftQueue(r.Context(), 30)
+	featureEnabled := h.automationFeatureEnabled(r)
 	activeCount := 0
 	for _, source := range sources {
 		if source.Active {
@@ -168,17 +190,30 @@ func (h *Handler) renderAutomationDashboard(w http.ResponseWriter, r *http.Reque
 	}
 	settings := h.portalSettings(r.Context())
 	h.Render(w, r, "admin_automation.html", map[string]any{
-		"Title":       "Automacao de Noticias",
-		"Active":      "automation",
-		"Sources":     sources,
-		"Runs":        runs,
-		"DraftQueue":  queue,
-		"SourceCount": len(sources),
-		"ActiveCount": activeCount,
-		"Settings":    settings,
-		"Success":     success,
-		"Error":       errorMessage,
+		"Title":                    "Automacao de Noticias",
+		"Active":                   "automation",
+		"Sources":                  sources,
+		"Runs":                     runs,
+		"DraftQueue":               queue,
+		"SourceCount":              len(sources),
+		"ActiveCount":              activeCount,
+		"Settings":                 settings,
+		"Success":                  success,
+		"Error":                    errorMessage,
+		"AutomationFeatureEnabled": featureEnabled,
 	})
+}
+
+func (h *Handler) automationFeatureEnabled(r *http.Request) bool {
+	return h.tenantFeatureEnabled(r, "automation", true)
+}
+
+func (h *Handler) requireAutomationFeature(w http.ResponseWriter, r *http.Request) bool {
+	if h.automationFeatureEnabled(r) {
+		return true
+	}
+	h.renderAutomationDashboard(w, r, "", "Automacao nao habilitada para este portal.")
+	return false
 }
 
 func (h *Handler) renderAutomationSourceForm(w http.ResponseWriter, r *http.Request, source *model.AutomationSource, errorMessage string) {

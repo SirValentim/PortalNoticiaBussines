@@ -77,6 +77,7 @@ func main() {
 	root = middleware.AuthMiddleware(sessionMgr, repo, authSvc)(root)
 	root = middleware.CSRFProtection(cfg.AdminPathPrefix, secure, cfg.MaxUploadSize)(root)
 	root = middleware.InjectBranding(cfg.Branding)(root)
+	root = middleware.ResolveTenant(repo)(root)
 	root = middleware.MetricsMiddleware(repo)(root)
 	root = middleware.StructuredLogger(root)
 
@@ -136,7 +137,7 @@ func seedDefaultAdmin(repo *repository.Repository, authSvc *auth.Service, cfg *c
 		Name:         "Administrador",
 		Email:        firstNonEmpty(os.Getenv("INITIAL_ADMIN_EMAIL"), "admin@"+strings.TrimPrefix(strings.TrimPrefix(cfg.Branding.SiteURL, "https://"), "http://")),
 		PasswordHash: hash,
-		Role:         "admin",
+		Role:         model.RoleSuperAdmin,
 		Active:       true,
 	}
 

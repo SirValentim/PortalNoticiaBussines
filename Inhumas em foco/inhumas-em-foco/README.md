@@ -20,6 +20,9 @@ Backend principal do portal local Inhumas em Foco. A aplicacao oficial usa Go, t
 
 A evolucao do CMS premium passa a usar estes documentos como fonte principal:
 
+- `.codex-context.md`: contexto persistente rapido para IA e engenharia.
+- `docs/PROJECT_STATUS.md`: resumo executivo do que existe, o que o projeto faz e o que falta.
+- `docs/ai-context/`: cerebro vivo do projeto, arquitetura atual, regras, mapa de modulos, roadmap e dividas tecnicas.
 - `docs/CHECKLIST_STATUS.md`: checklist vivo de execucao, status e historico.
 - `docs/CMS_PLANO_GERAL.md`: cronograma macro, sprints e criterios de pronto.
 - `docs/CMS_REVISAO_FINAL.md`: revisao executiva final, readiness operacional e backlog residual.
@@ -48,6 +51,8 @@ Admin local inicial:
 admin@inhumasemfoco.com.br
 admin123456
 ```
+
+O usuario inicial criado por `INITIAL_ADMIN_PASSWORD` nasce como `super_admin`, para permitir a gestao da plataforma multiportal. Usuarios `admin` gerenciam o portal atual, mas nao a lista global de portais.
 
 ## Worker
 
@@ -139,4 +144,4 @@ Retorna uptime, total de requests, conexoes do banco, jobs pendentes/dead e tama
 
 ## Status
 
-O CMS Go esta publicado e validado na VPS como base corporativa premium para operacao inicial. O backlog residual principal agora e externo/operacional: backup fora da VPS, monitor externo, SMTP real, homologacao PostgreSQL e remocao futura de `unsafe-inline` da CSP.
+O CMS Go esta em marco multiportal persistente: tenants, dominios, features, usuarios por portal, dados por `tenant_id` e jobs tenant-aware ja existem no codigo. O backlog residual principal agora e homologacao real: PostgreSQL/staging, dominios reais, backup externo, monitor externo, SMTP real e revisao final de isolamento com tenants reais.

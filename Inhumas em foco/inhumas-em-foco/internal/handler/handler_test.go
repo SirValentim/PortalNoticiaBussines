@@ -128,6 +128,162 @@ func TestHomeRendersEmptyStateWithoutError(t *testing.T) {
 	}
 }
 
+func TestAlternateBrandingRendersPublicShellAndManifest(t *testing.T) {
+	h, repo := newTestHandler(t)
+	defer repo.Close()
+
+	h.cfg.Branding = &config.TenantBrandingConfig{
+		PortalName:        "LaMafia Music",
+		PortalTagline:     "O portal da cena musical brasileira",
+		PortalDescription: "Releases, resenhas e cobertura da musica nacional.",
+		PortalLocale:      "pt_BR",
+		PortalLanguage:    "pt-BR",
+		PortalCategory:    "music",
+		SiteURL:           "https://lamafia.music",
+		AdminPathPrefix:   "/admin/studio",
+		LogoPath:          "/static/branding/lamafia-logo.svg",
+		LogoAltText:       "Logo LaMafia Music",
+		FaviconPath:       "/static/branding/lamafia.ico",
+		PrimaryColor:      "#1a0a2e",
+		SecondaryColor:    "#e040fb",
+		AccentColor:       "#7c4dff",
+		SEOTitleSuffix:    " | LaMafia Music",
+		SEODefaultImage:   "https://lamafia.music/static/branding/og-default.jpg",
+		ContactEmail:      "contato@lamafia.music",
+		ContactPhone:      "(62) 3000-0000",
+		ContactCity:       "Goiania",
+		ContactState:      "GO",
+		ContactCountry:    "BR",
+		ArticlesPerPage:   16,
+		CopyrightHolder:   "LaMafia Music",
+		FooterLegalText:   "Todos os direitos reservados.",
+	}
+	h.cfg.SiteURL = h.cfg.Branding.SiteURL
+	h.cfg.AdminPathPrefix = h.cfg.Branding.AdminPathPrefix
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	rec := httptest.NewRecorder()
+	h.Home(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("home status = %d, want %d; body=%s", rec.Code, http.StatusOK, rec.Body.String())
+	}
+	body := rec.Body.String()
+	for _, want := range []string{
+		"LaMafia Music",
+		"/static/branding/lamafia-logo.svg",
+		"/static/branding/lamafia.ico",
+		"#1a0a2e",
+		"https://lamafia.music/",
+		"contato@lamafia.music",
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("alternate branding home missing %q: %s", want, body)
+		}
+	}
+	if strings.Contains(body, "Inhumas em Foco") || strings.Contains(body, "inhumasemfoco") {
+		t.Fatalf("alternate branding leaked original portal identity: %s", body)
+	}
+
+	manifestReq := httptest.NewRequest(http.MethodGet, "/manifest.json", nil)
+	manifestRec := httptest.NewRecorder()
+	h.Manifest(manifestRec, manifestReq)
+
+	if manifestRec.Code != http.StatusOK {
+		t.Fatalf("manifest status = %d, want %d; body=%s", manifestRec.Code, http.StatusOK, manifestRec.Body.String())
+	}
+	if got := manifestRec.Header().Get("Content-Type"); got != "application/manifest+json" {
+		t.Fatalf("manifest content-type = %q", got)
+	}
+	manifestBody := manifestRec.Body.String()
+	for _, want := range []string{`"name":"LaMafia Music"`, `"theme_color":"#1a0a2e"`, `"description":"Releases, resenhas e cobertura da musica nacional."`} {
+		if !strings.Contains(manifestBody, want) {
+			t.Fatalf("alternate branding manifest missing %q: %s", want, manifestBody)
+		}
+	}
+}
+
+func TestPublicPageSmokeRoutesRender(t *testing.T) {
+	h, repo := newTestHandler(t)
+	defer repo.Close()
+
+	routes := []struct {
+		name    string
+		path    string
+		handler http.HandlerFunc
+	}{
+		{name: "home", path: "/", handler: h.Home},
+		{name: "news", path: "/noticias", handler: h.NewsList},
+		{name: "events", path: "/eventos", handler: h.EventList},
+		{name: "stores", path: "/lojas", handler: h.StoreList},
+		{name: "promotions", path: "/promocoes", handler: h.PromoList},
+		{name: "classifieds", path: "/classificados", handler: h.Classifieds},
+		{name: "about", path: "/sobre", handler: h.About},
+		{name: "contact", path: "/contato", handler: h.Contact},
+	}
+
+	for _, route := range routes {
+		t.Run(route.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, route.path, nil)
+			rec := httptest.NewRecorder()
+
+			route.handler(rec, req)
+
+			if rec.Code != http.StatusOK {
+				t.Fatalf("%s status = %d, want %d; body=%s", route.path, rec.Code, http.StatusOK, rec.Body.String())
+			}
+			if !strings.Contains(rec.Body.String(), "<html") {
+				t.Fatalf("%s did not render html shell: %s", route.path, rec.Body.String())
+			}
+		})
+	}
+}
+
+func TestPublicContactUsesTenantSettingsByHost(t *testing.T) {
+	h, repo := newTestHandler(t)
+	defer repo.Close()
+
+	tenant := &model.Tenant{Name: "LaMafia Music", Slug: "lamafia", PrimaryDomain: "lamafia.music", Status: "active"}
+	if err := repo.TenantCreate(context.Background(), tenant); err != nil {
+		t.Fatalf("TenantCreate failed: %v", err)
+	}
+	if err := repo.TenantDomainCreate(context.Background(), &model.TenantDomain{TenantID: tenant.ID, Domain: "lamafia.music", IsPrimary: true}); err != nil {
+		t.Fatalf("TenantDomainCreate failed: %v", err)
+	}
+	settings := repository.DefaultPortalSettings()
+	settings.TenantID = tenant.ID
+	settings.SiteName = "LaMafia Music"
+	settings.ContactEmail = "contato@lamafia.music"
+	settings.ContactWhatsapp = "(62) 98888-7777"
+	if err := repo.PortalSettingsUpdate(context.Background(), &settings); err != nil {
+		t.Fatalf("PortalSettingsUpdate failed: %v", err)
+	}
+
+	handler := middleware.ResolveTenant(repo)(http.HandlerFunc(h.Contact))
+	req := httptest.NewRequest(http.MethodGet, "https://lamafia.music/contato", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("tenant contact status = %d; body=%s", rec.Code, rec.Body.String())
+	}
+	body := rec.Body.String()
+	if !strings.Contains(body, "contato@lamafia.music") || !strings.Contains(body, "(62) 98888-7777") {
+		t.Fatalf("tenant contact page did not use tenant settings: %s", body)
+	}
+
+	defaultReq := httptest.NewRequest(http.MethodGet, "https://unknown.example/contato", nil)
+	defaultRec := httptest.NewRecorder()
+	handler.ServeHTTP(defaultRec, defaultReq)
+
+	if defaultRec.Code != http.StatusOK {
+		t.Fatalf("default contact status = %d; body=%s", defaultRec.Code, defaultRec.Body.String())
+	}
+	if strings.Contains(defaultRec.Body.String(), "contato@lamafia.music") {
+		t.Fatalf("fallback tenant leaked alternate tenant settings: %s", defaultRec.Body.String())
+	}
+}
+
 func TestPostDetailSanitizesStoredHTML(t *testing.T) {
 	h, repo := newTestHandler(t)
 	defer repo.Close()
@@ -583,6 +739,225 @@ func TestAdminSettingsRequiresSettingsPermission(t *testing.T) {
 
 	if rec.Code != http.StatusForbidden {
 		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusForbidden, rec.Body.String())
+	}
+}
+
+func TestAdminTenantsCreateAndManage(t *testing.T) {
+	h, repo := newTestHandler(t)
+	defer repo.Close()
+
+	admin := &model.User{ID: 1, Role: model.RoleSuperAdmin, Active: true}
+	form := url.Values{}
+	form.Set("csrf_token", "test")
+	form.Set("name", "LaMafia Music")
+	form.Set("slug", "lamafia")
+	form.Set("primary_domain", "lamafia.music")
+	form.Set("status", "active")
+	req := httptest.NewRequest(http.MethodPost, h.cfg.AdminPathPrefix+"/tenants", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req = req.WithContext(auth.WithUser(req.Context(), admin))
+	rec := httptest.NewRecorder()
+
+	h.AdminTenantCreate(rec, req)
+	if rec.Code != http.StatusSeeOther {
+		t.Fatalf("AdminTenantCreate status = %d", rec.Code)
+	}
+	tenant, err := repo.TenantGetBySlug(context.Background(), "lamafia")
+	if err != nil || tenant == nil {
+		t.Fatalf("TenantGetBySlug failed: tenant=%#v err=%v", tenant, err)
+	}
+	domains, err := repo.TenantDomainList(context.Background(), tenant.ID)
+	if err != nil {
+		t.Fatalf("TenantDomainList failed: %v", err)
+	}
+	if len(domains) != 1 || domains[0].Domain != "lamafia.music" || !domains[0].IsPrimary {
+		t.Fatalf("tenant was not provisioned with primary domain: %#v", domains)
+	}
+	settings, err := repo.PortalSettingsGetForTenant(context.Background(), tenant.ID)
+	if err != nil {
+		t.Fatalf("PortalSettingsGetForTenant failed: %v", err)
+	}
+	if settings.SiteName != "LaMafia Music" || settings.ContactEmail != "contato@lamafia.music" {
+		t.Fatalf("tenant settings were not provisioned: %#v", settings)
+	}
+	features, err := repo.TenantFeatureListForTenant(context.Background(), tenant.ID)
+	if err != nil {
+		t.Fatalf("TenantFeatureListForTenant failed: %v", err)
+	}
+	if len(features) != 3 {
+		t.Fatalf("tenant default features count = %d, want 3: %#v", len(features), features)
+	}
+
+	domainForm := url.Values{}
+	domainForm.Set("csrf_token", "test")
+	domainForm.Set("domain", "www.lamafia.music")
+	domainForm.Set("is_primary", "on")
+	domainReq := httptest.NewRequest(http.MethodPost, h.cfg.AdminPathPrefix+"/tenants/"+strconv.FormatInt(tenant.ID, 10)+"/domains", strings.NewReader(domainForm.Encode()))
+	domainReq.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	domainReq.SetPathValue("id", strconv.FormatInt(tenant.ID, 10))
+	domainReq = domainReq.WithContext(auth.WithUser(domainReq.Context(), admin))
+	domainRec := httptest.NewRecorder()
+	h.AdminTenantDomainCreate(domainRec, domainReq)
+	if domainRec.Code != http.StatusSeeOther {
+		t.Fatalf("AdminTenantDomainCreate status = %d", domainRec.Code)
+	}
+
+	featureForm := url.Values{}
+	featureForm.Set("csrf_token", "test")
+	featureForm.Set("feature", "automation")
+	featureForm.Set("limit_value", "5")
+	featureForm.Set("enabled", "on")
+	featureReq := httptest.NewRequest(http.MethodPost, h.cfg.AdminPathPrefix+"/tenants/"+strconv.FormatInt(tenant.ID, 10)+"/features", strings.NewReader(featureForm.Encode()))
+	featureReq.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	featureReq.SetPathValue("id", strconv.FormatInt(tenant.ID, 10))
+	featureReq = featureReq.WithContext(auth.WithUser(featureReq.Context(), admin))
+	featureRec := httptest.NewRecorder()
+	h.AdminTenantFeatureUpsert(featureRec, featureReq)
+	if featureRec.Code != http.StatusSeeOther {
+		t.Fatalf("AdminTenantFeatureUpsert status = %d", featureRec.Code)
+	}
+
+	user := &model.User{
+		Name:         "Editor Multiportal",
+		Email:        "editor-multi@example.com",
+		PasswordHash: "hash",
+		Role:         model.RoleEditor,
+		Active:       true,
+	}
+	if err := repo.UserCreate(context.Background(), user); err != nil {
+		t.Fatalf("UserCreate failed: %v", err)
+	}
+	userForm := url.Values{}
+	userForm.Set("csrf_token", "test")
+	userForm.Set("user_email", user.Email)
+	userForm.Set("role", string(model.RoleAdmin))
+	userForm.Set("active", "on")
+	userReq := httptest.NewRequest(http.MethodPost, h.cfg.AdminPathPrefix+"/tenants/"+strconv.FormatInt(tenant.ID, 10)+"/users", strings.NewReader(userForm.Encode()))
+	userReq.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	userReq.SetPathValue("id", strconv.FormatInt(tenant.ID, 10))
+	userReq = userReq.WithContext(auth.WithUser(userReq.Context(), admin))
+	userRec := httptest.NewRecorder()
+	h.AdminTenantUserUpsert(userRec, userReq)
+	if userRec.Code != http.StatusSeeOther {
+		t.Fatalf("AdminTenantUserUpsert status = %d", userRec.Code)
+	}
+
+	editReq := httptest.NewRequest(http.MethodGet, h.cfg.AdminPathPrefix+"/tenants/"+strconv.FormatInt(tenant.ID, 10)+"/edit", nil)
+	editReq.SetPathValue("id", strconv.FormatInt(tenant.ID, 10))
+	editReq = editReq.WithContext(auth.WithUser(editReq.Context(), admin))
+	editRec := httptest.NewRecorder()
+	h.AdminTenantEdit(editRec, editReq)
+	if editRec.Code != http.StatusOK {
+		t.Fatalf("AdminTenantEdit status = %d", editRec.Code)
+	}
+	body := editRec.Body.String()
+	for _, want := range []string{"LaMafia Music", "www.lamafia.music", "automation", "editor-multi@example.com", "Editor Multiportal - ID"} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("tenant edit page missing %q: %s", want, body)
+		}
+	}
+}
+
+func TestAdminAutomationRespectsTenantFeatureGate(t *testing.T) {
+	h, repo := newTestHandler(t)
+	defer repo.Close()
+
+	if err := repo.TenantFeatureUpsert(context.Background(), &model.TenantFeature{
+		Feature: "automation",
+		Enabled: false,
+	}); err != nil {
+		t.Fatalf("TenantFeatureUpsert failed: %v", err)
+	}
+
+	admin := &model.User{ID: 1, Role: model.RoleAdmin, Active: true}
+	req := httptest.NewRequest(http.MethodGet, h.cfg.AdminPathPrefix+"/automation", nil)
+	req = req.WithContext(auth.WithUser(req.Context(), admin))
+	rec := httptest.NewRecorder()
+
+	h.AdminAutomation(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("AdminAutomation status = %d; body=%s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "Feature desabilitada") {
+		t.Fatalf("automation dashboard did not show disabled feature state: %s", rec.Body.String())
+	}
+
+	runReq := httptest.NewRequest(http.MethodPost, h.cfg.AdminPathPrefix+"/automation/run-all", nil)
+	runReq = runReq.WithContext(auth.WithUser(runReq.Context(), admin))
+	runRec := httptest.NewRecorder()
+
+	h.AdminAutomationRunAll(runRec, runReq)
+	if runRec.Code != http.StatusOK {
+		t.Fatalf("AdminAutomationRunAll status = %d; body=%s", runRec.Code, runRec.Body.String())
+	}
+	if !strings.Contains(runRec.Body.String(), "Automacao nao habilitada para este portal.") {
+		t.Fatalf("automation action did not respect feature gate: %s", runRec.Body.String())
+	}
+}
+
+func TestAdminTenantsRequiresTenantManagePermission(t *testing.T) {
+	h, repo := newTestHandler(t)
+	defer repo.Close()
+
+	req := httptest.NewRequest(http.MethodGet, h.cfg.AdminPathPrefix+"/tenants", nil)
+	req = req.WithContext(auth.WithUser(req.Context(), &model.User{ID: 1, Role: model.RoleAdmin, Active: true}))
+	rec := httptest.NewRecorder()
+
+	h.AdminTenants(rec, req)
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("AdminTenants status = %d, want %d; body=%s", rec.Code, http.StatusForbidden, rec.Body.String())
+	}
+}
+
+func TestAdminMediaRespectsTenantFeatureGate(t *testing.T) {
+	h, repo := newTestHandler(t)
+	defer repo.Close()
+
+	if err := repo.TenantFeatureUpsert(context.Background(), &model.TenantFeature{
+		Feature: "media",
+		Enabled: false,
+	}); err != nil {
+		t.Fatalf("TenantFeatureUpsert failed: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, h.cfg.AdminPathPrefix+"/media", nil)
+	req = req.WithContext(auth.WithUser(req.Context(), &model.User{ID: 1, Role: model.RoleEditor, Active: true}))
+	rec := httptest.NewRecorder()
+
+	h.AdminMedia(rec, req)
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("AdminMedia status = %d, want %d; body=%s", rec.Code, http.StatusForbidden, rec.Body.String())
+	}
+}
+
+func TestAdminCommercialRespectsTenantFeatureGate(t *testing.T) {
+	h, repo := newTestHandler(t)
+	defer repo.Close()
+
+	if err := repo.TenantFeatureUpsert(context.Background(), &model.TenantFeature{
+		Feature: "commercial",
+		Enabled: false,
+	}); err != nil {
+		t.Fatalf("TenantFeatureUpsert failed: %v", err)
+	}
+
+	user := &model.User{ID: 1, Role: model.RoleComercial, Active: true}
+	req := httptest.NewRequest(http.MethodGet, h.cfg.AdminPathPrefix+"/stores", nil)
+	req = req.WithContext(auth.WithUser(req.Context(), user))
+	rec := httptest.NewRecorder()
+
+	h.AdminStores(rec, req)
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("AdminStores status = %d, want %d; body=%s", rec.Code, http.StatusForbidden, rec.Body.String())
+	}
+
+	neighborhoodReq := httptest.NewRequest(http.MethodGet, h.cfg.AdminPathPrefix+"/neighborhoods", nil)
+	neighborhoodReq = neighborhoodReq.WithContext(auth.WithUser(neighborhoodReq.Context(), &model.User{ID: 2, Role: model.RoleAdmin, Active: true}))
+	neighborhoodRec := httptest.NewRecorder()
+
+	h.AdminNeighborhoods(neighborhoodRec, neighborhoodReq)
+	if neighborhoodRec.Code != http.StatusForbidden {
+		t.Fatalf("AdminNeighborhoods status = %d, want %d; body=%s", neighborhoodRec.Code, http.StatusForbidden, neighborhoodRec.Body.String())
 	}
 }
 

@@ -72,6 +72,7 @@ const (
 	PermMediaManage       Permission = "media:manage"
 	PermUsersManage       Permission = "users:manage"
 	PermSettingsManage    Permission = "settings:manage"
+	PermTenantsManage     Permission = "tenants:manage"
 	PermAutomationManage  Permission = "automation:manage"
 )
 
@@ -93,7 +94,11 @@ func RolePermissions(role model.UserRole) []Permission {
 	case model.RoleSuperAdmin:
 		return []Permission{"*"}
 	case model.RoleAdmin:
-		return []Permission{"*"}
+		return []Permission{
+			PermPostsCreate, PermPostsEditAny, PermPostsDelete, PermPostsPublish, PermPostsApprove,
+			PermStoresManage, PermInfluencersManage, PermBannersManage, PermPromosManage, PermEventsManage, PermClassifiedsManage,
+			PermMediaManage, PermUsersManage, PermSettingsManage, PermAutomationManage,
+		}
 	case model.RoleEditor:
 		return []Permission{
 			PermPostsCreate, PermPostsEditAny, PermPostsDelete, PermPostsPublish, PermPostsApprove, PermEventsManage, PermMediaManage, PermAutomationManage,

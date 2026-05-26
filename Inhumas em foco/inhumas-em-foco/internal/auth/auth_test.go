@@ -89,11 +89,14 @@ func TestRolePermissions(t *testing.T) {
 	revisor := &model.User{Role: model.RoleRevisor}
 	comercial := &model.User{Role: model.RoleComercial}
 
-	if !svc.HasPermission(superAdmin, PermSettingsManage) {
+	if !svc.HasPermission(superAdmin, PermSettingsManage) || !svc.HasPermission(superAdmin, PermTenantsManage) {
 		t.Fatal("super admin should have all permissions")
 	}
 	if !svc.HasPermission(admin, PermUsersManage) {
-		t.Fatal("admin should have all permissions")
+		t.Fatal("admin should manage users")
+	}
+	if svc.HasPermission(admin, PermTenantsManage) {
+		t.Fatal("admin should not manage platform tenants")
 	}
 	if !svc.HasPermission(editor, PermPostsPublish) {
 		t.Fatal("editor should publish posts")

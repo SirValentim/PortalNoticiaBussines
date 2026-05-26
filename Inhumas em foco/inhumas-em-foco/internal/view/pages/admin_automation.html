@@ -5,11 +5,15 @@
         <h1>Automacao de Noticias</h1>
     </div>
     <div class="admin-actions">
+        {{if .AutomationFeatureEnabled}}
         <form method="POST" action="{{.AdminPath}}/automation/run-all">
             <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
             <button type="submit" class="btn btn-secondary">Executar agora</button>
         </form>
         <a href="{{.AdminPath}}/automation/sources/new" class="btn btn-primary">+ Nova Fonte</a>
+        {{else}}
+        <span class="status-badge status-draft">Feature desabilitada</span>
+        {{end}}
     </div>
 </div>
 
@@ -38,7 +42,9 @@
             <p class="admin-kicker">Fontes</p>
             <h2>RSS e fontes oficiais</h2>
         </div>
-        {{if .Settings.AutomationEnabled}}
+        {{if not .AutomationFeatureEnabled}}
+        <span class="status-badge status-draft">Feature automation desabilitada</span>
+        {{else if .Settings.AutomationEnabled}}
         <span class="sponsored-badge">Automacao ativa</span>
         {{else}}
         <span class="status-badge status-draft">Automacao pausada</span>
@@ -68,6 +74,7 @@
                 <td>{{if .Active}}Ativa{{else}}Inativa{{end}}</td>
                 <td>
                     <div class="table-actions">
+                        {{if $.AutomationFeatureEnabled}}
                         <form method="POST" action="{{$.AdminPath}}/automation/sources/{{.ID}}/run">
                             <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
                             <button type="submit" class="btn btn-sm">Rodar</button>
@@ -77,6 +84,9 @@
                             <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
                             <button type="submit" class="btn btn-sm btn-danger">Excluir</button>
                         </form>
+                        {{else}}
+                        <span class="muted">Indisponivel neste portal</span>
+                        {{end}}
                     </div>
                 </td>
             </tr>

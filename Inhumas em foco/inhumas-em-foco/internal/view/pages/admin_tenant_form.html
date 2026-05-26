@@ -1,0 +1,167 @@
+{{define "admin_content"}}
+<div class="admin-page-header">
+    <div>
+        <p class="admin-kicker">Sistema</p>
+        <h1>{{.Tenant.Name}}</h1>
+    </div>
+    <a href="{{.AdminPath}}/tenants" class="btn btn-sm">Voltar</a>
+</div>
+
+<section class="admin-form-section">
+    <h3 class="admin-section-title">Dados do Portal</h3>
+    <form class="admin-form" method="POST" action="{{.AdminPath}}/tenants/{{.Tenant.ID}}">
+        <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+        <div class="admin-form-grid admin-form-grid-three">
+            <div class="form-group">
+                <label>Nome</label>
+                <input type="text" name="name" class="form-control" value="{{.Tenant.Name}}" required>
+            </div>
+            <div class="form-group">
+                <label>Slug</label>
+                <input type="text" name="slug" class="form-control" value="{{.Tenant.Slug}}" required>
+            </div>
+            <div class="form-group">
+                <label>Dominio principal</label>
+                <input type="text" name="primary_domain" class="form-control" value="{{.Tenant.PrimaryDomain}}">
+            </div>
+        </div>
+        <div class="admin-form-grid">
+            <div class="form-group">
+                <label>Status</label>
+                <select name="status" class="form-control">
+                    <option value="active" {{if eq .Tenant.Status "active"}}selected{{end}}>Ativo</option>
+                    <option value="paused" {{if eq .Tenant.Status "paused"}}selected{{end}}>Pausado</option>
+                    <option value="inactive" {{if eq .Tenant.Status "inactive"}}selected{{end}}>Inativo</option>
+                </select>
+            </div>
+        </div>
+        <div class="admin-form-actions">
+            <button type="submit" class="btn btn-primary">Salvar Portal</button>
+        </div>
+    </form>
+</section>
+
+<section class="admin-form-section">
+    <h3 class="admin-section-title">Dominios</h3>
+    <form class="admin-form" method="POST" action="{{.AdminPath}}/tenants/{{.Tenant.ID}}/domains">
+        <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+        <div class="admin-form-grid">
+            <div class="form-group">
+                <label>Dominio</label>
+                <input type="text" name="domain" class="form-control" placeholder="portal.com.br" required>
+            </div>
+            <label class="checkbox-control"><input type="checkbox" name="is_primary"><span>Principal</span></label>
+        </div>
+        <button type="submit" class="btn btn-secondary">Adicionar dominio</button>
+    </form>
+    <table class="table">
+        <thead><tr><th>Dominio</th><th>Tipo</th><th>Acoes</th></tr></thead>
+        <tbody>
+            {{range .Domains}}
+            <tr>
+                <td>{{.Domain}}</td>
+                <td>{{if .IsPrimary}}Principal{{else}}Alias{{end}}</td>
+                <td>
+                    <form method="POST" action="{{$.AdminPath}}/tenants/{{$.Tenant.ID}}/domains/{{.ID}}/delete" data-confirm="Remover dominio?">
+                        <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+                        <button type="submit" class="btn btn-sm btn-danger">Remover</button>
+                    </form>
+                </td>
+            </tr>
+            {{else}}
+            <tr><td colspan="3" class="empty-state">Nenhum dominio cadastrado</td></tr>
+            {{end}}
+        </tbody>
+    </table>
+</section>
+
+<section class="admin-form-section">
+    <h3 class="admin-section-title">Features e Limites</h3>
+    <form class="admin-form" method="POST" action="{{.AdminPath}}/tenants/{{.Tenant.ID}}/features">
+        <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+        <div class="admin-form-grid admin-form-grid-three">
+            <div class="form-group">
+                <label>Feature</label>
+                <input type="text" name="feature" class="form-control" placeholder="automation" required>
+            </div>
+            <div class="form-group">
+                <label>Limite</label>
+                <input type="number" name="limit_value" class="form-control" min="0">
+            </div>
+            <label class="checkbox-control"><input type="checkbox" name="enabled" checked><span>Habilitada</span></label>
+        </div>
+        <button type="submit" class="btn btn-secondary">Salvar feature</button>
+    </form>
+    <table class="table">
+        <thead><tr><th>Feature</th><th>Limite</th><th>Status</th></tr></thead>
+        <tbody>
+            {{range .Features}}
+            <tr>
+                <td>{{.Feature}}</td>
+                <td>{{if .Limit}}{{.Limit}}{{else}}-{{end}}</td>
+                <td>{{if .Enabled}}<span class="status-pill status-published">Ativa</span>{{else}}<span class="status-pill status-muted">Inativa</span>{{end}}</td>
+            </tr>
+            {{else}}
+            <tr><td colspan="3" class="empty-state">Nenhuma feature configurada</td></tr>
+            {{end}}
+        </tbody>
+    </table>
+</section>
+
+<section class="admin-form-section">
+    <h3 class="admin-section-title">Usuarios do Portal</h3>
+    <form class="admin-form" method="POST" action="{{.AdminPath}}/tenants/{{.Tenant.ID}}/users">
+        <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+        <div class="admin-form-grid admin-form-grid-three">
+            <div class="form-group">
+                <label>Email do usuario</label>
+                <input type="email" name="user_email" class="form-control" placeholder="usuario@portal.com" list="tenant-user-options">
+                <datalist id="tenant-user-options">
+                    {{range .AllUsers}}
+                    <option value="{{.Email}}">{{.Name}} - ID {{.ID}}</option>
+                    {{end}}
+                </datalist>
+            </div>
+            <div class="form-group">
+                <label>ID do usuario</label>
+                <input type="number" name="user_id" class="form-control" min="1">
+            </div>
+            <div class="form-group">
+                <label>Perfil</label>
+                <select name="role" class="form-control">
+                    <option value="redator">Redator</option>
+                    <option value="revisor">Revisor</option>
+                    <option value="editor">Editor</option>
+                    <option value="comercial">Comercial</option>
+                    <option value="admin">Admin</option>
+                    <option value="super_admin">Super Admin</option>
+                </select>
+            </div>
+            <label class="checkbox-control"><input type="checkbox" name="active" checked><span>Ativo</span></label>
+        </div>
+        <button type="submit" class="btn btn-secondary">Salvar vinculo</button>
+    </form>
+    <table class="table">
+        <thead><tr><th>ID</th><th>Usuario</th><th>Email</th><th>Perfil</th><th>Status</th><th>Acoes</th></tr></thead>
+        <tbody>
+            {{range .TenantUsers}}
+            <tr>
+                <td>{{.UserID}}</td>
+                <td>{{.UserName}}</td>
+                <td>{{.UserEmail}}</td>
+                <td>{{roleLabel .Role}}</td>
+                <td>{{if .Active}}<span class="status-pill status-published">Ativo</span>{{else}}<span class="status-pill status-muted">Inativo</span>{{end}}</td>
+                <td>
+                    <form method="POST" action="{{$.AdminPath}}/tenants/{{$.Tenant.ID}}/users/{{.UserID}}/delete" data-confirm="Remover usuario deste portal?">
+                        <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+                        <button type="submit" class="btn btn-sm btn-danger">Remover</button>
+                    </form>
+                </td>
+            </tr>
+            {{else}}
+            <tr><td colspan="6" class="empty-state">Nenhum usuario vinculado</td></tr>
+            {{end}}
+        </tbody>
+    </table>
+</section>
+{{end}}

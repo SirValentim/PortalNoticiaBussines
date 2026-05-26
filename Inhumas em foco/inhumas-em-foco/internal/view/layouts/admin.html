@@ -36,8 +36,11 @@
                     <a href="{{.AdminPath}}/automation" {{if eq .Active "automation"}}class="active"{{end}}>Automacao</a>
                     <a href="{{.AdminPath}}/categories" {{if eq .Active "categories"}}class="active"{{end}}>Categorias</a>
                     <a href="{{.AdminPath}}/tags" {{if eq .Active "tags"}}class="active"{{end}}>Tags</a>
+                    {{if .MediaFeatureEnabled}}
                     <a href="{{.AdminPath}}/media" {{if eq .Active "media"}}class="active"{{end}}>Midia</a>
+                    {{end}}
                 </div>
+                {{if .CommercialFeatureEnabled}}
                 <div class="admin-nav-group">
                     <span class="admin-nav-label">Comercial local</span>
                     <a href="{{.AdminPath}}/banners" {{if eq .Active "banners"}}class="active"{{end}}>Banners</a>
@@ -48,9 +51,13 @@
                     <a href="{{.AdminPath}}/influencers" {{if eq .Active "influencers"}}class="active"{{end}}>Influencers</a>
                     <a href="{{.AdminPath}}/neighborhoods" {{if eq .Active "neighborhoods"}}class="active"{{end}}>Bairros</a>
                 </div>
+                {{end}}
                 <div class="admin-nav-group">
                     <span class="admin-nav-label">Sistema</span>
                     <a href="{{.AdminPath}}/users" {{if eq .Active "users"}}class="active"{{end}}>Usuarios</a>
+                    {{if .CanManageTenants}}
+                    <a href="{{.AdminPath}}/tenants" {{if eq .Active "tenants"}}class="active"{{end}}>Portais</a>
+                    {{end}}
                     <a href="{{.AdminPath}}/audit" {{if eq .Active "audit"}}class="active"{{end}}>Auditoria</a>
                     <a href="{{.AdminPath}}/settings" {{if eq .Active "settings"}}class="active"{{end}}>Configuracoes</a>
                 </div>

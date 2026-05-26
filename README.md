@@ -291,6 +291,7 @@ Arquivos sensiveis como `.env`, bancos locais, chaves privadas, backups e dados 
 
 Documentos principais:
 
+- `Inhumas em foco/inhumas-em-foco/docs/PROJECT_STATUS.md` - resumo executivo do que existe, o que faz e o que falta.
 - `Inhumas em foco/inhumas-em-foco/docs/CHECKLIST_STATUS.md` - checklist vivo de execucao.
 - `Inhumas em foco/inhumas-em-foco/docs/CMS_PLANO_GERAL.md` - plano macro do CMS.
 - `Inhumas em foco/inhumas-em-foco/docs/CMS_REVISAO_FINAL.md` - revisao executiva e readiness.
@@ -302,7 +303,9 @@ Documentos principais:
 
 ## Status do Projeto
 
-O CMS esta em estado avancado para operacao inicial de um portal local profissional. A base Go concentra o produto principal, enquanto o app React permanece como prototipo visual/referencia.
+O CMS esta em estado avancado e entrou em marco multiportal persistente. A base Go concentra o produto principal, enquanto o app React permanece como prototipo visual/referencia.
+
+Ja existem tenants, dominios, features por portal, usuarios por tenant, dados escopados por `tenant_id`, middleware de resolucao por host e worker tenant-aware para jobs editoriais/comerciais.
 
 Pendencias recomendadas para evolucao corporativa:
 

@@ -28,6 +28,7 @@ import (
 	"inhumas-em-foco/internal/session"
 	"inhumas-em-foco/internal/sitemap"
 	"inhumas-em-foco/internal/storage"
+	tenantctx "inhumas-em-foco/internal/tenant"
 	usersvc "inhumas-em-foco/internal/users"
 )
 
@@ -44,6 +45,13 @@ type Handler struct {
 	storage   storage.Provider
 	sanitizer *bluemonday.Policy
 	templates *template.Template
+}
+
+func (h *Handler) metricContext(r *http.Request) context.Context {
+	if tenant := tenantctx.FromContext(r.Context()); tenant != nil {
+		return tenantctx.WithTenant(context.Background(), tenant)
+	}
+	return context.Background()
 }
 
 func New(repo *repository.Repository, cfg *config.Config, session *session.Manager, authSvc *auth.Service, storage storage.Provider) (*Handler, error) {
@@ -184,6 +192,9 @@ func (h *Handler) Render(w http.ResponseWriter, r *http.Request, name string, da
 		data["SEO"] = seo
 	}
 	data["User"] = user
+	data["CanManageTenants"] = h.authSvc.HasPermission(user, auth.PermTenantsManage)
+	data["MediaFeatureEnabled"] = h.tenantFeatureEnabled(r, "media", true)
+	data["CommercialFeatureEnabled"] = h.tenantFeatureEnabled(r, "commercial", true)
 	data["AdminPath"] = branding.AdminPathPrefix
 	data["Year"] = time.Now().Year()
 	data["CSRFToken"] = middleware.CSRFToken(r.Context())
@@ -494,6 +505,16 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST "+admin+"/users/{id}/edit", h.AdminUserUpdate)
 	mux.HandleFunc("POST "+admin+"/users/{id}/password", h.AdminUserUpdatePassword)
 
+	mux.HandleFunc("GET "+admin+"/tenants", h.AdminTenants)
+	mux.HandleFunc("POST "+admin+"/tenants", h.AdminTenantCreate)
+	mux.HandleFunc("GET "+admin+"/tenants/{id}/edit", h.AdminTenantEdit)
+	mux.HandleFunc("POST "+admin+"/tenants/{id}", h.AdminTenantUpdate)
+	mux.HandleFunc("POST "+admin+"/tenants/{id}/domains", h.AdminTenantDomainCreate)
+	mux.HandleFunc("POST "+admin+"/tenants/{id}/domains/{domainID}/delete", h.AdminTenantDomainDelete)
+	mux.HandleFunc("POST "+admin+"/tenants/{id}/features", h.AdminTenantFeatureUpsert)
+	mux.HandleFunc("POST "+admin+"/tenants/{id}/users", h.AdminTenantUserUpsert)
+	mux.HandleFunc("POST "+admin+"/tenants/{id}/users/{userID}/delete", h.AdminTenantUserDelete)
+
 	mux.HandleFunc("GET "+admin+"/metrics", h.AdminMetrics)
 	mux.HandleFunc("GET "+admin+"/dead-jobs", h.AdminDeadJobs)
 	mux.HandleFunc("GET "+admin+"/audit", h.AdminAuditLogs)
@@ -598,7 +619,7 @@ func (h *Handler) PostDetail(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Track view
-	go h.repo.MetricTrack(context.Background(), &model.Metric{
+	go h.repo.MetricTrack(h.metricContext(r), &model.Metric{
 		MetricType: "post_view",
 		EntityType: "post",
 		EntityID:   post.ID,
@@ -875,7 +896,7 @@ func (h *Handler) StoreDetail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	go h.repo.MetricTrack(context.Background(), &model.Metric{
+	go h.repo.MetricTrack(h.metricContext(r), &model.Metric{
 		MetricType: "store_view",
 		EntityType: "store",
 		EntityID:   store.ID,
@@ -988,7 +1009,7 @@ func (h *Handler) InfluencerDetail(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	go h.repo.MetricTrack(context.Background(), &model.Metric{
+	go h.repo.MetricTrack(h.metricContext(r), &model.Metric{
 		MetricType: "influencer_view",
 		EntityType: "influencer",
 		EntityID:   influencer.ID,
@@ -1144,7 +1165,7 @@ func (h *Handler) PromoDetail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	go h.repo.MetricTrack(context.Background(), &model.Metric{
+	go h.repo.MetricTrack(h.metricContext(r), &model.Metric{
 		MetricType: "promo_click",
 		EntityType: "promotion",
 		EntityID:   promo.ID,
@@ -2098,7 +2119,27 @@ func (h *Handler) requirePermission(w http.ResponseWriter, r *http.Request, perm
 		http.Error(w, "Acesso negado", http.StatusForbidden)
 		return nil, false
 	}
+	if feature := featureForPermission(perm); feature != "" && !h.tenantFeatureEnabled(r, feature, true) {
+		http.Error(w, "Feature desabilitada para este portal", http.StatusForbidden)
+		return nil, false
+	}
 	return user, true
+}
+
+func (h *Handler) tenantFeatureEnabled(r *http.Request, feature string, fallback bool) bool {
+	enabled, err := h.repo.TenantFeatureEnabledOrDefault(r.Context(), feature, fallback)
+	return err == nil && enabled
+}
+
+func featureForPermission(perm auth.Permission) string {
+	switch perm {
+	case auth.PermMediaManage:
+		return "media"
+	case auth.PermStoresManage, auth.PermInfluencersManage, auth.PermBannersManage, auth.PermPromosManage, auth.PermEventsManage, auth.PermClassifiedsManage:
+		return "commercial"
+	default:
+		return ""
+	}
 }
 
 func (h *Handler) auditAdminAction(r *http.Request, user *model.User, action, entityType string, entityID *int64, changes map[string]any) {

@@ -6,10 +6,12 @@ import (
 	"strings"
 
 	"inhumas-em-foco/internal/model"
+	tenantctx "inhumas-em-foco/internal/tenant"
 )
 
 func DefaultPortalSettings() model.PortalSettings {
 	return model.PortalSettings{
+		TenantID:                  1,
 		SiteName:                  "Inhumas em Foco",
 		Tagline:                   "O portal de noticias e comercio local que conecta Inhumas em um so lugar.",
 		ContactEmail:              "contato@inhumasemfoco.online",
@@ -25,16 +27,23 @@ func DefaultPortalSettings() model.PortalSettings {
 }
 
 func (r *Repository) PortalSettingsGet(ctx context.Context) (model.PortalSettings, error) {
+	return r.PortalSettingsGetForTenant(ctx, tenantIDFromContext(ctx))
+}
+
+func (r *Repository) PortalSettingsGetForTenant(ctx context.Context, tenantID int64) (model.PortalSettings, error) {
 	settings := DefaultPortalSettings()
+	settings.TenantID = tenantID
 	row := r.db.QueryRowContext(ctx, `
-		SELECT site_name, COALESCE(tagline, ''), COALESCE(logo_key, ''), COALESCE(favicon_key, ''),
+		SELECT id, tenant_id, site_name, COALESCE(tagline, ''), COALESCE(logo_key, ''), COALESCE(favicon_key, ''),
 		       COALESCE(contact_email, ''), COALESCE(contact_whatsapp, ''), COALESCE(contact_phone, ''),
 		       COALESCE(city, ''), COALESCE(state, ''), COALESCE(seo_title, ''), COALESCE(seo_description, ''),
 		       COALESCE(facebook_url, ''), COALESCE(instagram_url, ''), COALESCE(youtube_url, ''), COALESCE(tiktok_url, ''),
 		       COALESCE(upload_max_mb, 2), COALESCE(automation_enabled, false), COALESCE(automation_interval_minutes, 60), updated_at
 		FROM portal_settings
-		WHERE id = 1`)
+		WHERE tenant_id = $1`, tenantID)
 	err := row.Scan(
+		&settings.ID,
+		&settings.TenantID,
 		&settings.SiteName,
 		&settings.Tagline,
 		&settings.LogoKey,
@@ -62,16 +71,19 @@ func (r *Repository) PortalSettingsGet(ctx context.Context) (model.PortalSetting
 }
 
 func (r *Repository) PortalSettingsUpdate(ctx context.Context, settings *model.PortalSettings) error {
+	if settings.TenantID <= 0 {
+		settings.TenantID = tenantIDFromContext(ctx)
+	}
 	normalizePortalSettings(settings)
 	_, err := r.db.ExecContext(ctx, `
 		INSERT INTO portal_settings (
-			id, site_name, tagline, logo_key, favicon_key, contact_email, contact_whatsapp, contact_phone,
+			tenant_id, site_name, tagline, logo_key, favicon_key, contact_email, contact_whatsapp, contact_phone,
 			city, state, seo_title, seo_description, facebook_url, instagram_url, youtube_url, tiktok_url,
 			upload_max_mb, automation_enabled, automation_interval_minutes, updated_at
 		) VALUES (
-			1, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, CURRENT_TIMESTAMP
+			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, CURRENT_TIMESTAMP
 		)
-		ON CONFLICT(id) DO UPDATE SET
+		ON CONFLICT(tenant_id) DO UPDATE SET
 			site_name=excluded.site_name,
 			tagline=excluded.tagline,
 			logo_key=excluded.logo_key,
@@ -91,6 +103,7 @@ func (r *Repository) PortalSettingsUpdate(ctx context.Context, settings *model.P
 			automation_enabled=excluded.automation_enabled,
 			automation_interval_minutes=excluded.automation_interval_minutes,
 			updated_at=CURRENT_TIMESTAMP`,
+		settings.TenantID,
 		settings.SiteName,
 		settings.Tagline,
 		settings.LogoKey,
@@ -111,6 +124,13 @@ func (r *Repository) PortalSettingsUpdate(ctx context.Context, settings *model.P
 		settings.AutomationIntervalMinutes,
 	)
 	return err
+}
+
+func tenantIDFromContext(ctx context.Context) int64 {
+	if tenant := tenantctx.FromContext(ctx); tenant != nil && tenant.ID > 0 {
+		return tenant.ID
+	}
+	return 1
 }
 
 func normalizePortalSettings(settings *model.PortalSettings) {

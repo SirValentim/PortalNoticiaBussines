@@ -16,11 +16,11 @@
         {{else}}
         <article class="hero-main">
             <a href="/noticias">
-                <img src="{{imageURL ""}}" alt="Vista de Inhumas" loading="eager">
+                <img src="{{imageURL ""}}" alt="Imagem principal de {{.Branding.PortalName}}" loading="eager">
                 <div class="overlay">
                     <span class="badge badge-accent">Destaque</span>
-                    <h1>Inhumas em foco todos os dias</h1>
-                    <p>Noticias, comercio local, promocoes e agenda da cidade em um portal leve e direto.</p>
+                    <h1>{{.Branding.PortalName}} todos os dias</h1>
+                    <p>Noticias, comercio local, promocoes e agenda em um portal leve e direto.</p>
                     <span class="btn btn-primary">Ver noticias</span>
                 </div>
             </a>

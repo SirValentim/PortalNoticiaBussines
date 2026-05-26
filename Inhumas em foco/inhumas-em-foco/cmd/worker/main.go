@@ -17,6 +17,7 @@ import (
 	"inhumas-em-foco/internal/repository"
 	"inhumas-em-foco/internal/sitemap"
 	"inhumas-em-foco/internal/storage"
+	tenantctx "inhumas-em-foco/internal/tenant"
 )
 
 func main() {
@@ -83,50 +84,99 @@ func processJobs(repo *repository.Repository, cfg *config.Config) {
 				log.Printf("Erro ao marcar job %d como concluido: %v", job.ID, err)
 				continue
 			}
-			scheduleNextRecurring(repo, job.Type)
+			scheduleNextRecurring(repo, job)
 		}
 	}
 }
 
 func ensureRecurringJobs(repo *repository.Repository) {
 	ctx := context.Background()
-	recurring := []struct {
-		jobType model.JobType
-		runAt   time.Time
-	}{
+
+	for _, job := range globalRecurringJobs() {
+		scheduleIfMissing(ctx, repo, job.jobType, job.runAt)
+	}
+
+	tenants, err := repo.TenantList(ctx)
+	if err != nil {
+		log.Printf("Erro ao listar tenants para automacao: %v", err)
+		return
+	}
+	for _, tenant := range tenants {
+		if tenant.Status != "active" {
+			continue
+		}
+		tenantCopy := tenant
+		tenantCtx := tenantctx.WithTenant(ctx, &tenantCopy)
+		featureEnabled, err := automationFeatureEnabled(repo, tenantCtx)
+		if err != nil {
+			log.Printf("Erro ao verificar feature automation do tenant %d: %v", tenant.ID, err)
+			continue
+		}
+		if !featureEnabled {
+			continue
+		}
+		settings, err := repo.PortalSettingsGet(tenantCtx)
+		if err == nil && settings.AutomationEnabled {
+			scheduleIfMissing(tenantCtx, repo, model.JobCollectNews, time.Now().Add(automationInterval(settings)))
+		}
+	}
+}
+
+func scheduleNextRecurring(repo *repository.Repository, job model.Job) {
+	ctx := context.Background()
+	if jobUsesTenantContext(job.Type) && job.TenantID > 0 {
+		if tenant, err := repo.TenantGetByID(ctx, job.TenantID); err == nil && tenant != nil {
+			ctx = tenantctx.WithTenant(ctx, tenant)
+		}
+	}
+	switch job.Type {
+	case model.JobBackupDatabase:
+		scheduleIfMissing(ctx, repo, job.Type, nextDaily(3, 0))
+	case model.JobGenerateSitemap:
+		scheduleIfMissing(ctx, repo, job.Type, nextDaily(2, 0))
+	case model.JobVacuumDB:
+		scheduleIfMissing(ctx, repo, job.Type, nextWeekly(time.Sunday, 4, 0))
+	case model.JobCleanupOldJobs:
+		scheduleIfMissing(ctx, repo, job.Type, nextWeekly(time.Sunday, 5, 0))
+	case model.JobCompressOldUploads:
+		scheduleIfMissing(ctx, repo, job.Type, nextWeekly(time.Sunday, 5, 30))
+	case model.JobCollectNews:
+		featureEnabled, err := automationFeatureEnabled(repo, ctx)
+		if err != nil {
+			log.Printf("Erro ao verificar feature automation do job %d: %v", job.ID, err)
+			return
+		}
+		if !featureEnabled {
+			return
+		}
+		settings, err := repo.PortalSettingsGet(ctx)
+		if err == nil && settings.AutomationEnabled {
+			scheduleIfMissing(ctx, repo, job.Type, time.Now().Add(automationInterval(settings)))
+		}
+	}
+}
+
+type recurringJob struct {
+	jobType model.JobType
+	runAt   time.Time
+}
+
+func globalRecurringJobs() []recurringJob {
+	return []recurringJob{
 		{model.JobBackupDatabase, nextDaily(3, 0)},
 		{model.JobGenerateSitemap, nextDaily(2, 0)},
 		{model.JobVacuumDB, nextWeekly(time.Sunday, 4, 0)},
 		{model.JobCleanupOldJobs, nextWeekly(time.Sunday, 5, 0)},
 		{model.JobCompressOldUploads, nextWeekly(time.Sunday, 5, 30)},
 	}
-	for _, job := range recurring {
-		scheduleIfMissing(repo, job.jobType, job.runAt)
-	}
-	settings, err := repo.PortalSettingsGet(ctx)
-	if err == nil && settings.AutomationEnabled {
-		scheduleIfMissing(repo, model.JobCollectNews, time.Now().Add(automationInterval(settings)))
-	}
 }
 
-func scheduleNextRecurring(repo *repository.Repository, jobType model.JobType) {
+func jobUsesTenantContext(jobType model.JobType) bool {
 	switch jobType {
-	case model.JobBackupDatabase:
-		scheduleIfMissing(repo, jobType, nextDaily(3, 0))
-	case model.JobGenerateSitemap:
-		scheduleIfMissing(repo, jobType, nextDaily(2, 0))
-	case model.JobVacuumDB:
-		scheduleIfMissing(repo, jobType, nextWeekly(time.Sunday, 4, 0))
-	case model.JobCleanupOldJobs:
-		scheduleIfMissing(repo, jobType, nextWeekly(time.Sunday, 5, 0))
-	case model.JobCompressOldUploads:
-		scheduleIfMissing(repo, jobType, nextWeekly(time.Sunday, 5, 30))
-	case model.JobCollectNews:
-		ctx := context.Background()
-		settings, err := repo.PortalSettingsGet(ctx)
-		if err == nil && settings.AutomationEnabled {
-			scheduleIfMissing(repo, jobType, time.Now().Add(automationInterval(settings)))
-		}
+	case model.JobPublishPost, model.JobExpirePromotion, model.JobExpireBanner, model.JobCollectNews:
+		return true
+	default:
+		return false
 	}
 }
 
@@ -138,8 +188,7 @@ func automationInterval(settings model.PortalSettings) time.Duration {
 	return time.Duration(minutes) * time.Minute
 }
 
-func scheduleIfMissing(repo *repository.Repository, jobType model.JobType, runAt time.Time) {
-	ctx := context.Background()
+func scheduleIfMissing(ctx context.Context, repo *repository.Repository, jobType model.JobType, runAt time.Time) {
 	exists, err := repo.JobHasActiveType(ctx, jobType)
 	if err != nil {
 		log.Printf("Erro ao verificar job recorrente %s: %v", jobType, err)
@@ -178,6 +227,15 @@ func nextWeekly(weekday time.Weekday, hour, minute int) time.Time {
 
 func executeJob(repo *repository.Repository, cfg *config.Config, job model.Job) error {
 	ctx := context.Background()
+	if jobUsesTenantContext(job.Type) && job.TenantID > 0 {
+		tenant, err := repo.TenantGetByID(ctx, job.TenantID)
+		if err != nil {
+			return err
+		}
+		if tenant != nil {
+			ctx = tenantctx.WithTenant(ctx, tenant)
+		}
+	}
 
 	switch job.Type {
 	case model.JobPublishPost:
@@ -232,6 +290,13 @@ func executeJob(repo *repository.Repository, cfg *config.Config, job model.Job) 
 		return err
 
 	case model.JobCollectNews:
+		featureEnabled, err := automationFeatureEnabled(repo, ctx)
+		if err != nil {
+			return err
+		}
+		if !featureEnabled {
+			return nil
+		}
 		settings, err := repo.PortalSettingsGet(ctx)
 		if err != nil {
 			return err
@@ -248,6 +313,10 @@ func executeJob(repo *repository.Repository, cfg *config.Config, job model.Job) 
 	default:
 		return fmt.Errorf("tipo de job desconhecido: %s", job.Type)
 	}
+}
+
+func automationFeatureEnabled(repo *repository.Repository, ctx context.Context) (bool, error) {
+	return repo.TenantFeatureEnabledOrDefault(ctx, "automation", true)
 }
 
 func runBackup(ctx context.Context, cfg *config.Config) error {

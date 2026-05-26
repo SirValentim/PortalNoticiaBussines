@@ -466,6 +466,10 @@ func (h *Handler) AdminNeighborhoods(w http.ResponseWriter, r *http.Request) {
 	if _, ok := h.requirePermission(w, r, auth.PermSettingsManage); !ok {
 		return
 	}
+	if !h.tenantFeatureEnabled(r, "commercial", true) {
+		http.Error(w, "Feature desabilitada para este portal", http.StatusForbidden)
+		return
+	}
 	neighborhoods, _ := h.repo.NeighborhoodList(r.Context())
 	h.Render(w, r, "admin_neighborhoods.html", map[string]any{"Neighborhoods": neighborhoods})
 }
@@ -473,6 +477,10 @@ func (h *Handler) AdminNeighborhoods(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) AdminNeighborhoodCreate(w http.ResponseWriter, r *http.Request) {
 	user, ok := h.requirePermission(w, r, auth.PermSettingsManage)
 	if !ok {
+		return
+	}
+	if !h.tenantFeatureEnabled(r, "commercial", true) {
+		http.Error(w, "Feature desabilitada para este portal", http.StatusForbidden)
 		return
 	}
 	if err := h.parseMultipart(w, r); err != nil {
@@ -511,6 +519,10 @@ func (h *Handler) AdminNeighborhoodCreate(w http.ResponseWriter, r *http.Request
 func (h *Handler) AdminNeighborhoodDelete(w http.ResponseWriter, r *http.Request) {
 	user, ok := h.requirePermission(w, r, auth.PermSettingsManage)
 	if !ok {
+		return
+	}
+	if !h.tenantFeatureEnabled(r, "commercial", true) {
+		http.Error(w, "Feature desabilitada para este portal", http.StatusForbidden)
 		return
 	}
 	id, _ := strconv.ParseInt(r.PathValue("id"), 10, 64)

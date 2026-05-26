@@ -213,6 +213,81 @@ func TestRequireAdminRBAC(t *testing.T) {
 	}
 }
 
+func TestRequireAdminRBACMatrixByRoleAndSection(t *testing.T) {
+	sections := []struct {
+		name string
+		path string
+	}{
+		{name: "dashboard", path: "/painel"},
+		{name: "posts", path: "/painel/posts"},
+		{name: "automation", path: "/painel/automation"},
+		{name: "categories", path: "/painel/categories"},
+		{name: "tags", path: "/painel/tags"},
+		{name: "media", path: "/painel/media"},
+		{name: "stores", path: "/painel/stores"},
+		{name: "influencers", path: "/painel/influencers"},
+		{name: "banners", path: "/painel/banners"},
+		{name: "promotions", path: "/painel/promotions"},
+		{name: "events", path: "/painel/events"},
+		{name: "classifieds", path: "/painel/classifieds"},
+		{name: "neighborhoods", path: "/painel/neighborhoods"},
+		{name: "users", path: "/painel/users"},
+		{name: "settings", path: "/painel/settings"},
+	}
+	tests := []struct {
+		role    model.UserRole
+		allowed map[string]bool
+	}{
+		{role: model.RoleSuperAdmin, allowed: allowAll(sections)},
+		{role: model.RoleAdmin, allowed: allowAll(sections)},
+		{role: model.RoleEditor, allowed: allowOnly("dashboard", "posts", "automation")},
+		{role: model.RoleRedator, allowed: allowOnly("dashboard", "posts")},
+		{role: model.RoleRevisor, allowed: allowOnly("dashboard", "posts")},
+		{role: model.RoleComercial, allowed: allowOnly("dashboard", "stores", "influencers", "banners", "promotions")},
+	}
+
+	for _, tt := range tests {
+		for _, section := range sections {
+			t.Run(string(tt.role)+"_"+section.name, func(t *testing.T) {
+				req := httptest.NewRequest(http.MethodGet, section.path, nil)
+				req = req.WithContext(auth.WithUser(req.Context(), &model.User{Role: tt.role}))
+				rec := httptest.NewRecorder()
+
+				RequireAdmin("/painel")(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					w.WriteHeader(http.StatusNoContent)
+				})).ServeHTTP(rec, req)
+
+				want := http.StatusForbidden
+				if tt.allowed[section.name] {
+					want = http.StatusNoContent
+				}
+				if rec.Code != want {
+					t.Fatalf("role %s section %s status = %d, want %d", tt.role, section.name, rec.Code, want)
+				}
+			})
+		}
+	}
+}
+
+func allowAll(sections []struct {
+	name string
+	path string
+}) map[string]bool {
+	allowed := make(map[string]bool, len(sections))
+	for _, section := range sections {
+		allowed[section.name] = true
+	}
+	return allowed
+}
+
+func allowOnly(names ...string) map[string]bool {
+	allowed := make(map[string]bool, len(names))
+	for _, name := range names {
+		allowed[name] = true
+	}
+	return allowed
+}
+
 func TestRateLimitByIP(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	req.RemoteAddr = "203.0.113.10:1234"

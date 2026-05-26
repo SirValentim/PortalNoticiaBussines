@@ -93,6 +93,7 @@ const (
 )
 
 type User struct {
+	TenantID     int64     `db:"tenant_id" json:"tenant_id"`
 	ID           int64     `db:"id" json:"id"`
 	Name         string    `db:"name" json:"name"`
 	Email        string    `db:"email" json:"email"`
@@ -100,6 +101,46 @@ type User struct {
 	Role         UserRole  `db:"role" json:"role"`
 	Active       bool      `db:"active" json:"active"`
 	CreatedAt    time.Time `db:"created_at" json:"created_at"`
+}
+
+type Tenant struct {
+	ID            int64     `db:"id" json:"id"`
+	Name          string    `db:"name" json:"name"`
+	Slug          string    `db:"slug" json:"slug"`
+	Status        string    `db:"status" json:"status"`
+	PrimaryDomain string    `db:"primary_domain" json:"primary_domain"`
+	CreatedAt     time.Time `db:"created_at" json:"created_at"`
+	UpdatedAt     time.Time `db:"updated_at" json:"updated_at"`
+}
+
+type TenantDomain struct {
+	ID        int64     `db:"id" json:"id"`
+	TenantID  int64     `db:"tenant_id" json:"tenant_id"`
+	Domain    string    `db:"domain" json:"domain"`
+	IsPrimary bool      `db:"is_primary" json:"is_primary"`
+	CreatedAt time.Time `db:"created_at" json:"created_at"`
+}
+
+type TenantFeature struct {
+	ID        int64     `db:"id" json:"id"`
+	TenantID  int64     `db:"tenant_id" json:"tenant_id"`
+	Feature   string    `db:"feature" json:"feature"`
+	Enabled   bool      `db:"enabled" json:"enabled"`
+	Limit     *int64    `db:"limit_value" json:"limit,omitempty"`
+	CreatedAt time.Time `db:"created_at" json:"created_at"`
+	UpdatedAt time.Time `db:"updated_at" json:"updated_at"`
+}
+
+type TenantUser struct {
+	ID        int64     `db:"id" json:"id"`
+	TenantID  int64     `db:"tenant_id" json:"tenant_id"`
+	UserID    int64     `db:"user_id" json:"user_id"`
+	Role      UserRole  `db:"role" json:"role"`
+	Active    bool      `db:"active" json:"active"`
+	CreatedAt time.Time `db:"created_at" json:"created_at"`
+	UpdatedAt time.Time `db:"updated_at" json:"updated_at"`
+	UserName  string    `json:"user_name,omitempty"`
+	UserEmail string    `json:"user_email,omitempty"`
 }
 
 type PasswordResetToken struct {
@@ -114,6 +155,7 @@ type PasswordResetToken struct {
 }
 
 type Category struct {
+	TenantID               int64  `db:"tenant_id" json:"tenant_id"`
 	ID                     int64  `db:"id" json:"id"`
 	Slug                   string `db:"slug" json:"slug"`
 	Name                   string `db:"name" json:"name"`
@@ -127,6 +169,7 @@ type Category struct {
 }
 
 type Tag struct {
+	TenantID        int64     `db:"tenant_id" json:"tenant_id"`
 	ID              int64     `db:"id" json:"id"`
 	Slug            string    `db:"slug" json:"slug"`
 	Name            string    `db:"name" json:"name"`
@@ -138,6 +181,7 @@ type Tag struct {
 }
 
 type Post struct {
+	TenantID           int64      `db:"tenant_id" json:"tenant_id"`
 	ID                 int64      `db:"id" json:"id"`
 	Title              string     `db:"title" json:"title"`
 	Slug               string     `db:"slug" json:"slug"`
@@ -182,6 +226,7 @@ type PostRevision struct {
 }
 
 type MediaAsset struct {
+	TenantID       int64     `db:"tenant_id" json:"tenant_id"`
 	ID             int64     `db:"id" json:"id"`
 	Key            string    `db:"key" json:"key"`
 	OriginalName   string    `db:"original_name" json:"original_name"`
@@ -203,6 +248,8 @@ type MediaArchiveMonth struct {
 }
 
 type PortalSettings struct {
+	ID                        int64     `db:"id" json:"id"`
+	TenantID                  int64     `db:"tenant_id" json:"tenant_id"`
 	SiteName                  string    `db:"site_name" json:"site_name"`
 	Tagline                   string    `db:"tagline" json:"tagline"`
 	LogoKey                   string    `db:"logo_key" json:"logo_key"`
@@ -225,6 +272,7 @@ type PortalSettings struct {
 }
 
 type AutomationSource struct {
+	TenantID          int64      `db:"tenant_id" json:"tenant_id"`
 	ID                int64      `db:"id" json:"id"`
 	Name              string     `db:"name" json:"name"`
 	SourceType        string     `db:"source_type" json:"source_type"`
@@ -238,6 +286,7 @@ type AutomationSource struct {
 }
 
 type AutomationRun struct {
+	TenantID      int64      `db:"tenant_id" json:"tenant_id"`
 	ID            int64      `db:"id" json:"id"`
 	SourceID      *int64     `db:"source_id" json:"source_id"`
 	SourceName    string     `json:"source_name,omitempty"`
@@ -274,6 +323,7 @@ type SlugRedirect struct {
 }
 
 type Store struct {
+	TenantID         int64     `db:"tenant_id" json:"tenant_id"`
 	ID               int64     `db:"id" json:"id"`
 	Slug             string    `db:"slug" json:"slug"`
 	Name             string    `db:"name" json:"name"`
@@ -296,6 +346,7 @@ type Store struct {
 }
 
 type Promotion struct {
+	TenantID        int64     `db:"tenant_id" json:"tenant_id"`
 	ID              int64     `db:"id" json:"id"`
 	StoreID         int64     `db:"store_id" json:"store_id"`
 	Title           string    `db:"title" json:"title"`
@@ -317,6 +368,7 @@ type Promotion struct {
 }
 
 type Event struct {
+	TenantID        int64      `db:"tenant_id" json:"tenant_id"`
 	ID              int64      `db:"id" json:"id"`
 	Slug            string     `db:"slug" json:"slug"`
 	Title           string     `db:"title" json:"title"`
@@ -338,6 +390,7 @@ type Event struct {
 }
 
 type Classified struct {
+	TenantID        int64      `db:"tenant_id" json:"tenant_id"`
 	ID              int64      `db:"id" json:"id"`
 	Slug            string     `db:"slug" json:"slug"`
 	Title           string     `db:"title" json:"title"`
@@ -360,6 +413,7 @@ type Classified struct {
 }
 
 type Banner struct {
+	TenantID        int64     `db:"tenant_id" json:"tenant_id"`
 	ID              int64     `db:"id" json:"id"`
 	Name            string    `db:"name" json:"name"`
 	AdvertiserName  string    `db:"advertiser_name" json:"advertiser_name"`
@@ -382,6 +436,7 @@ type Banner struct {
 }
 
 type Neighborhood struct {
+	TenantID        int64     `db:"tenant_id" json:"tenant_id"`
 	ID              int64     `db:"id" json:"id"`
 	Slug            string    `db:"slug" json:"slug"`
 	Name            string    `db:"name" json:"name"`
@@ -393,6 +448,7 @@ type Neighborhood struct {
 }
 
 type Influencer struct {
+	TenantID        int64     `db:"tenant_id" json:"tenant_id"`
 	ID              int64     `db:"id" json:"id"`
 	Slug            string    `db:"slug" json:"slug"`
 	Name            string    `db:"name" json:"name"`
@@ -415,6 +471,7 @@ type Influencer struct {
 }
 
 type Job struct {
+	TenantID    int64      `db:"tenant_id" json:"tenant_id"`
 	ID          int64      `db:"id" json:"id"`
 	Type        JobType    `db:"type" json:"type"`
 	Payload     string     `db:"payload" json:"payload"`
@@ -428,6 +485,7 @@ type Job struct {
 }
 
 type Metric struct {
+	TenantID   int64     `db:"tenant_id" json:"tenant_id"`
 	ID         int64     `db:"id" json:"id"`
 	MetricType string    `db:"metric_type" json:"metric_type"`
 	EntityType string    `db:"entity_type" json:"entity_type"`

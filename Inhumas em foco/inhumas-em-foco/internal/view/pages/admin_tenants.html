@@ -1,0 +1,67 @@
+{{define "admin_content"}}
+<div class="admin-page-header">
+    <div>
+        <p class="admin-kicker">Sistema</p>
+        <h1>Portais</h1>
+    </div>
+</div>
+
+<section class="admin-form-section">
+    <h3 class="admin-section-title">Novo Portal</h3>
+    <form class="admin-form" method="POST" action="{{.AdminPath}}/tenants">
+        <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+        <div class="admin-form-grid admin-form-grid-three">
+            <div class="form-group">
+                <label>Nome</label>
+                <input type="text" name="name" class="form-control" required>
+            </div>
+            <div class="form-group">
+                <label>Slug</label>
+                <input type="text" name="slug" class="form-control" required>
+            </div>
+            <div class="form-group">
+                <label>Dominio principal</label>
+                <input type="text" name="primary_domain" class="form-control" placeholder="portal.com.br">
+            </div>
+        </div>
+        <div class="admin-form-grid">
+            <div class="form-group">
+                <label>Status</label>
+                <select name="status" class="form-control">
+                    <option value="active">Ativo</option>
+                    <option value="paused">Pausado</option>
+                    <option value="inactive">Inativo</option>
+                </select>
+            </div>
+        </div>
+        <button type="submit" class="btn btn-primary">Criar Portal</button>
+    </form>
+</section>
+
+<div class="admin-table-wrap">
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Portal</th>
+                <th>Slug</th>
+                <th>Dominio</th>
+                <th>Status</th>
+                <th>Acoes</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range .Tenants}}
+            <tr>
+                <td><strong>{{.Name}}</strong></td>
+                <td>{{.Slug}}</td>
+                <td>{{if .PrimaryDomain}}{{.PrimaryDomain}}{{else}}<span class="muted">-</span>{{end}}</td>
+                <td>{{if eq .Status "active"}}<span class="status-pill status-published">Ativo</span>{{else}}<span class="status-pill status-muted">{{.Status}}</span>{{end}}</td>
+                <td><a href="{{$.AdminPath}}/tenants/{{.ID}}/edit" class="btn btn-sm btn-primary">Gerenciar</a></td>
+            </tr>
+            {{else}}
+            <tr><td colspan="5" class="empty-state">Nenhum portal cadastrado</td></tr>
+            {{end}}
+        </tbody>
+    </table>
+</div>
+{{end}}
