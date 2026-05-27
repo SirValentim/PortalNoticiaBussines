@@ -16,10 +16,12 @@ func (h *Handler) AdminTenants(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	tenants, _ := h.repo.TenantList(r.Context())
+	summaries, _ := h.repo.TenantMetricSummaries(r.Context(), true, 0, 200)
 	h.Render(w, r, "admin_tenants.html", map[string]any{
-		"Title":   "Portais",
-		"Active":  "tenants",
-		"Tenants": tenants,
+		"Title":           "Portais",
+		"Active":          "tenants",
+		"Tenants":         tenants,
+		"TenantSummaries": summaries,
 	})
 }
 
@@ -107,6 +109,40 @@ func (h *Handler) AdminTenantEdit(w http.ResponseWriter, r *http.Request) {
 	h.renderTenantForm(w, r, tenant, "")
 }
 
+func (h *Handler) AdminTenantDetail(w http.ResponseWriter, r *http.Request) {
+	if _, ok := h.requirePermission(w, r, auth.PermTenantsManage); !ok {
+		return
+	}
+	tenant := h.tenantFromPath(w, r)
+	if tenant == nil {
+		return
+	}
+	domains, _ := h.repo.TenantDomainList(r.Context(), tenant.ID)
+	features, _ := h.repo.TenantFeatureListForTenant(r.Context(), tenant.ID)
+	users, _ := h.repo.TenantUserListForTenant(r.Context(), tenant.ID)
+	summaries, _ := h.repo.TenantMetricSummaries(r.Context(), true, tenant.ID, 1)
+	latestPosts, _ := h.repo.LatestPublishedPostMetrics(r.Context(), true, tenant.ID, 6)
+	topPosts, _ := h.repo.TopPostMetrics(r.Context(), true, tenant.ID, nil, nil, 6)
+	settings, _ := h.repo.PortalSettingsGetForTenant(r.Context(), tenant.ID)
+	var summary model.TenantMetricSummary
+	if len(summaries) > 0 {
+		summary = summaries[0]
+	}
+	h.Render(w, r, "admin_tenant_detail.html", map[string]any{
+		"Title":           "Portal",
+		"Active":          "tenants",
+		"Tenant":          tenant,
+		"Summary":         summary,
+		"Domains":         domains,
+		"Features":        features,
+		"TenantUsers":     users,
+		"LatestPosts":     latestPosts,
+		"TopPosts":        topPosts,
+		"HasTopPostViews": !noPostViews(topPosts),
+		"Settings":        settings,
+	})
+}
+
 func (h *Handler) AdminTenantUpdate(w http.ResponseWriter, r *http.Request) {
 	currentUser, ok := h.requirePermission(w, r, auth.PermTenantsManage)
 	if !ok {
@@ -133,6 +169,24 @@ func (h *Handler) AdminTenantUpdate(w http.ResponseWriter, r *http.Request) {
 		"slug": tenant.Slug,
 	})
 	http.Redirect(w, r, h.cfg.AdminPathPrefix+"/tenants/"+strconv.FormatInt(tenant.ID, 10)+"/edit", http.StatusSeeOther)
+}
+
+func (h *Handler) AdminTenantDeactivate(w http.ResponseWriter, r *http.Request) {
+	currentUser, ok := h.requirePermission(w, r, auth.PermTenantsManage)
+	if !ok {
+		return
+	}
+	tenant := h.tenantFromPath(w, r)
+	if tenant == nil {
+		return
+	}
+	tenant.Status = "inactive"
+	if err := h.repo.TenantUpdate(r.Context(), tenant); err != nil {
+		h.renderTenantForm(w, r, tenant, "Nao foi possivel desativar o portal")
+		return
+	}
+	h.auditAdminAction(r, currentUser, "deactivate", "tenant", auditEntityID(tenant.ID), map[string]any{"name": tenant.Name, "status": tenant.Status})
+	http.Redirect(w, r, h.cfg.AdminPathPrefix+"/tenants", http.StatusSeeOther)
 }
 
 func (h *Handler) AdminTenantDomainCreate(w http.ResponseWriter, r *http.Request) {
@@ -263,11 +317,13 @@ func (h *Handler) AdminTenantUserDelete(w http.ResponseWriter, r *http.Request) 
 
 func (h *Handler) renderTenantsWithError(w http.ResponseWriter, r *http.Request, message string) {
 	tenants, _ := h.repo.TenantList(r.Context())
+	summaries, _ := h.repo.TenantMetricSummaries(r.Context(), true, 0, 200)
 	h.Render(w, r, "admin_tenants.html", map[string]any{
-		"Title":   "Portais",
-		"Active":  "tenants",
-		"Tenants": tenants,
-		"Error":   message,
+		"Title":           "Portais",
+		"Active":          "tenants",
+		"Tenants":         tenants,
+		"TenantSummaries": summaries,
+		"Error":           message,
 	})
 }
 

@@ -1,90 +1,186 @@
 {{define "admin_content"}}
 <div class="admin-page-header">
     <div>
-        <p class="admin-kicker">Analise</p>
+        <p class="admin-kicker">Analytics editorial</p>
         <h1>Metricas</h1>
+        <p class="admin-page-lead">Relatorios reais por materia e por portal. Quando o tracking ainda nao tem volume, o painel mostra estado sem dados suficientes.</p>
     </div>
 </div>
 
-<div class="stats-grid">
-    {{range .Totals}}
-    <div class="stat-card">
-        <h3>{{.Total}}</h3>
-        <p>{{metricLabel .MetricType}}</p>
+<section class="admin-form-section executive-filter-panel">
+    <form method="GET" action="{{.AdminPath}}/metrics" class="admin-filter-form">
+        <div class="form-group">
+            <label for="metrics-period">Periodo</label>
+            <select id="metrics-period" name="period" class="form-control">
+                <option value="today" {{if selected .Period.Key "today"}}selected{{end}}>Hoje</option>
+                <option value="7d" {{if selected .Period.Key "7d"}}selected{{end}}>Ultimos 7 dias</option>
+                <option value="30d" {{if selected .Period.Key "30d"}}selected{{end}}>Ultimos 30 dias</option>
+                <option value="month" {{if selected .Period.Key "month"}}selected{{end}}>Este mes</option>
+                <option value="custom" {{if selected .Period.Key "custom"}}selected{{end}}>Personalizado</option>
+            </select>
+        </div>
+        {{if .CanManageTenants}}
+        <div class="form-group">
+            <label for="metrics-tenant">Portal</label>
+            <select id="metrics-tenant" name="tenant_id" class="form-control">
+                <option value="0">Todos os portais</option>
+                {{range .Tenants}}
+                <option value="{{.ID}}" {{if eq $.SelectedTenantID .ID}}selected{{end}}>{{.Name}}</option>
+                {{end}}
+            </select>
+        </div>
+        {{end}}
+        <div class="form-group">
+            <label for="metrics-date-from">Inicio</label>
+            <input id="metrics-date-from" type="date" name="date_from" class="form-control" value="{{.Period.DateFrom}}">
+        </div>
+        <div class="form-group">
+            <label for="metrics-date-to">Fim</label>
+            <input id="metrics-date-to" type="date" name="date_to" class="form-control" value="{{.Period.DateTo}}">
+        </div>
+        <div class="admin-filter-actions">
+            <button type="submit" class="btn btn-primary">Aplicar</button>
+            <a href="{{.AdminPath}}/metrics" class="btn">Limpar</a>
+        </div>
+    </form>
+</section>
+
+<div class="executive-metrics-grid">
+    <div class="metric-card metric-card-primary">
+        <span class="metric-card-icon">V</span>
+        <span class="metric-label">Views no periodo</span>
+        <strong>{{.Summary.ViewsSelectedRange}}</strong>
+        <small>{{.Period.Label}}</small>
     </div>
-    {{else}}
-    <div class="stat-card">
-        <h3>0</h3>
-        <p>Nenhuma metrica registrada</p>
+    <div class="metric-card">
+        <span class="metric-card-icon">T</span>
+        <span class="metric-label">Views totais</span>
+        <strong>{{.Summary.TotalViews}}</strong>
+        <small>Tracking de materias</small>
     </div>
-    {{end}}
+    <div class="metric-card">
+        <span class="metric-card-icon">H</span>
+        <span class="metric-label">Hoje</span>
+        <strong>{{.Summary.ViewsToday}}</strong>
+        <small>Visualizacoes registradas</small>
+    </div>
+    <div class="metric-card">
+        <span class="metric-card-icon">7</span>
+        <span class="metric-label">Ultimos 7 dias</span>
+        <strong>{{.Summary.ViewsLast7Days}}</strong>
+        <small>Visualizacoes recentes</small>
+    </div>
 </div>
 
-<div class="admin-panel-grid admin-panel-grid-three">
+<div class="admin-panel-grid">
     <section class="admin-form-section">
-        <h3 class="admin-section-title">Noticias mais vistas</h3>
+        <div class="admin-section-header">
+            <div>
+                <h2 class="admin-section-title">Ranking de materias</h2>
+                <p>Desempenho por visualizacoes, autor, categoria e portal.</p>
+            </div>
+        </div>
+        <div class="admin-table-wrap">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Materia</th>
+                        <th>Portal</th>
+                        <th>Autor</th>
+                        <th>Categoria</th>
+                        <th>Publicado</th>
+                        <th>Views</th>
+                        <th>Cliques</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {{if .HasPostViewData}}
+                    {{range .TopPosts}}
+                    {{if gt .Views 0}}
+                    <tr>
+                        <td>{{friendlyID .PostID}}</td>
+                        <td><a href="{{$.AdminPath}}/posts/{{.PostID}}"><strong>{{.Title}}</strong></a><small>{{.ReadingTimeMinutes}} min de leitura</small></td>
+                        <td>{{if .TenantName}}{{.TenantName}}{{else}}{{$.CurrentPortalName}}{{end}}</td>
+                        <td>{{if .AuthorName}}{{.AuthorName}}{{else}}-{{end}}</td>
+                        <td>{{if .CategoryName}}{{.CategoryName}}{{else}}-{{end}}</td>
+                        <td>{{.PublishedAt | formatDate}}</td>
+                        <td><strong>{{.Views}}</strong></td>
+                        <td>{{.Clicks}}</td>
+                    </tr>
+                    {{end}}
+                    {{end}}
+                    {{else}}
+                    <tr><td colspan="8"><div class="empty-state empty-state-rich"><strong>Sem dados suficientes</strong><span>Nenhuma visualizacao de materia foi registrada no periodo selecionado.</span></div></td></tr>
+                    {{end}}
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="admin-form-section">
+        <div class="admin-section-header">
+            <div>
+                <h2 class="admin-section-title">Metricas por tipo</h2>
+                <p>Totais capturados pelo endpoint de tracking.</p>
+            </div>
+        </div>
+        <div class="admin-table-wrap">
+            <table class="table">
+                <thead><tr><th>Tipo</th><th>Total</th></tr></thead>
+                <tbody>
+                    {{range .Totals}}
+                    <tr>
+                        <td>{{metricLabel .MetricType}}</td>
+                        <td><strong>{{.Total}}</strong></td>
+                    </tr>
+                    {{else}}
+                    <tr><td colspan="2"><div class="empty-state empty-state-rich"><strong>Nenhuma metrica registrada</strong><span>O relatorio sera preenchido com dados reais de tracking.</span></div></td></tr>
+                    {{end}}
+                </tbody>
+            </table>
+        </div>
+    </section>
+</div>
+
+<section class="admin-form-section">
+    <div class="admin-section-header">
+        <div>
+            <h2 class="admin-section-title">Metricas por portal</h2>
+            <p>Resumo de conteudo, usuarios ativos e views por tenant.</p>
+        </div>
+    </div>
+    <div class="admin-table-wrap">
         <table class="table">
             <thead>
                 <tr>
                     <th>ID</th>
-                    <th>Total</th>
+                    <th>Portal</th>
+                    <th>Status</th>
+                    <th>Materias</th>
+                    <th>Publicadas</th>
+                    <th>Rascunhos</th>
+                    <th>Usuarios</th>
+                    <th>Views</th>
                 </tr>
             </thead>
             <tbody>
-                {{range .TopPosts}}
+                {{range .TenantSummaries}}
                 <tr>
-                    <td>#{{.EntityID}}</td>
-                    <td>{{.Total}}</td>
+                    <td>{{friendlyID .TenantID}}</td>
+                    <td><strong>{{.Name}}</strong><small>{{if .PrimaryDomain}}{{.PrimaryDomain}}{{else}}{{.Slug}}{{end}}</small></td>
+                    <td>{{if eq .Status "active"}}<span class="status-pill status-published">Ativo</span>{{else}}<span class="status-pill status-muted">{{.Status}}</span>{{end}}</td>
+                    <td>{{.PostCount}}</td>
+                    <td>{{.PublishedCount}}</td>
+                    <td>{{.DraftCount}}</td>
+                    <td>{{.ActiveUsers}}</td>
+                    <td><strong>{{.TotalViews}}</strong></td>
                 </tr>
                 {{else}}
-                <tr><td colspan="2" class="empty-state">Sem visualizacoes</td></tr>
+                <tr><td colspan="8"><div class="empty-state empty-state-rich"><strong>Nenhum portal encontrado</strong><span>A plataforma ainda nao tem tenants para comparar.</span></div></td></tr>
                 {{end}}
             </tbody>
         </table>
-    </section>
-
-    <section class="admin-form-section">
-        <h3 class="admin-section-title">Lojas mais vistas</h3>
-        <table class="table">
-            <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>Total</th>
-                </tr>
-            </thead>
-            <tbody>
-                {{range .TopStores}}
-                <tr>
-                    <td>#{{.EntityID}}</td>
-                    <td>{{.Total}}</td>
-                </tr>
-                {{else}}
-                <tr><td colspan="2" class="empty-state">Sem visualizacoes</td></tr>
-                {{end}}
-            </tbody>
-        </table>
-    </section>
-
-    <section class="admin-form-section">
-        <h3 class="admin-section-title">Banners com mais cliques</h3>
-        <table class="table">
-            <thead>
-                <tr>
-                    <th>ID</th>
-                    <th>Total</th>
-                </tr>
-            </thead>
-            <tbody>
-                {{range .TopBanners}}
-                <tr>
-                    <td>#{{.EntityID}}</td>
-                    <td>{{.Total}}</td>
-                </tr>
-                {{else}}
-                <tr><td colspan="2" class="empty-state">Sem cliques</td></tr>
-                {{end}}
-            </tbody>
-        </table>
-    </section>
-</div>
+    </div>
+</section>
 {{end}}

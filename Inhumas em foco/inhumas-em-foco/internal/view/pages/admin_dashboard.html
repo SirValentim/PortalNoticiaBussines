@@ -1,108 +1,213 @@
 {{define "admin_content"}}
 <div class="admin-page-header">
     <div>
-        <p class="admin-kicker">Visao geral</p>
-        <h1>Dashboard</h1>
-        <p class="admin-page-lead">Acompanhe operacao editorial, inventario comercial e alertas que precisam de acao.</p>
+        <p class="admin-kicker">{{.AdminSystemDescriptor}}</p>
+        <h1>Dashboard executivo</h1>
+        <p class="admin-page-lead">{{.AdminSystemTagline}}. O portal {{.CurrentPortalName}} aparece como tenant operacional, nao como marca principal do painel.</p>
     </div>
     <div class="admin-row-actions">
-        <a href="{{.AdminPath}}/posts/new" class="btn btn-primary">Nova noticia</a>
-        <a href="{{.AdminPath}}/automation" class="btn">Revisar automacao</a>
+        {{if .CanCreatePosts}}<a href="{{.AdminPath}}/posts/new" class="btn btn-primary">Nova materia</a>{{end}}
+        {{if .CanManageTenants}}<a href="{{.AdminPath}}/tenants" class="btn">Gerenciar portais</a>{{end}}
     </div>
 </div>
 
-<div class="stats-grid">
-    <a class="stat-card stat-card-action" href="{{.AdminPath}}/posts">
-        <span>Editorial</span>
-        <h3>{{.PostCount}}</h3>
-        <p>Noticias publicadas</p>
-    </a>
-    <a class="stat-card stat-card-action" href="{{.AdminPath}}/stores">
-        <span>Comercio</span>
-        <h3>{{.StoreCount}}</h3>
-        <p>Lojas cadastradas</p>
-    </a>
-    <a class="stat-card stat-card-action" href="{{.AdminPath}}/promotions">
-        <span>Ofertas</span>
-        <h3>{{.PromoCount}}</h3>
-        <p>Promocoes ativas</p>
-    </a>
-    <a class="stat-card stat-card-action" href="{{.AdminPath}}/banners">
-        <span>Receita</span>
-        <h3>{{.BannerCount}}</h3>
-        <p>Banners ativos</p>
-    </a>
-    <a class="stat-card stat-card-action {{if gt .BannerSummary.Expiring 0}}stat-card-warning{{end}}" href="{{.AdminPath}}/banners">
-        <span>Atencao</span>
-        <h3>{{.BannerSummary.Expiring}}</h3>
-        <p>Banners vencendo</p>
-    </a>
-    <a class="stat-card stat-card-action" href="{{.AdminPath}}/metrics">
-        <span>Audiencia</span>
-        <h3>{{.BannerViews}}</h3>
-        <p>Impressoes de banner</p>
-    </a>
-    <a class="stat-card stat-card-action" href="{{.AdminPath}}/metrics">
-        <span>Interesse local</span>
-        <h3>{{.StoreViews}}</h3>
-        <p>Visualizacoes de lojas</p>
-    </a>
-    <a class="stat-card stat-card-action {{if gt .DeadJobCount 0}}stat-card-danger{{end}}" href="{{.AdminPath}}/dead-jobs">
-        <span>Operacao</span>
-        <h3>{{.DeadJobCount}}</h3>
-        <p>Jobs com falha</p>
-    </a>
+<section class="admin-form-section executive-filter-panel">
+    <form method="GET" action="{{.AdminPath}}" class="admin-filter-form">
+        <div class="form-group">
+            <label for="dashboard-period">Periodo</label>
+            <select id="dashboard-period" name="period" class="form-control">
+                <option value="today" {{if selected .Period.Key "today"}}selected{{end}}>Hoje</option>
+                <option value="7d" {{if selected .Period.Key "7d"}}selected{{end}}>Ultimos 7 dias</option>
+                <option value="30d" {{if selected .Period.Key "30d"}}selected{{end}}>Ultimos 30 dias</option>
+                <option value="month" {{if selected .Period.Key "month"}}selected{{end}}>Este mes</option>
+                <option value="custom" {{if selected .Period.Key "custom"}}selected{{end}}>Personalizado</option>
+            </select>
+        </div>
+        {{if .CanManageTenants}}
+        <div class="form-group">
+            <label for="dashboard-tenant">Portal</label>
+            <select id="dashboard-tenant" name="tenant_id" class="form-control">
+                <option value="0">Todos os portais</option>
+                {{range .Tenants}}
+                <option value="{{.ID}}" {{if eq $.SelectedTenantID .ID}}selected{{end}}>{{.Name}}</option>
+                {{end}}
+            </select>
+        </div>
+        {{end}}
+        <div class="form-group">
+            <label for="dashboard-date-from">Inicio</label>
+            <input id="dashboard-date-from" type="date" name="date_from" class="form-control" value="{{.Period.DateFrom}}">
+        </div>
+        <div class="form-group">
+            <label for="dashboard-date-to">Fim</label>
+            <input id="dashboard-date-to" type="date" name="date_to" class="form-control" value="{{.Period.DateTo}}">
+        </div>
+        <div class="admin-filter-actions">
+            <button type="submit" class="btn btn-primary">Aplicar</button>
+            <a href="{{.AdminPath}}" class="btn">Limpar</a>
+        </div>
+    </form>
+</section>
+
+<div class="executive-metrics-grid">
+    {{if .CanManageTenants}}<a class="metric-card" href="{{.AdminPath}}/tenants">{{else}}<div class="metric-card">{{end}}
+        <span class="metric-card-icon">P</span>
+        <span class="metric-label">Portais</span>
+        <strong>{{.Summary.TotalTenants}}</strong>
+        <small>Total de tenants gerenciados</small>
+    {{if .CanManageTenants}}</a>{{else}}</div>{{end}}
+    {{if .CanManagePosts}}<a class="metric-card" href="{{.AdminPath}}/posts?status=published">{{else}}<div class="metric-card">{{end}}
+        <span class="metric-card-icon">M</span>
+        <span class="metric-label">Publicadas</span>
+        <strong>{{.Summary.PublishedPosts}}</strong>
+        <small>Materias no ar</small>
+    {{if .CanManagePosts}}</a>{{else}}</div>{{end}}
+    {{if .CanManagePosts}}<a class="metric-card" href="{{.AdminPath}}/posts?status=draft">{{else}}<div class="metric-card">{{end}}
+        <span class="metric-card-icon">R</span>
+        <span class="metric-label">Rascunhos</span>
+        <strong>{{.Summary.DraftPosts}}</strong>
+        <small>Em preparacao editorial</small>
+    {{if .CanManagePosts}}</a>{{else}}</div>{{end}}
+    {{if .CanManagePosts}}<a class="metric-card" href="{{.AdminPath}}/posts?status=review">{{else}}<div class="metric-card">{{end}}
+        <span class="metric-card-icon">A</span>
+        <span class="metric-label">Revisao</span>
+        <strong>{{.Summary.ReviewPosts}}</strong>
+        <small>Aguardando aprovacao</small>
+    {{if .CanManagePosts}}</a>{{else}}</div>{{end}}
+    {{if .CanManagePosts}}<a class="metric-card" href="{{.AdminPath}}/posts?status=scheduled">{{else}}<div class="metric-card">{{end}}
+        <span class="metric-card-icon">G</span>
+        <span class="metric-label">Agendadas</span>
+        <strong>{{.Summary.ScheduledPosts}}</strong>
+        <small>Publicacao programada</small>
+    {{if .CanManagePosts}}</a>{{else}}</div>{{end}}
+    {{if .CanManageUsers}}<a class="metric-card" href="{{.AdminPath}}/users">{{else}}<div class="metric-card">{{end}}
+        <span class="metric-card-icon">U</span>
+        <span class="metric-label">Usuarios ativos</span>
+        <strong>{{.Summary.ActiveUsers}}</strong>
+        <small>{{.Summary.CreatedAccounts}} contas criadas</small>
+    {{if .CanManageUsers}}</a>{{else}}</div>{{end}}
+    {{if .CanManageSettings}}<a class="metric-card metric-card-primary" href="{{.AdminPath}}/metrics{{.Period.QueryPath}}">{{else}}<div class="metric-card metric-card-primary">{{end}}
+        <span class="metric-card-icon">V</span>
+        <span class="metric-label">Views no periodo</span>
+        <strong>{{.Summary.ViewsSelectedRange}}</strong>
+        <small>{{.Period.Label}} - {{.ViewTrend}}</small>
+    {{if .CanManageSettings}}</a>{{else}}</div>{{end}}
+    {{if .CanManageSettings}}<a class="metric-card" href="{{.AdminPath}}/metrics">{{else}}<div class="metric-card">{{end}}
+        <span class="metric-card-icon">T</span>
+        <span class="metric-label">Views totais</span>
+        <strong>{{.Summary.TotalViews}}</strong>
+        <small>{{.Summary.ViewsToday}} hoje; {{.Summary.ViewsLast7Days}} em 7 dias</small>
+    {{if .CanManageSettings}}</a>{{else}}</div>{{end}}
 </div>
 
 <div class="admin-panel-grid">
-    <section class="admin-form-section admin-commercial-panel">
+    <section class="admin-form-section">
         <div class="admin-section-header">
             <div>
-                <h3 class="admin-section-title">Inventario comercial</h3>
-                <p>Mapa rapido dos espacos vendidos, disponiveis e com pendencia de cadastro.</p>
+                <h2 class="admin-section-title">Materias mais acessadas</h2>
+                <p>Ranking real por visualizacoes registradas no periodo selecionado.</p>
             </div>
-            <a href="{{.AdminPath}}/banners" class="btn btn-sm">Gerenciar</a>
+            <a href="{{.AdminPath}}/metrics{{.Period.QueryPath}}" class="btn btn-sm">Ver metricas</a>
         </div>
-        <div class="commercial-slot-grid">
-            {{range .BannerSlots}}
-            <a class="commercial-slot-card {{if gt .ActiveCount 0}}slot-active{{else}}slot-open{{end}}" href="{{$.AdminPath}}/banners/new">
-                <span>{{.Label}}</span>
-                <strong>{{if gt .ActiveCount 0}}{{.ActiveCount}} ativo{{else}}Disponivel{{end}}</strong>
-                <small>{{.Spec}} - {{.TotalCount}} cadastro(s)</small>
+        <div class="admin-table-wrap">
+            <table class="table">
+                <thead><tr><th>ID</th><th>Materia</th><th>Portal</th><th>Views</th></tr></thead>
+                <tbody>
+                    {{if .HasTopPostViews}}
+                    {{range .TopPosts}}
+                    {{if gt .Views 0}}
+                    <tr>
+                        <td>{{friendlyID .PostID}}</td>
+                        <td>{{if $.CanManagePosts}}<a href="{{$.AdminPath}}/posts/{{.PostID}}"><strong>{{.Title}}</strong></a>{{else}}<strong>{{.Title}}</strong>{{end}}<small>{{.CategoryName}} - {{.AuthorName}}</small></td>
+                        <td>{{if .TenantName}}{{.TenantName}}{{else}}{{$.CurrentPortalName}}{{end}}</td>
+                        <td><strong>{{.Views}}</strong></td>
+                    </tr>
+                    {{end}}
+                    {{end}}
+                    {{else}}
+                    <tr><td colspan="4"><div class="empty-state empty-state-rich"><strong>Sem dados suficientes</strong><span>As materias mais acessadas aparecem quando houver visualizacoes registradas.</span></div></td></tr>
+                    {{end}}
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="admin-form-section">
+        <div class="admin-section-header">
+            <div>
+                <h2 class="admin-section-title">Ultimas publicadas</h2>
+                <p>Conteudo publicado mais recentemente na plataforma.</p>
+            </div>
+            <a href="{{.AdminPath}}/posts?status=published" class="btn btn-sm">Ver materias</a>
+        </div>
+        <div class="admin-table-wrap">
+            <table class="table">
+                <thead><tr><th>ID</th><th>Titulo</th><th>Publicado</th><th>Views</th></tr></thead>
+                <tbody>
+                    {{range .LatestPosts}}
+                    <tr>
+                        <td>{{friendlyID .PostID}}</td>
+                        <td>{{if $.CanManagePosts}}<a href="{{$.AdminPath}}/posts/{{.PostID}}"><strong>{{.Title}}</strong></a>{{else}}<strong>{{.Title}}</strong>{{end}}<small>{{if .TenantName}}{{.TenantName}}{{else}}{{$.CurrentPortalName}}{{end}}</small></td>
+                        <td>{{.PublishedAt | formatDate}}</td>
+                        <td>{{.Views}}</td>
+                    </tr>
+                    {{else}}
+                    <tr><td colspan="4"><div class="empty-state empty-state-rich"><strong>Nenhuma materia publicada</strong><span>Quando houver publicacoes, elas aparecem aqui.</span></div></td></tr>
+                    {{end}}
+                </tbody>
+            </table>
+        </div>
+    </section>
+</div>
+
+<div class="admin-panel-grid">
+    <section class="admin-form-section">
+        <div class="admin-section-header">
+            <div>
+                <h2 class="admin-section-title">Portais por volume</h2>
+                <p>Comparativo de conteudo, usuarios e audiencia por tenant.</p>
+            </div>
+            {{if .CanManageTenants}}<a href="{{.AdminPath}}/tenants" class="btn btn-sm">Portais</a>{{end}}
+        </div>
+        <div class="tenant-summary-list">
+            {{range .TenantSummaries}}
+            {{if $.CanManageTenants}}
+            <a class="tenant-summary-row" href="{{$.AdminPath}}/tenants/{{.TenantID}}">
+                <strong>{{.Name}}</strong>
+                <span>{{.PostCount}} materias</span>
+                <span>{{.ActiveUsers}} usuarios</span>
+                <span>{{.TotalViews}} views</span>
             </a>
+            {{else}}
+            <div class="tenant-summary-row">
+                <strong>{{.Name}}</strong>
+                <span>{{.PostCount}} materias</span>
+                <span>{{.ActiveUsers}} usuarios</span>
+                <span>{{.TotalViews}} views</span>
+            </div>
+            {{end}}
+            {{else}}
+            <div class="empty-state empty-state-rich"><strong>Nenhum portal cadastrado</strong><span>Cadastre portais para operar a plataforma multiportal.</span></div>
             {{end}}
         </div>
-        <div class="commercial-mini-report">
-            <span>{{.BannerSummary.Paused}} pausados</span>
-            <span>{{.BannerSummary.Draft}} rascunhos</span>
-            <span>{{.BannerSummary.WithoutImage}} sem imagem</span>
-        </div>
     </section>
+
     <section class="admin-form-section">
         <div class="admin-section-header">
             <div>
-                <h3 class="admin-section-title">Acoes rapidas</h3>
-                <p>Atalhos para publicar, vender e manter o portal atualizado.</p>
+                <h2 class="admin-section-title">Alertas operacionais</h2>
+                <p>Sinais simples para manter a rotina editorial saudavel.</p>
             </div>
         </div>
-        <div class="admin-quick-actions">
-            <a href="{{.AdminPath}}/posts/new" class="quick-action-card"><strong>Nova noticia</strong><span>Comecar pauta editorial</span></a>
-            <a href="{{.AdminPath}}/stores/new" class="quick-action-card"><strong>Nova loja</strong><span>Cadastrar negocio local</span></a>
-            <a href="{{.AdminPath}}/banners/new" class="quick-action-card"><strong>Novo banner</strong><span>Registrar campanha comercial</span></a>
-            <a href="{{.AdminPath}}/promotions/new" class="quick-action-card"><strong>Nova promocao</strong><span>Divulgar oferta ativa</span></a>
-        </div>
-    </section>
-    <section class="admin-form-section">
-        <div class="admin-section-header">
-            <div>
-                <h3 class="admin-section-title">Saude do sistema</h3>
-                <p>Indicadores operacionais basicos para publicacao segura.</p>
-            </div>
-        </div>
-        <div class="system-status-list">
-            <p><span class="status-dot status-ok"></span>Banco de dados: OK</p>
-            <p><span class="status-dot status-ok"></span>Uploads: OK</p>
-            <p><span class="status-dot status-ok"></span>Worker: OK</p>
+        <div class="operational-alerts">
+            {{range .Alerts}}
+            <a class="operational-alert alert-{{.Level}}" href="{{$.AdminPath}}{{.URL}}">
+                <strong>{{.Title}}</strong>
+                <span>{{.Message}}</span>
+            </a>
+            {{else}}
+            <div class="empty-state empty-state-rich"><strong>Nenhum alerta agora</strong><span>A operacao esta sem pendencias criticas registradas.</span></div>
+            {{end}}
         </div>
     </section>
 </div>

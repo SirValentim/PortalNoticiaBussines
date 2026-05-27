@@ -1,0 +1,164 @@
+{{define "admin_content"}}
+<div class="admin-page-header">
+    <div>
+        <p class="admin-kicker">Materia {{friendlyID .Post}}</p>
+        <h1>{{.Post.Title}}</h1>
+        <p class="admin-page-lead">Detalhe editorial, metricas, previa de conteudo e historico da materia.</p>
+    </div>
+    <div class="admin-row-actions">
+        <a href="{{.AdminPath}}/posts" class="btn">Voltar</a>
+        {{if .CanEdit}}<a href="{{.AdminPath}}/posts/{{.Post.ID}}/edit" class="btn btn-primary">Editar</a>{{end}}
+        <a href="{{.AdminPath}}/posts/{{.Post.ID}}/preview" class="btn">Preview</a>
+        {{if eq .Post.Status "published"}}<a href="{{.PublicURL}}" class="btn" target="_blank" rel="noopener">Visualizar no portal</a>{{end}}
+    </div>
+</div>
+
+<div class="executive-metrics-grid">
+    <div class="metric-card">
+        <span class="metric-card-icon">V</span>
+        <span class="metric-label">Visualizacoes</span>
+        <strong>{{.Views}}</strong>
+        <small>Metricas registradas</small>
+    </div>
+    <div class="metric-card">
+        <span class="metric-card-icon">C</span>
+        <span class="metric-label">Cliques</span>
+        <strong>{{.Clicks}}</strong>
+        <small>Tracking disponivel</small>
+    </div>
+    <div class="metric-card">
+        <span class="metric-card-icon">L</span>
+        <span class="metric-label">Leitura</span>
+        <strong>{{.Post.ReadingTimeMinutes}}</strong>
+        <small>minutos estimados</small>
+    </div>
+    <div class="metric-card metric-card-primary">
+        <span class="metric-card-icon">S</span>
+        <span class="metric-label">Status</span>
+        <strong class="metric-status-text">{{postStatusLabel .Post.Status}}</strong>
+        <small>{{.TenantName}}</small>
+    </div>
+</div>
+
+<div class="admin-panel-grid">
+    <section class="admin-form-section">
+        <div class="admin-section-header">
+            <div>
+                <h2 class="admin-section-title">Dados editoriais</h2>
+                <p>Informacoes principais da materia no CMS.</p>
+            </div>
+        </div>
+        <dl class="admin-detail-list">
+            <div><dt>ID</dt><dd>{{friendlyID .Post}}</dd></div>
+            <div><dt>Titulo</dt><dd>{{.Post.Title}}</dd></div>
+            <div><dt>Slug</dt><dd>{{.Post.Slug}}</dd></div>
+            <div><dt>Portal</dt><dd>{{.TenantName}}</dd></div>
+            <div><dt>Autor</dt><dd>{{if .Post.AuthorName}}{{.Post.AuthorName}}{{else}}-{{end}}</dd></div>
+            <div><dt>Categoria</dt><dd>{{if .Post.CategoryName}}{{.Post.CategoryName}}{{else}}-{{end}}</dd></div>
+            <div><dt>Tags</dt><dd><span class="admin-inline-badges">{{range .Post.Tags}}<span class="sponsored-badge">{{.Name}}</span>{{else}}<span class="muted">-</span>{{end}}</span></dd></div>
+            <div><dt>Status</dt><dd><span class="status-pill status-{{.Post.Status}}">{{postStatusLabel .Post.Status}}</span></dd></div>
+            <div><dt>Criada em</dt><dd>{{.Post.CreatedAt | formatDateTime}}</dd></div>
+            <div><dt>Publicada em</dt><dd>{{if .Post.PublishedAt}}{{.Post.PublishedAt | formatDateTime}}{{else}}-{{end}}</dd></div>
+            <div><dt>Atualizada em</dt><dd>{{.Post.UpdatedAt | formatDateTime}}</dd></div>
+            <div><dt>Link publico</dt><dd><a href="{{.PublicURL}}" target="_blank" rel="noopener">{{.PublicURL}}</a></dd></div>
+        </dl>
+    </section>
+
+    <section class="admin-form-section">
+        <div class="admin-section-header">
+            <div>
+                <h2 class="admin-section-title">Acoes rapidas</h2>
+                <p>Operacoes sensiveis respeitam permissoes e auditoria.</p>
+            </div>
+        </div>
+        <div class="admin-quick-actions">
+            {{if .CanEdit}}<a href="{{.AdminPath}}/posts/{{.Post.ID}}/edit" class="quick-action-card"><strong>Editar</strong><span>Abrir formulario editorial</span></a>{{end}}
+            <a href="{{.AdminPath}}/posts/{{.Post.ID}}/preview" class="quick-action-card"><strong>Preview</strong><span>Visualizacao antes da publicacao</span></a>
+            {{if eq .Post.Status "published"}}<a href="{{.PublicURL}}" target="_blank" rel="noopener" class="quick-action-card"><strong>Visualizar no portal</strong><span>Abrir link publico</span></a>{{end}}
+            {{if .CanCreate}}
+            <form method="POST" action="{{.AdminPath}}/posts/{{.Post.ID}}/duplicate" data-confirm="Duplicar esta materia como rascunho?">
+                <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+                <button type="submit" class="quick-action-card quick-action-button"><strong>Duplicar</strong><span>Criar copia em rascunho</span></button>
+            </form>
+            {{end}}
+            {{if .CanDelete}}
+            <form method="POST" action="{{.AdminPath}}/posts/{{.Post.ID}}/archive" data-confirm="Arquivar/despublicar esta materia?">
+                <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+                <button type="submit" class="quick-action-card quick-action-button"><strong>Arquivar</strong><span>Remover da publicacao ativa</span></button>
+            </form>
+            <form method="POST" action="{{.AdminPath}}/posts/{{.Post.ID}}/delete" data-confirm="Excluir esta materia permanentemente?">
+                <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+                <button type="submit" class="quick-action-card quick-action-button quick-action-danger"><strong>Excluir</strong><span>Acao definitiva</span></button>
+            </form>
+            {{end}}
+        </div>
+    </section>
+</div>
+
+<section class="admin-form-section">
+    <div class="admin-section-header">
+        <div>
+            <h2 class="admin-section-title">Previa do conteudo</h2>
+            <p>Resumo do texto armazenado no CMS.</p>
+        </div>
+    </div>
+    <article class="admin-content-preview">
+        {{if .Post.Excerpt}}<p class="admin-content-excerpt">{{.Post.Excerpt}}</p>{{end}}
+        {{if .Post.Content}}{{.Post.Content | htmlSafe}}{{else}}<div class="empty-state empty-state-rich"><strong>Sem conteudo</strong><span>Esta materia ainda nao possui corpo editorial.</span></div>{{end}}
+    </article>
+</section>
+
+<div class="admin-panel-grid">
+    <section class="admin-form-section">
+        <div class="admin-section-header">
+            <div>
+                <h2 class="admin-section-title">Historico editorial</h2>
+                <p>Revisoes mais recentes salvas pelo painel.</p>
+            </div>
+        </div>
+        <div class="admin-table-wrap">
+            <table class="table">
+                <thead><tr><th>ID</th><th>Acao</th><th>Status</th><th>Usuario</th><th>Data</th></tr></thead>
+                <tbody>
+                    {{range .Revisions}}
+                    <tr>
+                        <td>{{friendlyID .ID}}</td>
+                        <td>{{.Action}}</td>
+                        <td>{{postStatusLabel .Status}}</td>
+                        <td>{{if .UserName}}{{.UserName}}{{else}}Sistema{{end}}</td>
+                        <td>{{.CreatedAt | formatDateTime}}</td>
+                    </tr>
+                    {{else}}
+                    <tr><td colspan="5"><div class="empty-state empty-state-rich"><strong>Sem historico editorial</strong><span>As revisoes aparecem depois de edicoes ou alteracoes de status.</span></div></td></tr>
+                    {{end}}
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="admin-form-section">
+        <div class="admin-section-header">
+            <div>
+                <h2 class="admin-section-title">Auditoria</h2>
+                <p>Acoes sensiveis registradas para esta materia.</p>
+            </div>
+        </div>
+        <div class="admin-table-wrap">
+            <table class="table">
+                <thead><tr><th>ID</th><th>Acao</th><th>Data</th></tr></thead>
+                <tbody>
+                    {{range .AuditLogs}}
+                    <tr>
+                        <td>{{friendlyID .ID}}</td>
+                        <td>{{.Action}}</td>
+                        <td>{{.CreatedAt | formatDateTime}}</td>
+                    </tr>
+                    {{else}}
+                    <tr><td colspan="3"><div class="empty-state empty-state-rich"><strong>Sem auditoria</strong><span>Nenhuma acao sensivel registrada para esta materia.</span></div></td></tr>
+                    {{end}}
+                </tbody>
+            </table>
+        </div>
+    </section>
+</div>
+{{end}}

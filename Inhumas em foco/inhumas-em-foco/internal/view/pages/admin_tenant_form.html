@@ -2,7 +2,7 @@
 <div class="admin-page-header">
     <div>
         <p class="admin-kicker">Sistema</p>
-        <h1>{{.Tenant.Name}}</h1>
+        <h1>{{.Tenant.Name}} {{friendlyID .Tenant}}</h1>
     </div>
     <a href="{{.AdminPath}}/tenants" class="btn btn-sm">Voltar</a>
 </div>
@@ -118,7 +118,7 @@
                 <input type="email" name="user_email" class="form-control" placeholder="usuario@portal.com" list="tenant-user-options">
                 <datalist id="tenant-user-options">
                     {{range .AllUsers}}
-                    <option value="{{.Email}}">{{.Name}} - ID {{.ID}}</option>
+                    <option value="{{.Email}}">{{.Name}} - {{friendlyID .ID}}</option>
                     {{end}}
                 </datalist>
             </div>
@@ -146,7 +146,7 @@
         <tbody>
             {{range .TenantUsers}}
             <tr>
-                <td>{{.UserID}}</td>
+                <td>{{friendlyID .UserID}}</td>
                 <td>{{.UserName}}</td>
                 <td>{{.UserEmail}}</td>
                 <td>{{roleLabel .Role}}</td>

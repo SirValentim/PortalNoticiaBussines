@@ -116,7 +116,7 @@
         <div class="admin-form-grid">
             <div class="form-group">
                 <label for="post-meta-title">Titulo SEO</label>
-                <input id="post-meta-title" type="text" name="meta_title" class="form-control" maxlength="70" value="{{if .Post}}{{.Post.MetaTitle}}{{end}}" placeholder="Opcional; se vazio, usa o titulo da noticia">
+                <input id="post-meta-title" type="text" name="meta_title" class="form-control" maxlength="70" value="{{if .Post}}{{.Post.MetaTitle}}{{end}}" placeholder="Opcional; se vazio, usa o titulo da materia">
                 <small class="form-hint">Ideal entre 45 e 65 caracteres.</small>
             </div>
             <div class="form-group">
@@ -125,7 +125,7 @@
             </div>
             <div class="form-group">
                 <label for="post-canonical">Canonical URL</label>
-                <input id="post-canonical" type="url" name="canonical_url" class="form-control" value="{{if .Post}}{{.Post.CanonicalURL}}{{end}}" placeholder="Opcional; se vazio, usa a URL da noticia">
+                <input id="post-canonical" type="url" name="canonical_url" class="form-control" value="{{if .Post}}{{.Post.CanonicalURL}}{{end}}" placeholder="Opcional; se vazio, usa a URL da materia">
             </div>
             <div class="form-group form-group-wide">
                 <label for="post-meta-description">Descricao SEO</label>
@@ -297,7 +297,7 @@
 
     <div class="admin-form-actions">
         <a href="{{.AdminPath}}/posts" class="btn">Cancelar</a>
-        <button type="submit" class="btn btn-primary btn-lg">Salvar noticia</button>
+        <button type="submit" class="btn btn-primary btn-lg">Salvar materia</button>
     </div>
 </form>
 {{if .IsEditing}}

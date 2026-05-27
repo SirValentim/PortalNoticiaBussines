@@ -1,0 +1,86 @@
+{{define "admin_content"}}
+<div class="admin-page-header">
+    <div>
+        <p class="admin-kicker">Usuario {{friendlyID .EditUser}}</p>
+        <h1>{{.EditUser.Name}}</h1>
+        <p class="admin-page-lead">Detalhes da conta, perfil efetivo e vinculos por portal.</p>
+    </div>
+    <div class="admin-row-actions">
+        <a href="{{.AdminPath}}/users" class="btn">Voltar</a>
+        <a href="{{.AdminPath}}/users/{{.EditUser.ID}}/edit" class="btn btn-primary">Editar</a>
+    </div>
+</div>
+
+<div class="admin-panel-grid">
+    <section class="admin-form-section">
+        <div class="admin-section-header">
+            <div>
+                <h2 class="admin-section-title">Conta</h2>
+                <p>Dados principais da conta administrativa.</p>
+            </div>
+        </div>
+        <dl class="admin-detail-list">
+            <div><dt>ID</dt><dd>{{friendlyID .EditUser}}</dd></div>
+            <div><dt>Nome</dt><dd>{{.EditUser.Name}}</dd></div>
+            <div><dt>Email</dt><dd>{{.EditUser.Email}}</dd></div>
+            <div><dt>Perfil atual</dt><dd>{{roleLabel .EditUser.Role}}</dd></div>
+            <div><dt>Status</dt><dd>{{if .EditUser.Active}}<span class="status-pill status-published">Ativo</span>{{else}}<span class="status-pill status-muted">Inativo</span>{{end}}</dd></div>
+            <div><dt>Criada em</dt><dd>{{.EditUser.CreatedAt | formatDateTime}}</dd></div>
+        </dl>
+    </section>
+
+    <section class="admin-form-section">
+        <div class="admin-section-header">
+            <div>
+                <h2 class="admin-section-title">Acoes</h2>
+                <p>Alteracoes criticas sao auditadas.</p>
+            </div>
+        </div>
+        <div class="admin-quick-actions">
+            <a href="{{.AdminPath}}/users/{{.EditUser.ID}}/edit" class="quick-action-card"><strong>Editar</strong><span>Alterar dados e perfil</span></a>
+            {{if .EditUser.Active}}
+            <form method="POST" action="{{.AdminPath}}/users/{{.EditUser.ID}}/deactivate" data-confirm="Desativar esta conta?">
+                <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+                <button type="submit" class="quick-action-card quick-action-button"><strong>Desativar</strong><span>Bloquear acesso deste vinculo</span></button>
+            </form>
+            {{else}}
+            <form method="POST" action="{{.AdminPath}}/users/{{.EditUser.ID}}/activate">
+                <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+                <button type="submit" class="quick-action-card quick-action-button"><strong>Ativar</strong><span>Restaurar acesso deste vinculo</span></button>
+            </form>
+            {{end}}
+            <form method="POST" action="{{.AdminPath}}/users/{{.EditUser.ID}}/delete" data-confirm="Excluir esta conta? A conta sera desativada e preservada para auditoria.">
+                <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+                <button type="submit" class="quick-action-card quick-action-button quick-action-danger"><strong>Excluir</strong><span>Soft delete seguro</span></button>
+            </form>
+        </div>
+    </section>
+</div>
+
+<section class="admin-form-section">
+    <div class="admin-section-header">
+        <div>
+            <h2 class="admin-section-title">Vinculos por portal</h2>
+            <p>Escopo de acesso efetivo da conta.</p>
+        </div>
+    </div>
+    <div class="admin-table-wrap">
+        <table class="table">
+            <thead><tr><th>ID</th><th>Portal</th><th>Usuario</th><th>Perfil</th><th>Status</th></tr></thead>
+            <tbody>
+                {{range .TenantLinks}}
+                <tr>
+                    <td>{{friendlyID .ID}}</td>
+                    <td>{{friendlyID .TenantID}}</td>
+                    <td>{{.UserEmail}}</td>
+                    <td>{{roleLabel .Role}}</td>
+                    <td>{{if .Active}}<span class="status-pill status-published">Ativo</span>{{else}}<span class="status-pill status-muted">Inativo</span>{{end}}</td>
+                </tr>
+                {{else}}
+                <tr><td colspan="5"><div class="empty-state empty-state-rich"><strong>Nenhum vinculo encontrado</strong><span>Este usuario nao possui vinculo ativo no portal atual.</span></div></td></tr>
+                {{end}}
+            </tbody>
+        </table>
+    </div>
+</section>
+{{end}}

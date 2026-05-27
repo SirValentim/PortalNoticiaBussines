@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{.Title}} | Painel {{.Branding.PortalName}}</title>
+    <title>{{.Title}} | {{.AdminSystemName}}</title>
     <link rel="stylesheet" href="/static/css/style.css?v=20260526-admin-experience-v3">
     <style>
         :root {
@@ -18,32 +18,45 @@
     <div class="admin-layout">
         <aside class="admin-sidebar" id="admin-sidebar" aria-label="Menu administrativo">
             <div class="admin-brand">
-                <span class="admin-brand-mark">{{if .Branding.PortalName}}{{printf "%.2s" .Branding.PortalName}}{{else}}IF{{end}}</span>
+                <span class="admin-brand-mark">NC</span>
                 <div>
-                    <strong>{{if .Branding.PortalName}}{{.Branding.PortalName}}{{else}}Inhumas em Foco{{end}}</strong>
-                    <small>CMS editorial</small>
+                    <strong>{{.AdminSystemName}}</strong>
+                    <small>{{.AdminSystemDescriptor}}</small>
                 </div>
             </div>
             <nav aria-label="Navegacao administrativa">
                 <div class="admin-nav-group">
-                    <span class="admin-nav-label">Operacao</span>
+                    <span class="admin-nav-label">Plataforma</span>
                     <a href="{{.AdminPath}}" {{if eq .Active "dashboard"}}class="active" aria-current="page"{{end}}>Dashboard</a>
-                    <a href="{{.AdminPath}}/metrics" {{if eq .Active "metrics"}}class="active" aria-current="page"{{end}}>Metricas</a>
-                    <a href="{{.AdminPath}}/dead-jobs" {{if eq .Active "dead_jobs"}}class="active" aria-current="page"{{end}}>Jobs com falha</a>
+                    {{if .CanManageTenants}}
+                    <a href="{{.AdminPath}}/tenants" {{if eq .Active "tenants"}}class="active" aria-current="page"{{end}}>Portais</a>
+                    {{end}}
                 </div>
+                {{if .CanManagePosts}}
                 <div class="admin-nav-group">
-                    <span class="admin-nav-label">Editorial</span>
-                    <a href="{{.AdminPath}}/posts" {{if eq .Active "posts"}}class="active" aria-current="page"{{end}}>Noticias</a>
-                    <a href="{{.AdminPath}}/automation" {{if eq .Active "automation"}}class="active" aria-current="page"{{end}}>Automacao</a>
+                    <span class="admin-nav-label">Conteudo</span>
+                    <a href="{{.AdminPath}}/posts" {{if eq .Active "posts"}}class="active" aria-current="page"{{end}}>Materias</a>
+                    {{if .CanManageEditorialTaxonomy}}
                     <a href="{{.AdminPath}}/categories" {{if eq .Active "categories"}}class="active" aria-current="page"{{end}}>Categorias</a>
                     <a href="{{.AdminPath}}/tags" {{if eq .Active "tags"}}class="active" aria-current="page"{{end}}>Tags</a>
-                    {{if .MediaFeatureEnabled}}
+                    {{end}}
+                    {{if and .CanManageMedia .MediaFeatureEnabled}}
                     <a href="{{.AdminPath}}/media" {{if eq .Active "media"}}class="active" aria-current="page"{{end}}>Midia</a>
                     {{end}}
                 </div>
-                {{if .CommercialFeatureEnabled}}
+                {{end}}
                 <div class="admin-nav-group">
-                    <span class="admin-nav-label">Comercial local</span>
+                    <span class="admin-nav-label">Inteligencia</span>
+                    {{if .CanManageSettings}}
+                    <a href="{{.AdminPath}}/metrics" {{if eq .Active "metrics"}}class="active" aria-current="page"{{end}}>Metricas</a>
+                    {{end}}
+                    {{if .CanManageAutomation}}
+                    <a href="{{.AdminPath}}/automation" {{if eq .Active "automation"}}class="active" aria-current="page"{{end}}>Automacao</a>
+                    {{end}}
+                </div>
+                {{if and .CanManageCommercial .CommercialFeatureEnabled}}
+                <div class="admin-nav-group admin-nav-subgroup">
+                    <span class="admin-nav-label">Comercial</span>
                     <a href="{{.AdminPath}}/banners" {{if eq .Active "banners"}}class="active" aria-current="page"{{end}}>Banners</a>
                     <a href="{{.AdminPath}}/stores" {{if eq .Active "stores"}}class="active" aria-current="page"{{end}}>Lojas</a>
                     <a href="{{.AdminPath}}/promotions" {{if eq .Active "promotions"}}class="active" aria-current="page"{{end}}>Promocoes</a>
@@ -55,12 +68,16 @@
                 {{end}}
                 <div class="admin-nav-group">
                     <span class="admin-nav-label">Sistema</span>
+                    {{if .CanManageUsers}}
                     <a href="{{.AdminPath}}/users" {{if eq .Active "users"}}class="active" aria-current="page"{{end}}>Usuarios</a>
-                    {{if .CanManageTenants}}
-                    <a href="{{.AdminPath}}/tenants" {{if eq .Active "tenants"}}class="active" aria-current="page"{{end}}>Portais</a>
                     {{end}}
+                    {{if .CanManageSettings}}
                     <a href="{{.AdminPath}}/audit" {{if eq .Active "audit"}}class="active" aria-current="page"{{end}}>Auditoria</a>
+                    <a href="{{.AdminPath}}/dead-jobs" {{if eq .Active "dead_jobs"}}class="active" aria-current="page"{{end}}>Jobs com falha</a>
                     <a href="{{.AdminPath}}/settings" {{if eq .Active "settings"}}class="active" aria-current="page"{{end}}>Configuracoes</a>
+                    {{end}}
+                    <a href="{{.AdminPath}}/profile" {{if eq .Active "profile"}}class="active" aria-current="page"{{end}}>Perfil</a>
+                    <a href="/logout">Sair</a>
                 </div>
             </nav>
         </aside>
@@ -69,10 +86,10 @@
                 <button type="button" class="admin-menu-button" aria-label="Abrir menu" aria-controls="admin-sidebar" aria-expanded="false" data-admin-menu>Menu</button>
                 <div class="admin-topbar-title">
                     <span>{{.Title}}</span>
-                    {{if .User}}<small>{{.User.Name}} - {{.User.Role}}</small>{{end}}
+                    {{if .User}}<small>{{.CurrentPortalName}} - {{.User.Name}} - {{.User.Role}}</small>{{else}}<small>{{.AdminSystemTagline}}</small>{{end}}
                 </div>
                 <div class="admin-topbar-actions">
-                    <a class="admin-icon-link" href="{{.AdminPath}}/posts/new" title="Nova noticia" aria-label="Nova noticia">+</a>
+                    {{if .CanCreatePosts}}<a class="admin-icon-link" href="{{.AdminPath}}/posts/new" title="Nova materia" aria-label="Nova materia">+</a>{{end}}
                     <a class="admin-topbar-link" href="/">Ver site</a>
                     <a class="admin-topbar-link" href="/logout">Sair</a>
                 </div>
@@ -157,6 +174,17 @@
         document.addEventListener('keydown', function (event) {
             if (event.key === 'Escape' && !modal.hidden) closeConfirm();
             if (event.key === 'Escape' && document.body.classList.contains('admin-nav-open')) toggleMenu(false);
+            if ((event.key === 'Enter' || event.key === ' ') && event.target && event.target.matches('[data-row-href]')) {
+                event.preventDefault();
+                window.location.href = event.target.getAttribute('data-row-href');
+            }
+        });
+
+        document.addEventListener('click', function (event) {
+            var row = event.target.closest('[data-row-href]');
+            if (!row) return;
+            if (event.target.closest('a, button, input, select, textarea, form, label')) return;
+            window.location.href = row.getAttribute('data-row-href');
         });
 
         function toggleMenu(force) {

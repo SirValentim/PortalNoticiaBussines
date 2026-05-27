@@ -20,7 +20,7 @@
     <tbody>
         {{range .Jobs}}
         <tr>
-            <td>#{{.ID}}</td>
+            <td>{{friendlyID .ID}}</td>
             <td>{{.Type}}</td>
             <td>{{.Attempts}}/{{.MaxAttempts}}</td>
             <td>{{.Error}}</td>

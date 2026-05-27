@@ -2,10 +2,10 @@
 <div class="admin-page-header">
     <div>
         <p class="admin-kicker">Editorial</p>
-        <h1>Noticias</h1>
-        <p class="admin-page-lead">Gerencie pauta, revisao, publicacao e destaque das materias do portal.</p>
+        <h1>Materias</h1>
+        <p class="admin-page-lead">Gerencie pauta, revisao, publicacao e destaque das materias por portal.</p>
     </div>
-    {{if .CanCreate}}<a href="{{.AdminPath}}/posts/new" class="btn btn-primary">Nova noticia</a>{{end}}
+    {{if .CanCreate}}<a href="{{.AdminPath}}/posts/new" class="btn btn-primary">Nova materia</a>{{end}}
 </div>
 
 <section class="admin-form-section editorial-filter-panel">
@@ -60,9 +60,10 @@
 <section class="admin-form-section">
     <div class="admin-table-wrap">
         <table class="table editorial-table">
-            <caption class="sr-only">Lista de noticias cadastradas no CMS</caption>
+            <caption class="sr-only">Lista de materias cadastradas no CMS</caption>
             <thead>
                 <tr>
+                    <th>ID</th>
                     <th>Titulo</th>
                     <th>Categoria</th>
                     <th>Status</th>
@@ -72,9 +73,10 @@
             </thead>
             <tbody>
                 {{range .Posts}}
-                <tr>
+                <tr class="clickable-row" data-row-href="{{$.AdminPath}}/posts/{{.ID}}" tabindex="0" role="link" aria-label="Ver detalhes da materia {{.Title}}">
+                    <td>{{friendlyID .ID}}</td>
                     <td>
-                        <strong>{{.Title}}</strong>
+                        <a href="{{$.AdminPath}}/posts/{{.ID}}"><strong>{{.Title}}</strong></a>
                         <small>{{.Excerpt}}</small>
                         <span class="admin-inline-badges">
                             {{if .IsFeatured}}<span class="sponsored-badge sponsored-badge-success">Destaque</span>{{end}}
@@ -124,11 +126,11 @@
                 </tr>
                 {{else}}
                 <tr>
-                    <td colspan="5">
+                    <td colspan="6">
                         <div class="empty-state empty-state-rich">
-                            <strong>Nenhuma noticia encontrada</strong>
+                            <strong>Nenhuma materia encontrada</strong>
                             <span>Crie a primeira pauta ou limpe os filtros para voltar a ver todo o acervo editorial.</span>
-                            {{if $.CanCreate}}<a href="{{$.AdminPath}}/posts/new" class="btn btn-primary">Criar noticia</a>{{end}}
+                            {{if $.CanCreate}}<a href="{{$.AdminPath}}/posts/new" class="btn btn-primary">Criar materia</a>{{end}}
                         </div>
                     </td>
                 </tr>

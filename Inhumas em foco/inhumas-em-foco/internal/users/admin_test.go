@@ -11,6 +11,8 @@ import (
 type fakeAdminRepo struct {
 	created         *model.User
 	updated         *model.User
+	deletedID       int64
+	superAdminCount int
 	passwordUpdates map[int64]string
 }
 
@@ -33,6 +35,18 @@ func (r *fakeAdminRepo) UserUpdatePassword(ctx context.Context, id int64, hash s
 	}
 	r.passwordUpdates[id] = hash
 	return nil
+}
+
+func (r *fakeAdminRepo) UserSoftDelete(ctx context.Context, id int64) error {
+	r.deletedID = id
+	return nil
+}
+
+func (r *fakeAdminRepo) UserActiveSuperAdminCount(ctx context.Context) (int, error) {
+	if r.superAdminCount == 0 {
+		return 2, nil
+	}
+	return r.superAdminCount, nil
 }
 
 func TestAdminServiceCreateNormalizesAndHashesUser(t *testing.T) {
@@ -82,6 +96,38 @@ func TestAdminServiceUpdateBlocksSelfDeactivationAndRoleRemoval(t *testing.T) {
 	}
 	if repo.updated != nil {
 		t.Fatalf("blocked update should not persist: %#v", repo.updated)
+	}
+}
+
+func TestAdminServiceDeleteBlocksSelfAndLastSuperAdmin(t *testing.T) {
+	repo := &fakeAdminRepo{superAdminCount: 1}
+	svc := NewAdminService(repo, fakeHasher{}, &config.Config{DefaultBcryptCost: 4})
+	current := &model.User{ID: 1, Role: model.RoleSuperAdmin, Active: true}
+
+	if msg := svc.Delete(context.Background(), current, current); msg != "Voce nao pode excluir sua propria conta" {
+		t.Fatalf("self delete msg = %q", msg)
+	}
+
+	target := &model.User{ID: 2, Role: model.RoleSuperAdmin, Active: true}
+	if msg := svc.Delete(context.Background(), current, target); msg != "Esta conta nao pode ser excluida porque e o ultimo Super Admin." {
+		t.Fatalf("last super admin msg = %q", msg)
+	}
+	if repo.deletedID != 0 {
+		t.Fatalf("blocked delete should not persist: %d", repo.deletedID)
+	}
+}
+
+func TestAdminServiceDeleteSoftDeletesAllowedUser(t *testing.T) {
+	repo := &fakeAdminRepo{superAdminCount: 2}
+	svc := NewAdminService(repo, fakeHasher{}, &config.Config{DefaultBcryptCost: 4})
+	current := &model.User{ID: 1, Role: model.RoleSuperAdmin, Active: true}
+	target := &model.User{ID: 2, Role: model.RoleEditor, Active: true}
+
+	if msg := svc.Delete(context.Background(), current, target); msg != "" {
+		t.Fatalf("Delete msg = %q", msg)
+	}
+	if repo.deletedID != 2 || target.Active {
+		t.Fatalf("delete not persisted correctly: id=%d target=%#v", repo.deletedID, target)
 	}
 }
 

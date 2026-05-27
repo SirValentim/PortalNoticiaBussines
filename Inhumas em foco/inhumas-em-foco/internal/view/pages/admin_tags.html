@@ -10,6 +10,7 @@
 <table class="table">
     <thead>
         <tr>
+            <th>ID</th>
             <th>Tag</th>
             <th>Slug</th>
             <th>Status</th>
@@ -19,6 +20,7 @@
     <tbody>
         {{range .Tags}}
         <tr>
+            <td>{{friendlyID .ID}}</td>
             <td>
                 <strong>{{.Name}}</strong>
                 {{if .Description}}<br><small>{{.Description}}</small>{{end}}
@@ -34,7 +36,7 @@
             </td>
         </tr>
         {{else}}
-        <tr><td colspan="4" class="empty-state">Nenhuma tag cadastrada</td></tr>
+        <tr><td colspan="5" class="empty-state">Nenhuma tag cadastrada</td></tr>
         {{end}}
     </tbody>
 </table>

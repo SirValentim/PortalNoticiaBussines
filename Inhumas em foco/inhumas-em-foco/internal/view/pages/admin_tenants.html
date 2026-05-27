@@ -1,67 +1,104 @@
 {{define "admin_content"}}
 <div class="admin-page-header">
     <div>
-        <p class="admin-kicker">Sistema</p>
+        <p class="admin-kicker">Plataforma multiportal</p>
         <h1>Portais</h1>
+        <p class="admin-page-lead">Gerencie tenants, dominios, usuarios vinculados, features e volume editorial. Inhumas em Foco e apenas o primeiro portal cadastrado.</p>
     </div>
 </div>
 
 <section class="admin-form-section">
-    <h3 class="admin-section-title">Novo Portal</h3>
+    <div class="admin-section-header">
+        <div>
+            <h2 class="admin-section-title">Novo portal</h2>
+            <p>Crie um tenant para operar outro portal no mesmo core do {{.AdminSystemName}}.</p>
+        </div>
+    </div>
     <form class="admin-form" method="POST" action="{{.AdminPath}}/tenants">
         <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
         <div class="admin-form-grid admin-form-grid-three">
             <div class="form-group">
-                <label>Nome</label>
-                <input type="text" name="name" class="form-control" required>
+                <label for="tenant-name">Nome</label>
+                <input id="tenant-name" type="text" name="name" class="form-control" required>
             </div>
             <div class="form-group">
-                <label>Slug</label>
-                <input type="text" name="slug" class="form-control" required>
+                <label for="tenant-slug">Slug</label>
+                <input id="tenant-slug" type="text" name="slug" class="form-control" required>
             </div>
             <div class="form-group">
-                <label>Dominio principal</label>
-                <input type="text" name="primary_domain" class="form-control" placeholder="portal.com.br">
+                <label for="tenant-domain">Dominio principal</label>
+                <input id="tenant-domain" type="text" name="primary_domain" class="form-control" placeholder="portal.com.br">
             </div>
         </div>
         <div class="admin-form-grid">
             <div class="form-group">
-                <label>Status</label>
-                <select name="status" class="form-control">
+                <label for="tenant-status">Status</label>
+                <select id="tenant-status" name="status" class="form-control">
                     <option value="active">Ativo</option>
                     <option value="paused">Pausado</option>
                     <option value="inactive">Inativo</option>
                 </select>
             </div>
         </div>
-        <button type="submit" class="btn btn-primary">Criar Portal</button>
+        <button type="submit" class="btn btn-primary">Criar portal</button>
     </form>
 </section>
 
-<div class="admin-table-wrap">
-    <table class="table">
-        <thead>
-            <tr>
-                <th>Portal</th>
-                <th>Slug</th>
-                <th>Dominio</th>
-                <th>Status</th>
-                <th>Acoes</th>
-            </tr>
-        </thead>
-        <tbody>
-            {{range .Tenants}}
-            <tr>
-                <td><strong>{{.Name}}</strong></td>
-                <td>{{.Slug}}</td>
-                <td>{{if .PrimaryDomain}}{{.PrimaryDomain}}{{else}}<span class="muted">-</span>{{end}}</td>
-                <td>{{if eq .Status "active"}}<span class="status-pill status-published">Ativo</span>{{else}}<span class="status-pill status-muted">{{.Status}}</span>{{end}}</td>
-                <td><a href="{{$.AdminPath}}/tenants/{{.ID}}/edit" class="btn btn-sm btn-primary">Gerenciar</a></td>
-            </tr>
-            {{else}}
-            <tr><td colspan="5" class="empty-state">Nenhum portal cadastrado</td></tr>
-            {{end}}
-        </tbody>
-    </table>
-</div>
+<section class="admin-form-section">
+    <div class="admin-section-header">
+        <div>
+            <h2 class="admin-section-title">Portais cadastrados</h2>
+            <p>Resumo operacional de cada tenant da plataforma.</p>
+        </div>
+    </div>
+    <div class="admin-table-wrap">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Portal</th>
+                    <th>Dominio</th>
+                    <th>Status</th>
+                    <th>Materias</th>
+                    <th>Usuarios</th>
+                    <th>Features</th>
+                    <th>Atualizado</th>
+                    <th>Acoes</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{range .TenantSummaries}}
+                <tr>
+                    <td>{{friendlyID .TenantID}}</td>
+                    <td><strong>{{.Name}}</strong><small>{{.Slug}}</small></td>
+                    <td>{{if .PrimaryDomain}}{{.PrimaryDomain}}{{else}}<span class="muted">-</span>{{end}}</td>
+                    <td>{{if eq .Status "active"}}<span class="status-pill status-published">Ativo</span>{{else}}<span class="status-pill status-muted">{{.Status}}</span>{{end}}</td>
+                    <td>{{.PostCount}} <small>{{.PublishedCount}} publicadas</small></td>
+                    <td>{{.ActiveUsers}}</td>
+                    <td>
+                        <span class="admin-inline-badges">
+                            {{range .FeatureNames}}<span class="sponsored-badge sponsored-badge-success">{{.}}</span>{{else}}<span class="muted">-</span>{{end}}
+                        </span>
+                    </td>
+                    <td>{{.UpdatedAt | formatDate}}</td>
+                    <td class="admin-row-actions">
+                        <a href="{{$.AdminPath}}/tenants/{{.TenantID}}" class="btn btn-sm btn-primary">Detalhes</a>
+                        <a href="{{$.AdminPath}}/tenants/{{.TenantID}}/edit" class="btn btn-sm">Editar</a>
+                        <a href="{{$.AdminPath}}/tenants/{{.TenantID}}#tenant-users" class="btn btn-sm">Usuarios</a>
+                        <a href="{{$.AdminPath}}/metrics?tenant_id={{.TenantID}}" class="btn btn-sm">Metricas</a>
+                        {{if ne .Status "inactive"}}
+                        <form method="POST" action="{{$.AdminPath}}/tenants/{{.TenantID}}/deactivate" data-confirm="Desativar este portal? O conteudo sera preservado.">
+                            <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+                            <button type="submit" class="btn btn-sm btn-danger">Desativar</button>
+                        </form>
+                        {{end}}
+                    </td>
+                </tr>
+                {{else}}
+                <tr><td colspan="9"><div class="empty-state empty-state-rich"><strong>Nenhum portal cadastrado</strong><span>Crie o primeiro tenant para iniciar a operacao multiportal.</span></div></td></tr>
+                {{end}}
+            </tbody>
+        </table>
+    </div>
+</section>
 {{end}}

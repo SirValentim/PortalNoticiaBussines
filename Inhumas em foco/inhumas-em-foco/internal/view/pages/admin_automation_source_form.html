@@ -31,7 +31,7 @@
             <div class="form-group">
                 <label>Categoria padrao</label>
                 <select name="default_category_id" class="form-control">
-                    <option value="">Noticias</option>
+                    <option value="">Materias</option>
                     {{range .Categories}}
                     <option value="{{.ID}}" {{if idPtrEq $.Source.DefaultCategoryID .ID}}selected{{end}}>{{.Name}}</option>
                     {{end}}

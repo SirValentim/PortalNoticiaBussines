@@ -100,6 +100,57 @@ func (h *Handler) AdminPostNew(w http.ResponseWriter, r *http.Request) {
 	h.Render(w, r, "admin_post_form.html", h.adminPostFormData(r.Context(), user, nil, ""))
 }
 
+func (h *Handler) AdminPostDetail(w http.ResponseWriter, r *http.Request) {
+	user, ok := h.requireCurrentUser(w, r)
+	if !ok {
+		return
+	}
+	id, _ := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	post, err := h.repo.PostGetByID(r.Context(), id)
+	if err != nil || post == nil {
+		http.NotFound(w, r)
+		return
+	}
+	if !h.canViewPostDetail(user, post) {
+		http.Error(w, "Acesso negado", http.StatusForbidden)
+		return
+	}
+	revisions, _ := h.repo.PostRevisionList(r.Context(), post.ID, 12)
+	auditLogs, _ := h.repo.AuditLogList(r.Context(), "post", post.ID, 12)
+	views, _ := h.repo.MetricCountByEntity(r.Context(), "post_view", "post", post.ID)
+	clicks, _ := h.repo.MetricCountByEntity(r.Context(), "post_click", "post", post.ID)
+	shareClicks, _ := h.repo.MetricCountByEntity(r.Context(), "share_click", "post", post.ID)
+	tenant, _ := h.repo.TenantGetByID(r.Context(), post.TenantID)
+	tenantName := h.branding(r.Context()).PortalName
+	if tenant != nil && tenant.Name != "" {
+		tenantName = tenant.Name
+	}
+	h.Render(w, r, "admin_post_detail.html", map[string]any{
+		"Title":      "Materia",
+		"Active":     "posts",
+		"Post":       post,
+		"TenantName": tenantName,
+		"Views":      views,
+		"Clicks":     clicks + shareClicks,
+		"Revisions":  revisions,
+		"AuditLogs":  auditLogs,
+		"PublicURL":  h.siteURL(r.Context()) + "/noticia/" + post.Slug,
+		"CanEdit":    h.postSvc.CanEdit(user, post),
+		"CanPublish": h.authSvc.HasPermission(user, auth.PermPostsPublish),
+		"CanDelete":  h.authSvc.HasPermission(user, auth.PermPostsDelete),
+		"CanCreate":  h.authSvc.HasPermission(user, auth.PermPostsCreate),
+	})
+}
+
+func (h *Handler) canViewPostDetail(user *model.User, post *model.Post) bool {
+	if h.postSvc.CanEdit(user, post) {
+		return true
+	}
+	return h.authSvc.HasPermission(user, auth.PermPostsApprove) ||
+		h.authSvc.HasPermission(user, auth.PermPostsPublish) ||
+		h.authSvc.HasPermission(user, auth.PermPostsDelete)
+}
+
 func (h *Handler) AdminPostCreate(w http.ResponseWriter, r *http.Request) {
 	user, ok := h.requirePermission(w, r, auth.PermPostsCreate)
 	if !ok {
@@ -590,6 +641,68 @@ func (h *Handler) AdminPostDelete(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, h.cfg.AdminPathPrefix+"/posts", http.StatusSeeOther)
 }
 
+func (h *Handler) AdminPostArchive(w http.ResponseWriter, r *http.Request) {
+	user, ok := h.requirePermission(w, r, auth.PermPostsDelete)
+	if !ok {
+		return
+	}
+	id, _ := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	post, err := h.repo.PostGetByID(r.Context(), id)
+	if err != nil || post == nil {
+		http.NotFound(w, r)
+		return
+	}
+	if err := h.repo.PostUpdateStatus(r.Context(), id, model.StatusArchived); err != nil {
+		http.Error(w, "Nao foi possivel arquivar a materia", http.StatusInternalServerError)
+		return
+	}
+	h.auditAdminAction(r, user, "archive", "post", auditEntityID(id), map[string]any{
+		"title": post.Title,
+		"from":  post.Status,
+		"to":    model.StatusArchived,
+	})
+	post.Status = model.StatusArchived
+	h.createPostRevision(r, user, post, "archive")
+	http.Redirect(w, r, h.cfg.AdminPathPrefix+"/posts/"+strconv.FormatInt(id, 10), http.StatusSeeOther)
+}
+
+func (h *Handler) AdminPostDuplicate(w http.ResponseWriter, r *http.Request) {
+	user, ok := h.requirePermission(w, r, auth.PermPostsCreate)
+	if !ok {
+		return
+	}
+	id, _ := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	post, err := h.repo.PostGetByID(r.Context(), id)
+	if err != nil || post == nil {
+		http.NotFound(w, r)
+		return
+	}
+	nowTitle := strings.TrimSpace(post.Title + " (copia)")
+	duplicate := *post
+	duplicate.ID = 0
+	duplicate.Title = nowTitle
+	duplicate.Status = model.StatusDraft
+	duplicate.PublishedAt = nil
+	duplicate.PublishAt = nil
+	duplicate.AuthorID = &user.ID
+	duplicate.IsFeatured = false
+	duplicate.IsPinned = false
+	duplicate.Slug = slug.Unique(nowTitle, func(candidate string) bool {
+		return h.repo.PostSlugExists(r.Context(), candidate)
+	})
+	if err := h.repo.PostCreate(r.Context(), &duplicate); err != nil {
+		http.Error(w, "Nao foi possivel duplicar a materia", http.StatusInternalServerError)
+		return
+	}
+	_ = h.repo.PostSetTags(r.Context(), duplicate.ID, tagIDs(post.Tags))
+	h.auditAdminAction(r, user, "duplicate", "post", auditEntityID(duplicate.ID), map[string]any{
+		"source_id": post.ID,
+		"title":     duplicate.Title,
+	})
+	h.createPostRevision(r, user, &duplicate, "duplicate")
+	http.Redirect(w, r, h.cfg.AdminPathPrefix+"/posts/"+strconv.FormatInt(duplicate.ID, 10), http.StatusSeeOther)
+}
+
 func (h *Handler) AdminPostSubmitReview(w http.ResponseWriter, r *http.Request) {
 	user, ok := h.requireCurrentUser(w, r)
 	if !ok {
@@ -606,7 +719,7 @@ func (h *Handler) AdminPostSubmitReview(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	if err := h.repo.PostUpdateStatus(r.Context(), id, model.StatusReview); err != nil {
-		h.Render(w, r, "admin_posts.html", map[string]any{"Error": "Erro ao enviar noticia para revisao"})
+		h.Render(w, r, "admin_posts.html", map[string]any{"Error": "Erro ao enviar materia para revisao"})
 		return
 	}
 	h.auditAdminAction(r, user, "submit_review", "post", auditEntityID(id), map[string]any{
@@ -639,7 +752,7 @@ func (h *Handler) AdminPostApprove(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.repo.PostUpdateStatus(r.Context(), id, model.StatusApproved); err != nil {
-		h.Render(w, r, "admin_posts.html", map[string]any{"Error": "Erro ao aprovar noticia"})
+		h.Render(w, r, "admin_posts.html", map[string]any{"Error": "Erro ao aprovar materia"})
 		return
 	}
 	h.auditAdminAction(r, user, "approve", "post", auditEntityID(id), map[string]any{
@@ -682,7 +795,7 @@ func (h *Handler) AdminPostReject(w http.ResponseWriter, r *http.Request) {
 		responsible = user.Name
 	}
 	if err := h.repo.PostUpdateStatusAndEditorialNotes(r.Context(), id, model.StatusDraft, notes, responsible); err != nil {
-		h.Render(w, r, "admin_posts.html", map[string]any{"Error": "Erro ao reprovar noticia"})
+		h.Render(w, r, "admin_posts.html", map[string]any{"Error": "Erro ao reprovar materia"})
 		return
 	}
 	h.auditAdminAction(r, user, "reject", "post", auditEntityID(id), map[string]any{

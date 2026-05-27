@@ -571,6 +571,58 @@ type MetricEntityTotal struct {
 	Total      int
 }
 
+type DashboardSummary struct {
+	TotalTenants       int
+	PublishedPosts     int
+	DraftPosts         int
+	ReviewPosts        int
+	ScheduledPosts     int
+	ActiveUsers        int
+	CreatedAccounts    int
+	TotalViews         int
+	ViewsToday         int
+	ViewsLast7Days     int
+	ViewsSelectedRange int
+}
+
+type PostMetricSummary struct {
+	PostID             int64
+	TenantID           int64
+	TenantName         string
+	Title              string
+	Slug               string
+	Status             PostStatus
+	CategoryName       string
+	AuthorName         string
+	PublishedAt        *time.Time
+	UpdatedAt          time.Time
+	Views              int
+	Clicks             int
+	ReadingTimeMinutes int
+}
+
+type TenantMetricSummary struct {
+	TenantID       int64
+	Name           string
+	Slug           string
+	Status         string
+	PrimaryDomain  string
+	PostCount      int
+	PublishedCount int
+	DraftCount     int
+	ActiveUsers    int
+	TotalViews     int
+	FeatureNames   []string
+	UpdatedAt      time.Time
+}
+
+type OperationalAlert struct {
+	Level   string
+	Title   string
+	Message string
+	URL     string
+}
+
 type SitemapEntry struct {
 	Path    string
 	LastMod time.Time

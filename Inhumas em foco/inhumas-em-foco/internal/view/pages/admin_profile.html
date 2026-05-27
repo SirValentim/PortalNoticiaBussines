@@ -1,0 +1,43 @@
+{{define "admin_content"}}
+<div class="admin-page-header">
+    <div>
+        <p class="admin-kicker">Conta</p>
+        <h1>Perfil</h1>
+        <p class="admin-page-lead">Dados da sua conta administrativa no {{.AdminSystemName}}.</p>
+    </div>
+</div>
+
+<div class="admin-panel-grid">
+    <section class="admin-form-section">
+        <div class="admin-section-header">
+            <div>
+                <h2 class="admin-section-title">Identidade</h2>
+                <p>Perfil efetivo para o portal atual.</p>
+            </div>
+        </div>
+        <dl class="admin-detail-list">
+            <div><dt>ID</dt><dd>{{friendlyID .ProfileUser}}</dd></div>
+            <div><dt>Nome</dt><dd>{{.ProfileUser.Name}}</dd></div>
+            <div><dt>Email</dt><dd>{{.ProfileUser.Email}}</dd></div>
+            <div><dt>Perfil</dt><dd>{{roleLabel .ProfileUser.Role}}</dd></div>
+            <div><dt>Portal atual</dt><dd>{{.CurrentPortalName}}</dd></div>
+            <div><dt>Status</dt><dd>{{if .ProfileUser.Active}}<span class="status-pill status-published">Ativo</span>{{else}}<span class="status-pill status-muted">Inativo</span>{{end}}</dd></div>
+        </dl>
+    </section>
+
+    <section class="admin-form-section">
+        <div class="admin-section-header">
+            <div>
+                <h2 class="admin-section-title">Senha</h2>
+                <p>Atualize sua senha de acesso ao painel.</p>
+            </div>
+        </div>
+        <form class="admin-password-form" method="POST" action="{{.AdminPath}}/profile/password">
+            <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
+            <input type="password" name="password" class="form-control" placeholder="Nova senha" minlength="8" required>
+            <input type="password" name="password_confirm" class="form-control" placeholder="Confirmar nova senha" minlength="8" required>
+            <button type="submit" class="btn btn-primary">Alterar senha</button>
+        </form>
+    </section>
+</div>
+{{end}}

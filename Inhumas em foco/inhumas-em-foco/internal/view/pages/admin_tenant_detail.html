@@ -1,0 +1,207 @@
+{{define "admin_content"}}
+<div class="admin-page-header">
+    <div>
+        <p class="admin-kicker">Portal {{friendlyID .Tenant}}</p>
+        <h1>{{.Tenant.Name}}</h1>
+        <p class="admin-page-lead">Detalhes do tenant, dominios, usuarios, features, metricas e configuracoes visuais.</p>
+    </div>
+    <div class="admin-row-actions">
+        <a href="{{.AdminPath}}/tenants" class="btn">Voltar</a>
+        <a href="{{.AdminPath}}/tenants/{{.Tenant.ID}}/edit" class="btn btn-primary">Editar portal</a>
+    </div>
+</div>
+
+<div class="executive-metrics-grid">
+    <div class="metric-card">
+        <span class="metric-card-icon">M</span>
+        <span class="metric-label">Materias</span>
+        <strong>{{.Summary.PostCount}}</strong>
+        <small>{{.Summary.PublishedCount}} publicadas; {{.Summary.DraftCount}} rascunhos</small>
+    </div>
+    <div class="metric-card">
+        <span class="metric-card-icon">U</span>
+        <span class="metric-label">Usuarios ativos</span>
+        <strong>{{.Summary.ActiveUsers}}</strong>
+        <small>Vinculos ativos neste portal</small>
+    </div>
+    <div class="metric-card metric-card-primary">
+        <span class="metric-card-icon">V</span>
+        <span class="metric-label">Views totais</span>
+        <strong>{{.Summary.TotalViews}}</strong>
+        <small>Visualizacoes de materias</small>
+    </div>
+    <div class="metric-card">
+        <span class="metric-card-icon">F</span>
+        <span class="metric-label">Features ativas</span>
+        <strong>{{len .Summary.FeatureNames}}</strong>
+        <small>{{range .Summary.FeatureNames}}{{.}} {{else}}Nenhuma feature ativa{{end}}</small>
+    </div>
+</div>
+
+<div class="admin-panel-grid">
+    <section class="admin-form-section">
+        <div class="admin-section-header">
+            <div>
+                <h2 class="admin-section-title">Dados gerais</h2>
+                <p>Identificacao administrativa do portal.</p>
+            </div>
+        </div>
+        <dl class="admin-detail-list">
+            <div><dt>ID</dt><dd>{{friendlyID .Tenant}}</dd></div>
+            <div><dt>Nome</dt><dd>{{.Tenant.Name}}</dd></div>
+            <div><dt>Slug</dt><dd>{{.Tenant.Slug}}</dd></div>
+            <div><dt>Dominio principal</dt><dd>{{if .Tenant.PrimaryDomain}}{{.Tenant.PrimaryDomain}}{{else}}-{{end}}</dd></div>
+            <div><dt>Status</dt><dd>{{if eq .Tenant.Status "active"}}<span class="status-pill status-published">Ativo</span>{{else}}<span class="status-pill status-muted">{{.Tenant.Status}}</span>{{end}}</dd></div>
+            <div><dt>Criado em</dt><dd>{{.Tenant.CreatedAt | formatDate}}</dd></div>
+            <div><dt>Atualizado em</dt><dd>{{.Tenant.UpdatedAt | formatDateTime}}</dd></div>
+        </dl>
+    </section>
+
+    <section class="admin-form-section">
+        <div class="admin-section-header">
+            <div>
+                <h2 class="admin-section-title">Configuracoes visuais</h2>
+                <p>Branding operacional carregado das configuracoes do portal.</p>
+            </div>
+            <a href="{{.AdminPath}}/tenants/{{.Tenant.ID}}/edit" class="btn btn-sm">Editar</a>
+        </div>
+        <dl class="admin-detail-list">
+            <div><dt>Nome publico</dt><dd>{{.Settings.SiteName}}</dd></div>
+            <div><dt>Tagline</dt><dd>{{if .Settings.Tagline}}{{.Settings.Tagline}}{{else}}-{{end}}</dd></div>
+            <div><dt>Cidade</dt><dd>{{.Settings.City}} / {{.Settings.State}}</dd></div>
+            <div><dt>SEO title</dt><dd>{{.Settings.SEOTitle}}</dd></div>
+            <div><dt>Email</dt><dd>{{if .Settings.ContactEmail}}{{.Settings.ContactEmail}}{{else}}-{{end}}</dd></div>
+        </dl>
+    </section>
+</div>
+
+<div class="admin-panel-grid">
+    <section class="admin-form-section">
+        <div class="admin-section-header">
+            <div>
+                <h2 class="admin-section-title">Dominios</h2>
+                <p>Dominios e aliases vinculados ao tenant.</p>
+            </div>
+        </div>
+        <div class="admin-table-wrap">
+            <table class="table">
+                <thead><tr><th>ID</th><th>Dominio</th><th>Tipo</th></tr></thead>
+                <tbody>
+                    {{range .Domains}}
+                    <tr><td>{{friendlyID .ID}}</td><td>{{.Domain}}</td><td>{{if .IsPrimary}}Principal{{else}}Alias{{end}}</td></tr>
+                    {{else}}
+                    <tr><td colspan="3"><div class="empty-state empty-state-rich"><strong>Nenhum dominio cadastrado</strong><span>Adicione dominios na edicao do portal.</span></div></td></tr>
+                    {{end}}
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section id="tenant-users" class="admin-form-section">
+        <div class="admin-section-header">
+            <div>
+                <h2 class="admin-section-title">Usuarios vinculados</h2>
+                <p>Perfis efetivos para este portal.</p>
+            </div>
+        </div>
+        <div class="admin-table-wrap">
+            <table class="table">
+                <thead><tr><th>ID</th><th>Usuario</th><th>Email</th><th>Perfil</th><th>Status</th></tr></thead>
+                <tbody>
+                    {{range .TenantUsers}}
+                    <tr>
+                        <td>{{friendlyID .UserID}}</td>
+                        <td>{{.UserName}}</td>
+                        <td>{{.UserEmail}}</td>
+                        <td>{{roleLabel .Role}}</td>
+                        <td>{{if .Active}}<span class="status-pill status-published">Ativo</span>{{else}}<span class="status-pill status-muted">Inativo</span>{{end}}</td>
+                    </tr>
+                    {{else}}
+                    <tr><td colspan="5"><div class="empty-state empty-state-rich"><strong>Nenhum usuario vinculado</strong><span>Adicione usuarios na edicao do portal.</span></div></td></tr>
+                    {{end}}
+                </tbody>
+            </table>
+        </div>
+    </section>
+</div>
+
+<div class="admin-panel-grid">
+    <section class="admin-form-section">
+        <div class="admin-section-header">
+            <div>
+                <h2 class="admin-section-title">Features</h2>
+                <p>Recursos ativos e inativos neste tenant.</p>
+            </div>
+        </div>
+        <div class="admin-table-wrap">
+            <table class="table">
+                <thead><tr><th>ID</th><th>Feature</th><th>Limite</th><th>Status</th></tr></thead>
+                <tbody>
+                    {{range .Features}}
+                    <tr>
+                        <td>{{friendlyID .ID}}</td>
+                        <td>{{.Feature}}</td>
+                        <td>{{if .Limit}}{{.Limit}}{{else}}-{{end}}</td>
+                        <td>{{if .Enabled}}<span class="status-pill status-published">Ativa</span>{{else}}<span class="status-pill status-muted">Inativa</span>{{end}}</td>
+                    </tr>
+                    {{else}}
+                    <tr><td colspan="4"><div class="empty-state empty-state-rich"><strong>Nenhuma feature configurada</strong><span>Configure features na edicao do portal.</span></div></td></tr>
+                    {{end}}
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="admin-form-section">
+        <div class="admin-section-header">
+            <div>
+                <h2 class="admin-section-title">Mais acessadas</h2>
+                <p>Materias do portal por visualizacoes totais.</p>
+            </div>
+            <a href="{{.AdminPath}}/metrics?tenant_id={{.Tenant.ID}}" class="btn btn-sm">Metricas</a>
+        </div>
+        <div class="admin-table-wrap">
+            <table class="table">
+                <thead><tr><th>ID</th><th>Materia</th><th>Views</th></tr></thead>
+                <tbody>
+                    {{if .HasTopPostViews}}
+                    {{range .TopPosts}}
+                    {{if gt .Views 0}}
+                    <tr><td>{{friendlyID .PostID}}</td><td><a href="{{$.AdminPath}}/posts/{{.PostID}}"><strong>{{.Title}}</strong></a></td><td>{{.Views}}</td></tr>
+                    {{end}}
+                    {{end}}
+                    {{else}}
+                    <tr><td colspan="3"><div class="empty-state empty-state-rich"><strong>Sem dados suficientes</strong><span>O ranking aparece quando houver visualizacoes reais.</span></div></td></tr>
+                    {{end}}
+                </tbody>
+            </table>
+        </div>
+    </section>
+</div>
+
+<section class="admin-form-section">
+    <div class="admin-section-header">
+        <div>
+            <h2 class="admin-section-title">Ultimas materias</h2>
+            <p>Publicacoes recentes deste portal.</p>
+        </div>
+    </div>
+    <div class="admin-table-wrap">
+        <table class="table">
+            <thead><tr><th>ID</th><th>Titulo</th><th>Publicado</th><th>Views</th></tr></thead>
+            <tbody>
+                {{range .LatestPosts}}
+                <tr>
+                    <td>{{friendlyID .PostID}}</td>
+                    <td><a href="{{$.AdminPath}}/posts/{{.PostID}}"><strong>{{.Title}}</strong></a><small>{{.CategoryName}} - {{.AuthorName}}</small></td>
+                    <td>{{.PublishedAt | formatDate}}</td>
+                    <td>{{.Views}}</td>
+                </tr>
+                {{else}}
+                <tr><td colspan="4"><div class="empty-state empty-state-rich"><strong>Nenhuma materia publicada</strong><span>As publicacoes recentes do portal aparecem aqui.</span></div></td></tr>
+                {{end}}
+            </tbody>
+        </table>
+    </div>
+</section>
+{{end}}

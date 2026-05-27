@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="{{.Branding.PortalLanguage}}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{.Title}} | {{.AdminSystemName}}</title>
+    <meta name="robots" content="noindex,nofollow">
+    <link rel="stylesheet" href="/static/css/style.css?v=20260526-newscore-admin-v1">
+    <style>
+        :root {
+            --portal-primary: {{.Branding.PrimaryColor}};
+            --portal-secondary: {{.Branding.SecondaryColor}};
+            --portal-accent: {{.Branding.AccentColor}};
+        }
+    </style>
+</head>
+<body class="auth-body">
+    <main id="main-content" tabindex="-1">
+        {{template "content" .}}
+    </main>
+</body>
+</html>

@@ -323,6 +323,9 @@ func adminRouteAllowed(role model.UserRole, path, adminPrefix string) bool {
 	if section == "" || section == "/" {
 		return true
 	}
+	if strings.HasPrefix(section, "/profile") {
+		return true
+	}
 	switch role {
 	case model.RoleEditor, model.RoleRedator, model.RoleRevisor:
 		if role == model.RoleEditor && strings.HasPrefix(section, "/automation") {

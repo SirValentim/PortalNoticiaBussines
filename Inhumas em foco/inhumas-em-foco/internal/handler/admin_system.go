@@ -17,7 +17,7 @@ func auditEntityIDLabel(id *int64) string {
 	if id == nil {
 		return "-"
 	}
-	return "#" + strconv.FormatInt(*id, 10)
+	return friendlyID(id)
 }
 
 func auditUserLabel(entry model.AuditLogEntry) string {
@@ -31,28 +31,40 @@ func auditUserLabel(entry model.AuditLogEntry) string {
 		return entry.UserName
 	}
 	if entry.UserID != nil {
-		return "#" + strconv.FormatInt(*entry.UserID, 10)
+		return friendlyID(entry.UserID)
 	}
 	return "Sistema"
 }
 
 func (h *Handler) AdminMetrics(w http.ResponseWriter, r *http.Request) {
-	if _, ok := h.requirePermission(w, r, auth.PermSettingsManage); !ok {
+	user, ok := h.requirePermission(w, r, auth.PermSettingsManage)
+	if !ok {
 		return
 	}
 	ctx := r.Context()
-	totals, _ := h.repo.MetricTotals(ctx, 20)
-	topPosts, _ := h.repo.MetricTopEntities(ctx, "post_view", 10)
-	topStores, _ := h.repo.MetricTopEntities(ctx, "store_view", 10)
-	topBanners, _ := h.repo.MetricTopEntities(ctx, "banner_click", 10)
+	period := adminPeriodFromRequest(r)
+	allTenants := h.authSvc.HasPermission(user, auth.PermTenantsManage)
+	selectedTenantID := int64(0)
+	if allTenants {
+		selectedTenantID = selectedTenantIDFromRequest(r)
+	}
+	totals, _ := h.repo.MetricTotalsFiltered(ctx, allTenants, selectedTenantID, period.From, period.To, 20)
+	topPosts, _ := h.repo.TopPostMetrics(ctx, allTenants, selectedTenantID, period.From, period.To, 12)
+	tenantSummaries, _ := h.repo.TenantMetricSummaries(ctx, allTenants, selectedTenantID, 12)
+	summary, _ := h.repo.DashboardSummary(ctx, allTenants, selectedTenantID, period.From, period.To)
+	tenants, _ := h.repo.TenantList(ctx)
 
 	h.Render(w, r, "admin_metrics.html", map[string]any{
-		"Title":      "Metricas",
-		"Active":     "metrics",
-		"Totals":     totals,
-		"TopPosts":   topPosts,
-		"TopStores":  topStores,
-		"TopBanners": topBanners,
+		"Title":            "Metricas",
+		"Active":           "metrics",
+		"Period":           period,
+		"SelectedTenantID": selectedTenantID,
+		"Tenants":          tenants,
+		"Summary":          summary,
+		"Totals":           totals,
+		"TopPosts":         topPosts,
+		"TenantSummaries":  tenantSummaries,
+		"HasPostViewData":  !noPostViews(topPosts),
 	})
 }
 
@@ -188,7 +200,7 @@ func (h *Handler) APITrackMetric(w http.ResponseWriter, r *http.Request) {
 
 func metricLabel(metricType string) string {
 	labels := map[string]string{
-		"post_view":         "Visualizacoes de noticias",
+		"post_view":         "Visualizacoes de materias",
 		"store_view":        "Visualizacoes de lojas",
 		"promo_click":       "Cliques em promocoes",
 		"banner_click":      "Cliques em banners",

@@ -12,6 +12,8 @@ type AdminRepository interface {
 	UserCreate(ctx context.Context, user *model.User) error
 	UserUpdate(ctx context.Context, user *model.User) error
 	UserUpdatePassword(ctx context.Context, id int64, hash string) error
+	UserSoftDelete(ctx context.Context, id int64) error
+	UserActiveSuperAdminCount(ctx context.Context) (int, error)
 }
 
 type AdminService struct {
@@ -80,6 +82,11 @@ func (s *AdminService) Update(ctx context.Context, currentUser, target *model.Us
 			return "Voce nao pode remover seu proprio perfil administrativo"
 		}
 	}
+	if target.Role == model.RoleSuperAdmin && target.Active && (!input.Active || input.Role != model.RoleSuperAdmin) {
+		if s.isLastActiveSuperAdmin(ctx) {
+			return "Esta conta nao pode ser alterada porque e o ultimo Super Admin."
+		}
+	}
 
 	target.Name = strings.TrimSpace(input.Name)
 	target.Email = strings.TrimSpace(strings.ToLower(input.Email))
@@ -91,6 +98,23 @@ func (s *AdminService) Update(ctx context.Context, currentUser, target *model.Us
 	if err := s.repo.UserUpdate(ctx, target); err != nil {
 		return "Nao foi possivel atualizar o usuario"
 	}
+	return ""
+}
+
+func (s *AdminService) Delete(ctx context.Context, currentUser, target *model.User) string {
+	if target == nil {
+		return "Usuario nao encontrado"
+	}
+	if currentUser != nil && currentUser.ID == target.ID {
+		return "Voce nao pode excluir sua propria conta"
+	}
+	if target.Role == model.RoleSuperAdmin && target.Active && s.isLastActiveSuperAdmin(ctx) {
+		return "Esta conta nao pode ser excluida porque e o ultimo Super Admin."
+	}
+	if err := s.repo.UserSoftDelete(ctx, target.ID); err != nil {
+		return "Nao foi possivel excluir a conta"
+	}
+	target.Active = false
 	return ""
 }
 
@@ -113,4 +137,9 @@ func (s *AdminService) bcryptCost() int {
 		return 12
 	}
 	return s.cfg.DefaultBcryptCost
+}
+
+func (s *AdminService) isLastActiveSuperAdmin(ctx context.Context) bool {
+	count, err := s.repo.UserActiveSuperAdminCount(ctx)
+	return err == nil && count <= 1
 }

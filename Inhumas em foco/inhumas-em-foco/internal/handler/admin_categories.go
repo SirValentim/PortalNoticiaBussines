@@ -156,7 +156,7 @@ func (h *Handler) AdminCategoryDelete(w http.ResponseWriter, r *http.Request) {
 		h.Render(w, r, "admin_categories.html", map[string]any{
 			"Title":      "Categorias",
 			"Active":     "categories",
-			"Error":      "Nao e possivel excluir categoria com noticias vinculadas.",
+			"Error":      "Nao e possivel excluir categoria com materias vinculadas.",
 			"Categories": categories,
 		})
 		return

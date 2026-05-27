@@ -488,7 +488,7 @@ func TestAdminMetricsRendersAggregatedMetrics(t *testing.T) {
 		t.Fatalf("status = %d, want %d; body=%s", rec.Code, http.StatusOK, rec.Body.String())
 	}
 	body := rec.Body.String()
-	for _, want := range []string{"Metricas", "Visualizacoes de noticias", "Banners com mais cliques", "#1", "#3"} {
+	for _, want := range []string{"Metricas", "Visualizacoes de materias", "Cliques em banners", "Views totais"} {
 		if !strings.Contains(body, want) {
 			t.Fatalf("metrics page missing %q: %s", want, body)
 		}
@@ -851,7 +851,7 @@ func TestAdminTenantsCreateAndManage(t *testing.T) {
 		t.Fatalf("AdminTenantEdit status = %d", editRec.Code)
 	}
 	body := editRec.Body.String()
-	for _, want := range []string{"LaMafia Music", "www.lamafia.music", "automation", "editor-multi@example.com", "Editor Multiportal - ID"} {
+	for _, want := range []string{"LaMafia Music", "www.lamafia.music", "automation", "editor-multi@example.com", "Editor Multiportal - #001"} {
 		if !strings.Contains(body, want) {
 			t.Fatalf("tenant edit page missing %q: %s", want, body)
 		}

@@ -81,6 +81,7 @@ func (h *Handler) loadTemplates() error {
 
 func (h *Handler) funcMap() template.FuncMap {
 	return template.FuncMap{
+		"friendlyID": friendlyID,
 		"formatDate": func(value any) string {
 			t := templateTime(value)
 			if t.IsZero() {
@@ -151,6 +152,9 @@ func (h *Handler) funcMap() template.FuncMap {
 		"roleLabel": func(role model.UserRole) string {
 			return role.Label()
 		},
+		"hasPermission": func(user *model.User, perm auth.Permission) bool {
+			return h.authSvc.HasPermission(user, perm)
+		},
 		"auditEntityIDLabel":         auditEntityIDLabel,
 		"auditUserLabel":             auditUserLabel,
 		"eventStatusLabel":           eventStatusLabel,
@@ -192,7 +196,27 @@ func (h *Handler) Render(w http.ResponseWriter, r *http.Request, name string, da
 		data["SEO"] = seo
 	}
 	data["User"] = user
+	data["AdminSystemName"] = "NewsCore CMS"
+	data["AdminSystemDescriptor"] = "CMS Premium Multiportal"
+	data["AdminSystemTagline"] = "Gestao profissional de portais de noticias"
+	data["CurrentPortalName"] = firstNonEmpty(branding.PortalName, settings.SiteName, "Portal")
 	data["CanManageTenants"] = h.authSvc.HasPermission(user, auth.PermTenantsManage)
+	data["CanManagePosts"] = h.authSvc.HasPermission(user, auth.PermPostsCreate) ||
+		h.authSvc.HasPermission(user, auth.PermPostsEditAny) ||
+		h.authSvc.HasPermission(user, auth.PermPostsEditOwn) ||
+		h.authSvc.HasPermission(user, auth.PermPostsApprove)
+	data["CanCreatePosts"] = h.authSvc.HasPermission(user, auth.PermPostsCreate)
+	data["CanManageEditorialTaxonomy"] = h.authSvc.HasPermission(user, auth.PermSettingsManage)
+	data["CanManageMedia"] = h.authSvc.HasPermission(user, auth.PermMediaManage)
+	data["CanManageUsers"] = h.authSvc.HasPermission(user, auth.PermUsersManage)
+	data["CanManageSettings"] = h.authSvc.HasPermission(user, auth.PermSettingsManage)
+	data["CanManageAutomation"] = h.authSvc.HasPermission(user, auth.PermAutomationManage)
+	data["CanManageCommercial"] = h.authSvc.HasPermission(user, auth.PermBannersManage) ||
+		h.authSvc.HasPermission(user, auth.PermStoresManage) ||
+		h.authSvc.HasPermission(user, auth.PermPromosManage) ||
+		h.authSvc.HasPermission(user, auth.PermEventsManage) ||
+		h.authSvc.HasPermission(user, auth.PermClassifiedsManage) ||
+		h.authSvc.HasPermission(user, auth.PermInfluencersManage)
 	data["MediaFeatureEnabled"] = h.tenantFeatureEnabled(r, "media", true)
 	data["CommercialFeatureEnabled"] = h.tenantFeatureEnabled(r, "commercial", true)
 	data["AdminPath"] = branding.AdminPathPrefix
@@ -316,7 +340,9 @@ func (h *Handler) portalSettings(ctx context.Context) model.PortalSettings {
 
 func (h *Handler) templateFor(name string) (*template.Template, string, error) {
 	layout := "base.html"
-	if strings.HasPrefix(name, "admin_") {
+	if name == "login.html" {
+		layout = "auth.html"
+	} else if strings.HasPrefix(name, "admin_") {
 		layout = "admin.html"
 	}
 
@@ -335,6 +361,60 @@ func (h *Handler) templateFor(name string) (*template.Template, string, error) {
 		return nil, "", fmt.Errorf("parse %s: %w", name, err)
 	}
 	return tmpl, layout, nil
+}
+
+func friendlyID(value any) string {
+	var id int64
+	switch v := value.(type) {
+	case int:
+		id = int64(v)
+	case int64:
+		id = v
+	case *int64:
+		if v != nil {
+			id = *v
+		}
+	case model.Post:
+		id = v.ID
+	case *model.Post:
+		if v != nil {
+			id = v.ID
+		}
+	case model.User:
+		id = v.ID
+	case *model.User:
+		if v != nil {
+			id = v.ID
+		}
+	case model.Tenant:
+		id = v.ID
+	case *model.Tenant:
+		if v != nil {
+			id = v.ID
+		}
+	case model.Category:
+		id = v.ID
+	case *model.Category:
+		if v != nil {
+			id = v.ID
+		}
+	case model.Tag:
+		id = v.ID
+	case *model.Tag:
+		if v != nil {
+			id = v.ID
+		}
+	case model.MetricEntityTotal:
+		id = v.EntityID
+	case *model.MetricEntityTotal:
+		if v != nil {
+			id = v.EntityID
+		}
+	}
+	if id <= 0 {
+		return "-"
+	}
+	return fmt.Sprintf("#%03d", id)
 }
 
 func (h *Handler) RenderError(w http.ResponseWriter, status int, msg string) {
@@ -412,11 +492,14 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET "+admin+"/posts", h.AdminPosts)
 	mux.HandleFunc("GET "+admin+"/posts/new", h.AdminPostNew)
 	mux.HandleFunc("POST "+admin+"/posts", h.AdminPostCreate)
+	mux.HandleFunc("GET "+admin+"/posts/{id}", h.AdminPostDetail)
 	mux.HandleFunc("GET "+admin+"/posts/{id}/edit", h.AdminPostEdit)
 	mux.HandleFunc("GET "+admin+"/posts/{id}/preview", h.AdminPostPreview)
 	mux.HandleFunc("POST "+admin+"/posts/{id}", h.AdminPostUpdate)
 	mux.HandleFunc("POST "+admin+"/posts/{id}/autosave", h.AdminPostAutosave)
 	mux.HandleFunc("POST "+admin+"/posts/{id}/lock", h.AdminPostLockHeartbeat)
+	mux.HandleFunc("POST "+admin+"/posts/{id}/duplicate", h.AdminPostDuplicate)
+	mux.HandleFunc("POST "+admin+"/posts/{id}/archive", h.AdminPostArchive)
 	mux.HandleFunc("POST "+admin+"/posts/{id}/delete", h.AdminPostDelete)
 	mux.HandleFunc("POST "+admin+"/posts/{id}/submit-review", h.AdminPostSubmitReview)
 	mux.HandleFunc("POST "+admin+"/posts/{id}/approve", h.AdminPostApprove)
@@ -501,14 +584,22 @@ func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
 
 	mux.HandleFunc("GET "+admin+"/users", h.AdminUsers)
 	mux.HandleFunc("POST "+admin+"/users", h.AdminUserCreate)
+	mux.HandleFunc("GET "+admin+"/users/{id}", h.AdminUserDetail)
 	mux.HandleFunc("GET "+admin+"/users/{id}/edit", h.AdminUserEdit)
 	mux.HandleFunc("POST "+admin+"/users/{id}/edit", h.AdminUserUpdate)
 	mux.HandleFunc("POST "+admin+"/users/{id}/password", h.AdminUserUpdatePassword)
+	mux.HandleFunc("POST "+admin+"/users/{id}/activate", h.AdminUserActivate)
+	mux.HandleFunc("POST "+admin+"/users/{id}/deactivate", h.AdminUserDeactivate)
+	mux.HandleFunc("POST "+admin+"/users/{id}/delete", h.AdminUserDelete)
+	mux.HandleFunc("GET "+admin+"/profile", h.AdminProfile)
+	mux.HandleFunc("POST "+admin+"/profile/password", h.AdminProfilePasswordUpdate)
 
 	mux.HandleFunc("GET "+admin+"/tenants", h.AdminTenants)
 	mux.HandleFunc("POST "+admin+"/tenants", h.AdminTenantCreate)
+	mux.HandleFunc("GET "+admin+"/tenants/{id}", h.AdminTenantDetail)
 	mux.HandleFunc("GET "+admin+"/tenants/{id}/edit", h.AdminTenantEdit)
 	mux.HandleFunc("POST "+admin+"/tenants/{id}", h.AdminTenantUpdate)
+	mux.HandleFunc("POST "+admin+"/tenants/{id}/deactivate", h.AdminTenantDeactivate)
 	mux.HandleFunc("POST "+admin+"/tenants/{id}/domains", h.AdminTenantDomainCreate)
 	mux.HandleFunc("POST "+admin+"/tenants/{id}/domains/{domainID}/delete", h.AdminTenantDomainDelete)
 	mux.HandleFunc("POST "+admin+"/tenants/{id}/features", h.AdminTenantFeatureUpsert)
@@ -1341,7 +1432,7 @@ func (h *Handler) LoginPage(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, h.cfg.AdminPathPrefix, http.StatusSeeOther)
 		return
 	}
-	h.Render(w, r, "login.html", nil)
+	h.Render(w, r, "login.html", map[string]any{"Title": "Login"})
 }
 
 func (h *Handler) LoginPost(w http.ResponseWriter, r *http.Request) {
@@ -1352,7 +1443,7 @@ func (h *Handler) LoginPost(w http.ResponseWriter, r *http.Request) {
 	// Check login attempts
 	attempts, _ := h.repo.LoginAttemptCountRecent(r.Context(), clientIP, 30)
 	if attempts >= 5 {
-		h.Render(w, r, "login.html", map[string]any{"Error": "Muitas tentativas. Aguarde 30 minutos."})
+		h.Render(w, r, "login.html", map[string]any{"Title": "Login", "Error": "Muitas tentativas. Aguarde 30 minutos."})
 		return
 	}
 
@@ -1363,7 +1454,7 @@ func (h *Handler) LoginPost(w http.ResponseWriter, r *http.Request) {
 			Email:     email,
 			Success:   false,
 		})
-		h.Render(w, r, "login.html", map[string]any{"Error": "Credenciais invalidas"})
+		h.Render(w, r, "login.html", map[string]any{"Title": "Login", "Error": "Credenciais invalidas"})
 		return
 	}
 
@@ -2075,29 +2166,41 @@ func (h *Handler) Contact(w http.ResponseWriter, r *http.Request) {
 
 // Admin Dashboard
 func (h *Handler) AdminDashboard(w http.ResponseWriter, r *http.Request) {
+	user, ok := h.requireCurrentUser(w, r)
+	if !ok {
+		return
+	}
 	ctx := r.Context()
+	period := adminPeriodFromRequest(r)
+	allTenants := h.authSvc.HasPermission(user, auth.PermTenantsManage)
+	selectedTenantID := int64(0)
+	if allTenants {
+		selectedTenantID = selectedTenantIDFromRequest(r)
+	}
 
-	postCount, _ := h.repo.PostCount(ctx)
-	stores, _ := h.repo.StoreList(ctx, false, 1000)
-	promos, _ := h.repo.PromotionListActive(ctx, 100)
-	banners, _ := h.repo.BannerList(ctx)
-
-	// Metrics summary
-	bannerViews, _ := h.repo.MetricCountByType(ctx, "banner_impression")
-	storeViews, _ := h.repo.MetricCountByType(ctx, "store_view")
+	summary, _ := h.repo.DashboardSummary(ctx, allTenants, selectedTenantID, period.From, period.To)
+	topPosts, _ := h.repo.TopPostMetrics(ctx, allTenants, selectedTenantID, period.From, period.To, 6)
+	latestPosts, _ := h.repo.LatestPublishedPostMetrics(ctx, allTenants, selectedTenantID, 6)
+	tenantSummaries, _ := h.repo.TenantMetricSummaries(ctx, allTenants, selectedTenantID, 6)
 	deadJobCount, _ := h.repo.DeadJobCount(ctx)
+	prevFrom, prevTo := previousPeriod(period.From, period.To)
+	previousViews, _ := h.repo.MetricCountFiltered(ctx, "post_view", allTenants, selectedTenantID, prevFrom, prevTo)
+	tenants, _ := h.repo.TenantList(ctx)
 
 	h.Render(w, r, "admin_dashboard.html", map[string]any{
-		"PostCount":     postCount,
-		"StoreCount":    len(stores),
-		"PromoCount":    len(promos),
-		"BannerCount":   bannerSummary(banners).ActiveNow,
-		"BannerSummary": bannerSummary(banners),
-		"BannerSlots":   bannerSlots(banners),
-		"BannerViews":   bannerViews,
-		"StoreViews":    storeViews,
-		"DeadJobCount":  deadJobCount,
-		"Active":        "dashboard",
+		"Title":            "Dashboard",
+		"Summary":          summary,
+		"Period":           period,
+		"SelectedTenantID": selectedTenantID,
+		"Tenants":          tenants,
+		"TopPosts":         topPosts,
+		"HasTopPostViews":  !noPostViews(topPosts),
+		"LatestPosts":      latestPosts,
+		"TenantSummaries":  tenantSummaries,
+		"ViewTrend":        trendLabel(summary.ViewsSelectedRange, previousViews),
+		"DeadJobCount":     deadJobCount,
+		"Alerts":           dashboardAlerts(summary, deadJobCount, topPosts),
+		"Active":           "dashboard",
 	})
 }
 

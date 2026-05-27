@@ -190,7 +190,7 @@ func (h *Handler) renderAutomationDashboard(w http.ResponseWriter, r *http.Reque
 	}
 	settings := h.portalSettings(r.Context())
 	h.Render(w, r, "admin_automation.html", map[string]any{
-		"Title":                    "Automacao de Noticias",
+		"Title":                    "Automacao editorial",
 		"Active":                   "automation",
 		"Sources":                  sources,
 		"Runs":                     runs,

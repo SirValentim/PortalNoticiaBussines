@@ -10,6 +10,7 @@
 <table class="table">
     <thead>
         <tr>
+            <th>ID</th>
             <th>Categoria</th>
             <th>Slug</th>
             <th>Ordem</th>
@@ -20,6 +21,7 @@
     <tbody>
         {{range .Categories}}
         <tr>
+            <td>{{friendlyID .ID}}</td>
             <td>
                 <strong>{{.Name}}</strong>
                 {{if .RequiresEditorialNotes}}<span class="sponsored-badge">Requer notas</span>{{end}}
@@ -37,7 +39,7 @@
             </td>
         </tr>
         {{else}}
-        <tr><td colspan="5" class="empty-state">Nenhuma categoria cadastrada</td></tr>
+        <tr><td colspan="6" class="empty-state">Nenhuma categoria cadastrada</td></tr>
         {{end}}
     </tbody>
 </table>

@@ -2,7 +2,7 @@
 <div class="admin-page-header">
     <div>
         <p class="admin-kicker">Editorial</p>
-        <h1>Automacao de Noticias</h1>
+        <h1>Automacao editorial</h1>
     </div>
     <div class="admin-actions">
         {{if .AutomationFeatureEnabled}}
@@ -69,7 +69,7 @@
                     <small>{{.URL}}</small>
                 </td>
                 <td>{{.SourceType}}</td>
-                <td>{{if .CategoryName}}{{.CategoryName}}{{else}}Noticias{{end}}</td>
+                <td>{{if .CategoryName}}{{.CategoryName}}{{else}}Materias{{end}}</td>
                 <td>{{if .LastRunAt}}{{.LastRunAt | formatDateTime}}{{else}}Nunca{{end}}</td>
                 <td>{{if .Active}}Ativa{{else}}Inativa{{end}}</td>
                 <td>

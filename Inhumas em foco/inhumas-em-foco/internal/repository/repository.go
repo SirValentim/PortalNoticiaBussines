@@ -1717,6 +1717,43 @@ func (r *Repository) UserUpdate(ctx context.Context, u *model.User) error {
 	})
 }
 
+func (r *Repository) UserSoftDelete(ctx context.Context, id int64) error {
+	tenantID := tenantIDFromContext(ctx)
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `
+		UPDATE tenant_users
+		SET active = false, updated_at = CURRENT_TIMESTAMP
+		WHERE tenant_id = $1 AND user_id = $2`, tenantID, id); err != nil {
+		tx.Rollback()
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `
+		UPDATE users
+		SET active = false
+		WHERE id = $1
+			AND NOT EXISTS (
+				SELECT 1 FROM tenant_users
+				WHERE user_id = $1 AND active = true
+			)`, id); err != nil {
+		tx.Rollback()
+		return err
+	}
+	return tx.Commit()
+}
+
+func (r *Repository) UserActiveSuperAdminCount(ctx context.Context) (int, error) {
+	var count int
+	err := r.db.QueryRowContext(ctx, `
+		SELECT COUNT(DISTINCT u.id)
+		FROM users u
+		INNER JOIN tenant_users tu ON tu.user_id = u.id
+		WHERE u.active = true AND tu.active = true AND tu.role = 'super_admin'`).Scan(&count)
+	return count, err
+}
+
 func (r *Repository) UserList(ctx context.Context) ([]model.User, error) {
 	rows, err := r.db.QueryContext(ctx, userSelectSQL()+` WHERE tu.tenant_id = $1 ORDER BY u.created_at DESC`, tenantIDFromContext(ctx))
 	if err != nil {

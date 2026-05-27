@@ -134,7 +134,7 @@ func (h *Handler) AdminTagDelete(w http.ResponseWriter, r *http.Request) {
 		h.Render(w, r, "admin_tags.html", map[string]any{
 			"Title":  "Tags",
 			"Active": "tags",
-			"Error":  "Nao e possivel excluir tag vinculada a noticias.",
+			"Error":  "Nao e possivel excluir tag vinculada a materias.",
 			"Tags":   tags,
 		})
 		return

@@ -194,3 +194,53 @@ func TestUserLookupUsesTenantUserRole(t *testing.T) {
 		t.Fatalf("unexpected tenant user list: %#v", list)
 	}
 }
+
+func TestUserSoftDeleteIsScopedToTenantLink(t *testing.T) {
+	repo, err := New(":memory:")
+	if err != nil {
+		t.Fatalf("repository.New failed: %v", err)
+	}
+	defer repo.Close()
+
+	ctx := context.Background()
+	tenant := &model.Tenant{Name: "LaMafia Music", Slug: "lamafia"}
+	if err := repo.TenantCreate(ctx, tenant); err != nil {
+		t.Fatalf("TenantCreate failed: %v", err)
+	}
+	tenantCtx := tenantctx.WithTenant(ctx, tenant)
+
+	user := &model.User{
+		Name:         "Multi Portal",
+		Email:        "multi-delete@example.com",
+		PasswordHash: "hash",
+		Role:         model.RoleSuperAdmin,
+		Active:       true,
+	}
+	if err := repo.UserCreate(ctx, user); err != nil {
+		t.Fatalf("UserCreate failed: %v", err)
+	}
+	if err := repo.TenantUserUpsert(tenantCtx, &model.TenantUser{
+		UserID: user.ID,
+		Role:   model.RoleAdmin,
+		Active: true,
+	}); err != nil {
+		t.Fatalf("TenantUserUpsert failed: %v", err)
+	}
+
+	count, err := repo.UserActiveSuperAdminCount(ctx)
+	if err != nil || count != 1 {
+		t.Fatalf("UserActiveSuperAdminCount = %d err=%v, want 1", count, err)
+	}
+	if err := repo.UserSoftDelete(tenantCtx, user.ID); err != nil {
+		t.Fatalf("UserSoftDelete failed: %v", err)
+	}
+
+	defaultUser, err := repo.UserGetByID(ctx, user.ID)
+	if err != nil || defaultUser == nil || !defaultUser.Active {
+		t.Fatalf("default user should remain active: user=%#v err=%v", defaultUser, err)
+	}
+	tenantUser, err := repo.UserGetByID(tenantCtx, user.ID)
+	if err != nil || tenantUser == nil || tenantUser.Active {
+		t.Fatalf("tenant link should be inactive: user=%#v err=%v", tenantUser, err)
+	}
+}
