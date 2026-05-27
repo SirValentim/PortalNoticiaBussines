@@ -38,6 +38,7 @@ migrate:
 deploy: build
 	ssh vps "sudo systemctl stop inhumas-web inhumas-worker"
 	rsync -avz --delete bin/ vps:/var/www/inhumas/bin/
+	rsync -avz --delete internal/view/ vps:/var/www/inhumas/internal/view/
 	rsync -avz static/ vps:/var/www/inhumas/static/
 	ssh vps "sudo systemctl start inhumas-web inhumas-worker"
 
