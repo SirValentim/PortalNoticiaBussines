@@ -1,12 +1,13 @@
 # Inhumas em Foco - Backend Go
 
-Backend principal do portal local Inhumas em Foco. A aplicacao oficial usa Go, templates HTML server-side, storage local e SQLite em producao inicial, com evolucao planejada para um CMS editorial premium.
+Backend principal da plataforma CMS Inhumas em Foco. A aplicacao oficial usa Go, templates HTML server-side, storage local e SQLite no runtime inicial, com base multiportal persistente e suporte configuravel a PostgreSQL.
 
 ## Estado Atual
 
 - Servidor HTTP em `cmd/web`.
 - Worker de jobs em `cmd/worker`.
 - Servidor MCP em `cmd/mcp` para integracao editorial controlada com clientes compativeis.
+- Base multiportal persistente com tenants, dominios, features, usuarios por portal e dados por `tenant_id`.
 - Painel admin protegido por `ADMIN_PATH_PREFIX`.
 - Auth com bcrypt, sessoes HttpOnly/SameSiteStrict, CSRF e RBAC editorial/comercial.
 - Upload local com validacao de MIME, limite de corpo e protecao contra path traversal.
@@ -69,7 +70,7 @@ go test ./...
 ## Build e readiness
 
 ```powershell
-go build ./cmd/web ./cmd/worker ./cmd/seed-news ./cmd/migrate-sqlite-postgres
+go build ./cmd/web ./cmd/worker ./cmd/seed-news ./cmd/migrate-sqlite-postgres ./cmd/mcp
 ```
 
 Para compilar o servidor MCP:

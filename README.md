@@ -1,17 +1,20 @@
-# Inhumas em Foco - CMS Editorial e Portal Local
+# Inhumas em Foco - Plataforma CMS Multiportal
 
-Este repositorio contem a base do projeto **Inhumas em Foco**, um portal local profissional para publicacao de noticias, conteudo editorial, classificados, eventos, negocios locais, promocoes, influencers, banners comerciais e operacao administrativa completa.
+Este repositorio contem a base da plataforma **Inhumas em Foco**, um CMS editorial em Go para operacao de portais locais, editoriais e comerciais.
 
-O projeto foi construido com foco em producao real: painel administrativo protegido, fluxo editorial, seguranca aplicada, SEO tecnico, automacoes assistidas, observabilidade, backup, readiness operacional e evolucao preparada para PostgreSQL.
+O projeto ja saiu do formato de portal unico: a aplicacao principal possui base multiportal persistente, com tenants, dominios, features, usuarios por portal, dados escopados por `tenant_id`, middleware de resolucao por host e worker tenant-aware para jobs editoriais/comerciais.
 
 ## Visao Geral
 
-O objetivo do sistema e entregar uma plataforma editorial moderna para uma operacao local, combinando conteudo jornalistico, servicos comerciais e modulos de cidade em uma unica aplicacao.
+O objetivo do sistema e entregar uma plataforma editorial reutilizavel para multiplos portais, combinando conteudo jornalistico, operacao comercial, modulos locais, automacao assistida e infraestrutura pronta para producao.
 
 Principais capacidades:
 
+- Multiportal persistente com tenants, dominios, features e usuarios por portal.
+- Isolamento de dados por `tenant_id` nos principais dominios do CMS.
 - Publicacao de noticias com categorias, tags, imagem destacada, galeria, SEO e status editorial.
 - Painel administrativo com permissoes, auditoria, metricas, configuracoes e gestao de usuarios.
+- Painel de gestao de portais reservado a `super_admin`.
 - Modulos locais para eventos, classificados, lojas, promocoes, bairros e influencers.
 - Biblioteca de midia com upload seguro, validacao de MIME, thumbnails e geracao WebP.
 - Automacao editorial por fontes RSS/oficiais, sempre com revisao humana antes da publicacao.
@@ -24,7 +27,7 @@ Principais capacidades:
 
 - **Backend:** Go 1.24
 - **HTTP:** `net/http` com templates HTML server-side
-- **Banco:** SQLite em producao inicial, com suporte configuravel a PostgreSQL
+- **Banco:** SQLite no runtime inicial, com suporte configuravel a PostgreSQL e migrations versionadas
 - **Sessoes:** `gorilla/sessions`
 - **Seguranca:** bcrypt, CSRF, cookies HttpOnly/SameSite, RBAC e auditoria
 - **Storage:** uploads locais com originais, WebP principal e thumbnails
@@ -45,11 +48,18 @@ Principais capacidades:
 |   |   +-- deploy/             # Exemplos de Nginx e systemd
 |   |   +-- docs/               # Documentacao tecnica e operacional
 |   +-- app/                    # Prototipo visual React/Vite
-|   +-- Mockup/                 # Referencias visuais e prompts
 +-- README.md                   # Visao profissional do projeto
 ```
 
 ## Modulos do CMS
+
+### Plataforma Multiportal
+
+- Tenants e dominios persistidos.
+- Resolucao de tenant por host, com fallback para `default`.
+- Features por tenant para automacao, midia e modulos comerciais/locais.
+- Usuarios por portal via `tenant_users`.
+- Worker com politica clara entre jobs globais e jobs por tenant.
 
 ### Editorial
 
@@ -232,6 +242,13 @@ MIGRATIONS_DIR=/var/www/inhumas/migrations \
 /var/www/inhumas/bin/migrate-sqlite-postgres
 ```
 
+Para cutover operacional em VPS, use o script versionado:
+
+```bash
+sudo POSTGRES_DATABASE_URL='postgres://usuario:senha@localhost:5432/inhumas?sslmode=disable' \
+  /var/www/inhumas/scripts/postgres-cutover.sh
+```
+
 ## Qualidade e Testes
 
 Antes de qualquer deploy ou commit relevante:
@@ -239,7 +256,7 @@ Antes de qualquer deploy ou commit relevante:
 ```powershell
 cd "Inhumas em foco\inhumas-em-foco"
 go test ./...
-go build ./cmd/web ./cmd/worker ./cmd/seed-news ./cmd/migrate-sqlite-postgres
+go build ./cmd/web ./cmd/worker ./cmd/seed-news ./cmd/migrate-sqlite-postgres ./cmd/mcp
 ```
 
 Para validacao operacional:
@@ -303,7 +320,7 @@ Documentos principais:
 
 ## Status do Projeto
 
-O CMS esta em estado avancado e entrou em marco multiportal persistente. A base Go concentra o produto principal, enquanto o app React permanece como prototipo visual/referencia.
+O CMS esta em marco multiportal persistente. A base Go concentra o produto principal, enquanto o app React permanece como prototipo visual/referencia.
 
 Ja existem tenants, dominios, features por portal, usuarios por tenant, dados escopados por `tenant_id`, middleware de resolucao por host e worker tenant-aware para jobs editoriais/comerciais.
 
