@@ -22,6 +22,7 @@ tmp-*
 *.exe~
 *.tmp
 *.log
+*.tar.gz
 
 # Local update drop folders
 Inhumas em foco/atualizações/

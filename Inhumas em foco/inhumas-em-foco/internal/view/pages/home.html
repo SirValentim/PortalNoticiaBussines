@@ -9,7 +9,10 @@
                     <span class="badge badge-accent">Destaque</span>
                     <h1>{{.Headline.Title}}</h1>
                     <p>{{.Headline.Excerpt}}</p>
-                    <span class="btn btn-primary">Ler materia</span>
+                    <div class="hero-actions">
+                        <span class="btn btn-primary">Ler materia</span>
+                        <span class="hero-read-next">Agora em Inhumas</span>
+                    </div>
                 </div>
             </a>
         </article>
@@ -21,19 +24,31 @@
                     <span class="badge badge-accent">Destaque</span>
                     <h1>{{.Branding.PortalName}} todos os dias</h1>
                     <p>Noticias, comercio local, promocoes e agenda em um portal leve e direto.</p>
-                    <span class="btn btn-primary">Ver noticias</span>
+                    <div class="hero-actions">
+                        <span class="btn btn-primary">Ver noticias</span>
+                        <span class="hero-read-next">Guia local atualizado</span>
+                    </div>
                 </div>
             </a>
         </article>
         {{end}}
         <aside class="hero-side">
-            <h2>Recentes</h2>
+            <div class="hero-side-header">
+                <span class="live-dot"></span>
+                <h2>Agora na cidade</h2>
+            </div>
             {{range .LatestNews}}
             <a class="trending-item" href="/noticia/{{.Slug}}">
                 <span>{{.CategoryName}}</span>
                 <strong>{{.Title}}</strong>
             </a>
             {{end}}
+            <div class="city-shortcuts" aria-label="Atalhos locais">
+                <a href="/promocoes">Promocoes</a>
+                <a href="/eventos">Agenda</a>
+                <a href="/lojas">Comercio</a>
+                <a href="/classificados">Classificados</a>
+            </div>
         </aside>
     </div>
 </section>

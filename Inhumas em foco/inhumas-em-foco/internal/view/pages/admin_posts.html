@@ -3,19 +3,26 @@
     <div>
         <p class="admin-kicker">Editorial</p>
         <h1>Noticias</h1>
+        <p class="admin-page-lead">Gerencie pauta, revisao, publicacao e destaque das materias do portal.</p>
     </div>
-    {{if .CanCreate}}<a href="{{.AdminPath}}/posts/new" class="btn btn-primary">+ Nova Noticia</a>{{end}}
+    {{if .CanCreate}}<a href="{{.AdminPath}}/posts/new" class="btn btn-primary">Nova noticia</a>{{end}}
 </div>
 
 <section class="admin-form-section editorial-filter-panel">
+    <div class="admin-section-header">
+        <div>
+            <h2 class="admin-section-title">Filtrar pauta</h2>
+            <p>Combine busca, status, categoria e tag para encontrar rapidamente o proximo item editorial.</p>
+        </div>
+    </div>
     <form method="GET" action="{{.AdminPath}}/posts" class="admin-filter-form">
         <div class="form-group">
-            <label>Buscar</label>
-            <input type="search" name="q" class="form-control" value="{{.FilterQuery}}" placeholder="Titulo, resumo ou palavra-chave">
+            <label for="post-search">Buscar</label>
+            <input id="post-search" type="search" name="q" class="form-control" value="{{.FilterQuery}}" placeholder="Titulo, resumo ou palavra-chave">
         </div>
         <div class="form-group">
-            <label>Status</label>
-            <select name="status" class="form-control">
+            <label for="post-status">Status</label>
+            <select id="post-status" name="status" class="form-control">
                 <option value="">Todos</option>
                 <option value="draft" {{if selected .FilterStatus "draft"}}selected{{end}}>Rascunho</option>
                 <option value="review" {{if selected .FilterStatus "review"}}selected{{end}}>Em revisao</option>
@@ -26,8 +33,8 @@
             </select>
         </div>
         <div class="form-group">
-            <label>Categoria</label>
-            <select name="category_id" class="form-control">
+            <label for="post-category">Categoria</label>
+            <select id="post-category" name="category_id" class="form-control">
                 <option value="0">Todas</option>
                 {{range .Categories}}
                 <option value="{{.ID}}" {{if eq $.FilterCategoryID .ID}}selected{{end}}>{{.Name}}</option>
@@ -35,8 +42,8 @@
             </select>
         </div>
         <div class="form-group">
-            <label>Tag</label>
-            <select name="tag_id" class="form-control">
+            <label for="post-tag">Tag</label>
+            <select id="post-tag" name="tag_id" class="form-control">
                 <option value="0">Todas</option>
                 {{range .Tags}}
                 <option value="{{.ID}}" {{if eq $.FilterTagID .ID}}selected{{end}}>{{.Name}}</option>
@@ -53,6 +60,7 @@
 <section class="admin-form-section">
     <div class="admin-table-wrap">
         <table class="table editorial-table">
+            <caption class="sr-only">Lista de noticias cadastradas no CMS</caption>
             <thead>
                 <tr>
                     <th>Titulo</th>
@@ -68,8 +76,10 @@
                     <td>
                         <strong>{{.Title}}</strong>
                         <small>{{.Excerpt}}</small>
-                        {{if .IsFeatured}}<span class="sponsored-badge sponsored-badge-success">Destaque</span>{{end}}
-                        {{if .IsSponsored}}<span class="sponsored-badge">Patrocinado</span>{{end}}
+                        <span class="admin-inline-badges">
+                            {{if .IsFeatured}}<span class="sponsored-badge sponsored-badge-success">Destaque</span>{{end}}
+                            {{if .IsSponsored}}<span class="sponsored-badge">Patrocinado</span>{{end}}
+                        </span>
                     </td>
                     <td>{{.CategoryName}}</td>
                     <td><span class="status-pill status-{{.Status}}">{{postStatusLabel .Status}}</span></td>
@@ -93,7 +103,8 @@
                         </form>
                         <form method="POST" action="{{$.AdminPath}}/posts/{{.ID}}/reject">
                             <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
-                            <input type="text" name="comment" class="form-control" placeholder="Motivo" required>
+                            <label class="sr-only" for="reject-comment-{{.ID}}">Motivo da reprovacao</label>
+                            <input id="reject-comment-{{.ID}}" type="text" name="comment" class="form-control admin-inline-input" placeholder="Motivo" required>
                             <button type="submit" class="btn btn-sm btn-danger">Reprovar</button>
                         </form>
                         {{end}}
@@ -113,7 +124,13 @@
                 </tr>
                 {{else}}
                 <tr>
-                    <td colspan="5" class="empty-state">Nenhuma noticia cadastrada</td>
+                    <td colspan="5">
+                        <div class="empty-state empty-state-rich">
+                            <strong>Nenhuma noticia encontrada</strong>
+                            <span>Crie a primeira pauta ou limpe os filtros para voltar a ver todo o acervo editorial.</span>
+                            {{if $.CanCreate}}<a href="{{$.AdminPath}}/posts/new" class="btn btn-primary">Criar noticia</a>{{end}}
+                        </div>
+                    </td>
                 </tr>
                 {{end}}
             </tbody>

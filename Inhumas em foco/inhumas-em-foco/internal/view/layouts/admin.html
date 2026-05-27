@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{.Title}} | Painel {{.Branding.PortalName}}</title>
-    <link rel="stylesheet" href="/static/css/style.css?v=20260516-admin-ux-v1">
+    <link rel="stylesheet" href="/static/css/style.css?v=20260526-admin-experience-v3">
     <style>
         :root {
             --portal-primary: {{.Branding.PrimaryColor}};
@@ -13,58 +13,60 @@
         }
     </style>
 </head>
-<body>
+<body class="admin-body">
+    <a class="skip-link" href="#admin-content">Pular para o conteudo</a>
     <div class="admin-layout">
-        <aside class="admin-sidebar">
+        <aside class="admin-sidebar" id="admin-sidebar" aria-label="Menu administrativo">
             <div class="admin-brand">
-                <span class="admin-brand-mark">{{printf "%.2s" .Branding.PortalName}}</span>
+                <span class="admin-brand-mark">{{if .Branding.PortalName}}{{printf "%.2s" .Branding.PortalName}}{{else}}IF{{end}}</span>
                 <div>
-                    <strong>{{.Branding.PortalName}}</strong>
-                    <small>CMS Editorial</small>
+                    <strong>{{if .Branding.PortalName}}{{.Branding.PortalName}}{{else}}Inhumas em Foco{{end}}</strong>
+                    <small>CMS editorial</small>
                 </div>
             </div>
             <nav aria-label="Navegacao administrativa">
                 <div class="admin-nav-group">
                     <span class="admin-nav-label">Operacao</span>
-                    <a href="{{.AdminPath}}" {{if eq .Active "dashboard"}}class="active"{{end}}>Dashboard</a>
-                    <a href="{{.AdminPath}}/metrics" {{if eq .Active "metrics"}}class="active"{{end}}>Metricas</a>
-                    <a href="{{.AdminPath}}/dead-jobs" {{if eq .Active "dead_jobs"}}class="active"{{end}}>Jobs com falha</a>
+                    <a href="{{.AdminPath}}" {{if eq .Active "dashboard"}}class="active" aria-current="page"{{end}}>Dashboard</a>
+                    <a href="{{.AdminPath}}/metrics" {{if eq .Active "metrics"}}class="active" aria-current="page"{{end}}>Metricas</a>
+                    <a href="{{.AdminPath}}/dead-jobs" {{if eq .Active "dead_jobs"}}class="active" aria-current="page"{{end}}>Jobs com falha</a>
                 </div>
                 <div class="admin-nav-group">
                     <span class="admin-nav-label">Editorial</span>
-                    <a href="{{.AdminPath}}/posts" {{if eq .Active "posts"}}class="active"{{end}}>Noticias</a>
-                    <a href="{{.AdminPath}}/automation" {{if eq .Active "automation"}}class="active"{{end}}>Automacao</a>
-                    <a href="{{.AdminPath}}/categories" {{if eq .Active "categories"}}class="active"{{end}}>Categorias</a>
-                    <a href="{{.AdminPath}}/tags" {{if eq .Active "tags"}}class="active"{{end}}>Tags</a>
+                    <a href="{{.AdminPath}}/posts" {{if eq .Active "posts"}}class="active" aria-current="page"{{end}}>Noticias</a>
+                    <a href="{{.AdminPath}}/automation" {{if eq .Active "automation"}}class="active" aria-current="page"{{end}}>Automacao</a>
+                    <a href="{{.AdminPath}}/categories" {{if eq .Active "categories"}}class="active" aria-current="page"{{end}}>Categorias</a>
+                    <a href="{{.AdminPath}}/tags" {{if eq .Active "tags"}}class="active" aria-current="page"{{end}}>Tags</a>
                     {{if .MediaFeatureEnabled}}
-                    <a href="{{.AdminPath}}/media" {{if eq .Active "media"}}class="active"{{end}}>Midia</a>
+                    <a href="{{.AdminPath}}/media" {{if eq .Active "media"}}class="active" aria-current="page"{{end}}>Midia</a>
                     {{end}}
                 </div>
                 {{if .CommercialFeatureEnabled}}
                 <div class="admin-nav-group">
                     <span class="admin-nav-label">Comercial local</span>
-                    <a href="{{.AdminPath}}/banners" {{if eq .Active "banners"}}class="active"{{end}}>Banners</a>
-                    <a href="{{.AdminPath}}/stores" {{if eq .Active "stores"}}class="active"{{end}}>Lojas</a>
-                    <a href="{{.AdminPath}}/promotions" {{if eq .Active "promotions"}}class="active"{{end}}>Promocoes</a>
-                    <a href="{{.AdminPath}}/events" {{if eq .Active "events"}}class="active"{{end}}>Eventos</a>
-                    <a href="{{.AdminPath}}/classifieds" {{if eq .Active "classifieds"}}class="active"{{end}}>Classificados</a>
-                    <a href="{{.AdminPath}}/influencers" {{if eq .Active "influencers"}}class="active"{{end}}>Influencers</a>
-                    <a href="{{.AdminPath}}/neighborhoods" {{if eq .Active "neighborhoods"}}class="active"{{end}}>Bairros</a>
+                    <a href="{{.AdminPath}}/banners" {{if eq .Active "banners"}}class="active" aria-current="page"{{end}}>Banners</a>
+                    <a href="{{.AdminPath}}/stores" {{if eq .Active "stores"}}class="active" aria-current="page"{{end}}>Lojas</a>
+                    <a href="{{.AdminPath}}/promotions" {{if eq .Active "promotions"}}class="active" aria-current="page"{{end}}>Promocoes</a>
+                    <a href="{{.AdminPath}}/events" {{if eq .Active "events"}}class="active" aria-current="page"{{end}}>Eventos</a>
+                    <a href="{{.AdminPath}}/classifieds" {{if eq .Active "classifieds"}}class="active" aria-current="page"{{end}}>Classificados</a>
+                    <a href="{{.AdminPath}}/influencers" {{if eq .Active "influencers"}}class="active" aria-current="page"{{end}}>Influencers</a>
+                    <a href="{{.AdminPath}}/neighborhoods" {{if eq .Active "neighborhoods"}}class="active" aria-current="page"{{end}}>Bairros</a>
                 </div>
                 {{end}}
                 <div class="admin-nav-group">
                     <span class="admin-nav-label">Sistema</span>
-                    <a href="{{.AdminPath}}/users" {{if eq .Active "users"}}class="active"{{end}}>Usuarios</a>
+                    <a href="{{.AdminPath}}/users" {{if eq .Active "users"}}class="active" aria-current="page"{{end}}>Usuarios</a>
                     {{if .CanManageTenants}}
-                    <a href="{{.AdminPath}}/tenants" {{if eq .Active "tenants"}}class="active"{{end}}>Portais</a>
+                    <a href="{{.AdminPath}}/tenants" {{if eq .Active "tenants"}}class="active" aria-current="page"{{end}}>Portais</a>
                     {{end}}
-                    <a href="{{.AdminPath}}/audit" {{if eq .Active "audit"}}class="active"{{end}}>Auditoria</a>
-                    <a href="{{.AdminPath}}/settings" {{if eq .Active "settings"}}class="active"{{end}}>Configuracoes</a>
+                    <a href="{{.AdminPath}}/audit" {{if eq .Active "audit"}}class="active" aria-current="page"{{end}}>Auditoria</a>
+                    <a href="{{.AdminPath}}/settings" {{if eq .Active "settings"}}class="active" aria-current="page"{{end}}>Configuracoes</a>
                 </div>
             </nav>
         </aside>
         <main class="admin-main">
             <header class="admin-topbar">
+                <button type="button" class="admin-menu-button" aria-label="Abrir menu" aria-controls="admin-sidebar" aria-expanded="false" data-admin-menu>Menu</button>
                 <div class="admin-topbar-title">
                     <span>{{.Title}}</span>
                     {{if .User}}<small>{{.User.Name}} - {{.User.Role}}</small>{{end}}
@@ -85,11 +87,12 @@
                 {{end}}
             </div>
 
-            <div class="admin-content-shell">
+            <div class="admin-content-shell" id="admin-content" tabindex="-1">
                 {{template "admin_content" .}}
             </div>
         </main>
     </div>
+    <div class="admin-mobile-scrim" data-admin-scrim hidden></div>
     <div class="admin-confirm-backdrop" data-confirm-modal hidden>
         <div class="admin-confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="admin-confirm-title">
             <span class="admin-kicker">Confirmacao</span>
@@ -108,6 +111,8 @@
         var message = document.querySelector('[data-confirm-message]');
         var accept = document.querySelector('[data-confirm-accept]');
         var cancel = document.querySelector('[data-confirm-cancel]');
+        var menuButton = document.querySelector('[data-admin-menu]');
+        var menuScrim = document.querySelector('[data-admin-scrim]');
 
         function openConfirm(form) {
             pendingForm = form;
@@ -151,7 +156,18 @@
         });
         document.addEventListener('keydown', function (event) {
             if (event.key === 'Escape' && !modal.hidden) closeConfirm();
+            if (event.key === 'Escape' && document.body.classList.contains('admin-nav-open')) toggleMenu(false);
         });
+
+        function toggleMenu(force) {
+            var open = typeof force === 'boolean' ? force : !document.body.classList.contains('admin-nav-open');
+            document.body.classList.toggle('admin-nav-open', open);
+            if (menuButton) menuButton.setAttribute('aria-expanded', open ? 'true' : 'false');
+            if (menuScrim) menuScrim.hidden = !open;
+        }
+
+        if (menuButton) menuButton.addEventListener('click', function () { toggleMenu(); });
+        if (menuScrim) menuScrim.addEventListener('click', function () { toggleMenu(false); });
 
         document.querySelectorAll('.admin-toast').forEach(function (toast) {
             window.setTimeout(function () {

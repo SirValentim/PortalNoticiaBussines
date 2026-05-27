@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -24,6 +25,7 @@ type mcpApp struct {
 	repo   *repository.Repository
 	db     *sql.DB
 	driver string
+	tenant int64
 }
 
 type articleDTO struct {
@@ -55,10 +57,16 @@ func main() {
 	}
 	defer repo.DB().Close()
 
+	tenantID, err := resolveTenantID(context.Background(), repo)
+	if err != nil {
+		log.Fatalf("mcp: resolver tenant: %v", err)
+	}
+
 	app := &mcpApp{
 		repo:   repo,
 		db:     repo.DB(),
 		driver: repo.Driver(),
+		tenant: tenantID,
 	}
 
 	s := server.NewMCPServer(
@@ -106,7 +114,7 @@ func main() {
 		mcp.WithDescription("Retorna metricas editoriais gerais do portal."),
 	), app.handleGetStats)
 
-	log.Printf("mcp: iniciado via stdio usando driver=%s database=%s", repo.Driver(), cfg.DatabaseURL)
+	log.Printf("mcp: iniciado via stdio usando driver=%s database=%s tenant_id=%d", repo.Driver(), cfg.DatabaseURL, tenantID)
 	if err := server.ServeStdio(s); err != nil {
 		log.Fatalf("mcp: server erro: %v", err)
 	}
@@ -122,11 +130,11 @@ func (a *mcpApp) handleListArticles(ctx context.Context, req mcp.CallToolRequest
 		return errResult("Status invalido. Use: draft, review, approved, scheduled, published ou archived"), nil
 	}
 
-	args := []any{}
-	where := ""
+	args := []any{a.tenant}
+	where := " WHERE p.tenant_id = " + a.placeholder(1)
 	if status != "" {
 		args = append(args, status)
-		where = " WHERE p.status = " + a.placeholder(len(args))
+		where += " AND p.status = " + a.placeholder(len(args))
 	}
 	args = append(args, limit)
 
@@ -135,8 +143,8 @@ func (a *mcpApp) handleListArticles(ctx context.Context, req mcp.CallToolRequest
 		       COALESCE(c.name, ''), COALESCE(u.name, ''), %s,
 		       p.published_at, p.created_at, p.updated_at
 		FROM posts p
-		LEFT JOIN categories c ON c.id = p.category_id
-		LEFT JOIN users u ON u.id = p.author_id
+		LEFT JOIN categories c ON c.id = p.category_id AND c.tenant_id = p.tenant_id
+		LEFT JOIN users u ON u.id = p.author_id AND u.tenant_id = p.tenant_id
 		%s
 		ORDER BY p.created_at DESC
 		LIMIT %s`, a.tagsExpr("p.id"), where, a.placeholder(len(args)))
@@ -165,13 +173,13 @@ func (a *mcpApp) handleGetArticle(ctx context.Context, req mcp.CallToolRequest) 
 		       p.status, COALESCE(c.name, ''), COALESCE(u.name, ''), %s,
 		       p.published_at, p.created_at, p.updated_at
 		FROM posts p
-		LEFT JOIN categories c ON c.id = p.category_id
-		LEFT JOIN users u ON u.id = p.author_id
-		WHERE p.id = %s`, a.tagsExpr("p.id"), a.placeholder(1))
+		LEFT JOIN categories c ON c.id = p.category_id AND c.tenant_id = p.tenant_id
+		LEFT JOIN users u ON u.id = p.author_id AND u.tenant_id = p.tenant_id
+		WHERE p.tenant_id = %s AND p.id = %s`, a.tagsExpr("p.id"), a.placeholder(1), a.placeholder(2))
 
 	var article articleDTO
 	var publishedAt sql.NullTime
-	err = a.db.QueryRowContext(ctx, query, id).Scan(
+	err = a.db.QueryRowContext(ctx, query, a.tenant, id).Scan(
 		&article.ID,
 		&article.Title,
 		&article.Slug,
@@ -218,7 +226,7 @@ func (a *mcpApp) handleCreateDraft(ctx context.Context, req mcp.CallToolRequest)
 
 	postSlug := slug.Unique(title, func(candidate string) bool {
 		var count int
-		_ = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM posts WHERE slug = `+a.placeholder(1), candidate).Scan(&count)
+		_ = tx.QueryRowContext(ctx, `SELECT COUNT(*) FROM posts WHERE tenant_id = `+a.placeholder(1)+` AND slug = `+a.placeholder(2), a.tenant, candidate).Scan(&count)
 		return count > 0
 	})
 
@@ -260,9 +268,9 @@ func (a *mcpApp) handleUpdateStatus(ctx context.Context, req mcp.CallToolRequest
 	if status == string(model.StatusPublished) {
 		setPublished = ", published_at = CURRENT_TIMESTAMP"
 	}
-	query := fmt.Sprintf(`UPDATE posts SET status = %s, updated_at = CURRENT_TIMESTAMP%s WHERE id = %s`,
-		a.placeholder(1), setPublished, a.placeholder(2))
-	res, err := a.db.ExecContext(ctx, query, status, id)
+	query := fmt.Sprintf(`UPDATE posts SET status = %s, updated_at = CURRENT_TIMESTAMP%s WHERE tenant_id = %s AND id = %s`,
+		a.placeholder(1), setPublished, a.placeholder(2), a.placeholder(3))
+	res, err := a.db.ExecContext(ctx, query, status, a.tenant, id)
 	if err != nil {
 		return errResult("Erro ao atualizar status: " + err.Error()), nil
 	}
@@ -274,7 +282,7 @@ func (a *mcpApp) handleUpdateStatus(ctx context.Context, req mcp.CallToolRequest
 }
 
 func (a *mcpApp) handleListCategories(ctx context.Context, _ mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	rows, err := a.db.QueryContext(ctx, `SELECT id, name, slug FROM categories WHERE active = true ORDER BY sort_order, name`)
+	rows, err := a.db.QueryContext(ctx, `SELECT id, name, slug FROM categories WHERE tenant_id = `+a.placeholder(1)+` AND active = true ORDER BY sort_order, name`, a.tenant)
 	if err != nil {
 		return errResult("Erro ao listar categorias: " + err.Error()), nil
 	}
@@ -297,18 +305,18 @@ func (a *mcpApp) handleSearchArticles(ctx context.Context, req mcp.CallToolReque
 		return errResult("Parametro 'query' e obrigatorio"), nil
 	}
 	pattern := "%" + strings.ToLower(queryText) + "%"
-	args := []any{pattern, pattern, pattern}
+	args := []any{a.tenant, pattern, pattern, pattern}
 
 	query := fmt.Sprintf(`
 		SELECT p.id, p.title, p.slug, COALESCE(p.excerpt, ''), p.status,
 		       COALESCE(c.name, ''), COALESCE(u.name, ''), %s,
 		       p.published_at, p.created_at, p.updated_at
 		FROM posts p
-		LEFT JOIN categories c ON c.id = p.category_id
-		LEFT JOIN users u ON u.id = p.author_id
-		WHERE lower(p.title) LIKE %s OR lower(COALESCE(p.excerpt, '')) LIKE %s OR lower(COALESCE(p.content, '')) LIKE %s
+		LEFT JOIN categories c ON c.id = p.category_id AND c.tenant_id = p.tenant_id
+		LEFT JOIN users u ON u.id = p.author_id AND u.tenant_id = p.tenant_id
+		WHERE p.tenant_id = %s AND (lower(p.title) LIKE %s OR lower(COALESCE(p.excerpt, '')) LIKE %s OR lower(COALESCE(p.content, '')) LIKE %s)
 		ORDER BY p.created_at DESC
-		LIMIT 20`, a.tagsExpr("p.id"), a.placeholder(1), a.placeholder(2), a.placeholder(3))
+		LIMIT 20`, a.tagsExpr("p.id"), a.placeholder(1), a.placeholder(2), a.placeholder(3), a.placeholder(4))
 
 	rows, err := a.db.QueryContext(ctx, query, args...)
 	if err != nil {
@@ -336,30 +344,30 @@ func (a *mcpApp) handleGetStats(ctx context.Context, _ mcp.CallToolRequest) (*mc
 	}
 
 	var s stats
-	_ = a.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM posts`).Scan(&s.TotalArticles)
-	_ = a.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM posts WHERE status = 'published'`).Scan(&s.Published)
-	_ = a.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM posts WHERE status = 'draft'`).Scan(&s.Drafts)
-	_ = a.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM posts WHERE status = 'review'`).Scan(&s.InReview)
-	_ = a.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM posts WHERE status = 'scheduled'`).Scan(&s.Scheduled)
-	_ = a.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM posts WHERE status = 'archived'`).Scan(&s.Archived)
-	_ = a.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM categories WHERE active = true`).Scan(&s.TotalCategories)
-	_ = a.db.QueryRowContext(ctx, a.publishedThisWeekQuery()).Scan(&s.PublishedThisWeek)
+	_ = a.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM posts WHERE tenant_id = `+a.placeholder(1), a.tenant).Scan(&s.TotalArticles)
+	_ = a.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM posts WHERE tenant_id = `+a.placeholder(1)+` AND status = 'published'`, a.tenant).Scan(&s.Published)
+	_ = a.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM posts WHERE tenant_id = `+a.placeholder(1)+` AND status = 'draft'`, a.tenant).Scan(&s.Drafts)
+	_ = a.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM posts WHERE tenant_id = `+a.placeholder(1)+` AND status = 'review'`, a.tenant).Scan(&s.InReview)
+	_ = a.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM posts WHERE tenant_id = `+a.placeholder(1)+` AND status = 'scheduled'`, a.tenant).Scan(&s.Scheduled)
+	_ = a.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM posts WHERE tenant_id = `+a.placeholder(1)+` AND status = 'archived'`, a.tenant).Scan(&s.Archived)
+	_ = a.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM categories WHERE tenant_id = `+a.placeholder(1)+` AND active = true`, a.tenant).Scan(&s.TotalCategories)
+	_ = a.db.QueryRowContext(ctx, a.publishedThisWeekQuery(), a.tenant).Scan(&s.PublishedThisWeek)
 
 	return textResultJSON(s), nil
 }
 
 func (a *mcpApp) insertPost(ctx context.Context, tx *sql.Tx, title, postSlug, excerpt, content string, categoryID any) (int64, error) {
 	query := fmt.Sprintf(`
-		INSERT INTO posts (title, slug, excerpt, content, category_id, status, created_at, updated_at)
-		VALUES (%s, %s, %s, %s, %s, 'draft', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
-		a.placeholder(1), a.placeholder(2), a.placeholder(3), a.placeholder(4), a.placeholder(5))
+		INSERT INTO posts (tenant_id, title, slug, excerpt, content, category_id, status, created_at, updated_at)
+		VALUES (%s, %s, %s, %s, %s, %s, 'draft', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+		a.placeholder(1), a.placeholder(2), a.placeholder(3), a.placeholder(4), a.placeholder(5), a.placeholder(6))
 
 	if a.driver == "postgres" {
 		var id int64
-		err := tx.QueryRowContext(ctx, query+" RETURNING id", title, postSlug, excerpt, content, categoryID).Scan(&id)
+		err := tx.QueryRowContext(ctx, query+" RETURNING id", a.tenant, title, postSlug, excerpt, content, categoryID).Scan(&id)
 		return id, err
 	}
-	res, err := tx.ExecContext(ctx, query, title, postSlug, excerpt, content, categoryID)
+	res, err := tx.ExecContext(ctx, query, a.tenant, title, postSlug, excerpt, content, categoryID)
 	if err != nil {
 		return 0, err
 	}
@@ -388,7 +396,7 @@ func (a *mcpApp) attachTags(ctx context.Context, tx *sql.Tx, postID int64, rawTa
 
 func (a *mcpApp) ensureTag(ctx context.Context, tx *sql.Tx, name, tagSlug string) (int64, error) {
 	var id int64
-	err := tx.QueryRowContext(ctx, `SELECT id FROM tags WHERE slug = `+a.placeholder(1), tagSlug).Scan(&id)
+	err := tx.QueryRowContext(ctx, `SELECT id FROM tags WHERE tenant_id = `+a.placeholder(1)+` AND slug = `+a.placeholder(2), a.tenant, tagSlug).Scan(&id)
 	if err == nil {
 		return id, nil
 	}
@@ -396,12 +404,12 @@ func (a *mcpApp) ensureTag(ctx context.Context, tx *sql.Tx, name, tagSlug string
 		return 0, err
 	}
 
-	insert := fmt.Sprintf(`INSERT INTO tags (slug, name, active) VALUES (%s, %s, true)`, a.placeholder(1), a.placeholder(2))
+	insert := fmt.Sprintf(`INSERT INTO tags (tenant_id, slug, name, active) VALUES (%s, %s, %s, true)`, a.placeholder(1), a.placeholder(2), a.placeholder(3))
 	if a.driver == "postgres" {
-		err = tx.QueryRowContext(ctx, insert+" RETURNING id", tagSlug, name).Scan(&id)
+		err = tx.QueryRowContext(ctx, insert+" RETURNING id", a.tenant, tagSlug, name).Scan(&id)
 		return id, err
 	}
-	res, err := tx.ExecContext(ctx, insert, tagSlug, name)
+	res, err := tx.ExecContext(ctx, insert, a.tenant, tagSlug, name)
 	if err != nil {
 		return 0, err
 	}
@@ -417,16 +425,16 @@ func (a *mcpApp) placeholder(position int) string {
 
 func (a *mcpApp) tagsExpr(postIDExpr string) string {
 	if a.driver == "postgres" {
-		return fmt.Sprintf(`COALESCE((SELECT string_agg(t.name, ', ' ORDER BY t.name) FROM post_tags pt JOIN tags t ON t.id = pt.tag_id WHERE pt.post_id = %s), '')`, postIDExpr)
+		return fmt.Sprintf(`COALESCE((SELECT string_agg(t.name, ', ' ORDER BY t.name) FROM post_tags pt JOIN tags t ON t.id = pt.tag_id AND t.tenant_id = p.tenant_id WHERE pt.post_id = %s), '')`, postIDExpr)
 	}
-	return fmt.Sprintf(`COALESCE((SELECT group_concat(t.name, ', ') FROM post_tags pt JOIN tags t ON t.id = pt.tag_id WHERE pt.post_id = %s), '')`, postIDExpr)
+	return fmt.Sprintf(`COALESCE((SELECT group_concat(t.name, ', ') FROM post_tags pt JOIN tags t ON t.id = pt.tag_id AND t.tenant_id = p.tenant_id WHERE pt.post_id = %s), '')`, postIDExpr)
 }
 
 func (a *mcpApp) publishedThisWeekQuery() string {
 	if a.driver == "postgres" {
-		return `SELECT COUNT(*) FROM posts WHERE status = 'published' AND published_at >= NOW() - INTERVAL '7 days'`
+		return `SELECT COUNT(*) FROM posts WHERE tenant_id = $1 AND status = 'published' AND published_at >= NOW() - INTERVAL '7 days'`
 	}
-	return `SELECT COUNT(*) FROM posts WHERE status = 'published' AND published_at >= datetime('now', '-7 days')`
+	return `SELECT COUNT(*) FROM posts WHERE tenant_id = ? AND status = 'published' AND published_at >= datetime('now', '-7 days')`
 }
 
 func scanArticles(rows *sql.Rows, includeContent bool) ([]articleDTO, error) {
@@ -467,6 +475,43 @@ func splitTags(raw string) []string {
 		tags = append(tags, name)
 	}
 	return tags
+}
+
+func resolveTenantID(ctx context.Context, repo *repository.Repository) (int64, error) {
+	if raw := strings.TrimSpace(os.Getenv("MCP_TENANT_ID")); raw != "" {
+		id, err := strconv.ParseInt(raw, 10, 64)
+		if err != nil || id <= 0 {
+			return 0, fmt.Errorf("MCP_TENANT_ID invalido: %q", raw)
+		}
+		tenant, err := repo.TenantGetByID(ctx, id)
+		if err != nil {
+			return 0, err
+		}
+		if tenant == nil {
+			return 0, fmt.Errorf("tenant nao encontrado para MCP_TENANT_ID=%d", id)
+		}
+		return tenant.ID, nil
+	}
+
+	slugValue := firstNonEmpty(os.Getenv("MCP_TENANT_SLUG"), os.Getenv("TENANT_SLUG"), "default")
+	tenant, err := repo.TenantGetBySlug(ctx, slugValue)
+	if err != nil {
+		return 0, err
+	}
+	if tenant == nil {
+		return 0, fmt.Errorf("tenant nao encontrado para slug %q", slugValue)
+	}
+	return tenant.ID, nil
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value != "" {
+			return value
+		}
+	}
+	return ""
 }
 
 func validStatus(status string) bool {

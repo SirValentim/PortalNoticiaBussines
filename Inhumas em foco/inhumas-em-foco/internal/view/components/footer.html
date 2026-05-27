@@ -2,7 +2,7 @@
     <div class="container">
         <div class="footer-brand">
             <a href="/" class="site-logo">
-                <img src="{{if .PortalSettings.LogoKey}}{{imageURL .PortalSettings.LogoKey}}{{else}}{{.Branding.LogoPath}}{{end}}" alt="{{.Branding.LogoAltText}}" class="brand-logo-img" width="220" height="54" style="display:block;width:auto;max-width:220px;height:54px;object-fit:contain;">
+                <img src="{{if .PortalSettings.LogoKey}}{{imageURL .PortalSettings.LogoKey}}{{else}}{{if .Branding.LogoPath}}{{.Branding.LogoPath}}{{else}}/static/images/logo.png{{end}}{{end}}" alt="{{if .Branding.LogoAltText}}{{.Branding.LogoAltText}}{{else}}Inhumas em Foco{{end}}" class="brand-logo-img" width="220" height="54" style="display:block;width:auto;max-width:220px;height:54px;object-fit:contain;">
             </a>
             <p>{{if .Branding.PortalTagline}}{{.Branding.PortalTagline}}{{else}}{{.PortalSettings.Tagline}}{{end}}</p>
         </div>

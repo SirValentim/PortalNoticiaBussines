@@ -4,6 +4,8 @@ O projeto inclui um servidor MCP em `cmd/mcp` para expor operacoes editoriais co
 
 O servidor roda via stdio, usa o mesmo banco configurado pelo CMS e nunca publica conteudo automaticamente ao criar um novo post. A ferramenta `create_draft` sempre gera rascunho com status `draft`, mantendo revisao humana obrigatoria.
 
+Em ambiente multiportal, o MCP trabalha dentro de um tenant especifico. Configure `MCP_TENANT_SLUG` ou `MCP_TENANT_ID`; se nada for informado, ele usa o tenant `default`.
+
 ## Ferramentas disponiveis
 
 - `list_articles`: lista posts, com filtro opcional por status.
@@ -55,6 +57,7 @@ Exemplo:
         "DATABASE_URL": "C:\\Users\\Valentim\\Documents\\New project\\Inhumas em foco\\inhumas-em-foco\\inhumas.db",
         "DB_DRIVER": "sqlite",
         "PROJECT_ROOT": "C:\\Users\\Valentim\\Documents\\New project\\Inhumas em foco\\inhumas-em-foco",
+        "MCP_TENANT_SLUG": "default",
         "SESSION_SECRET": "change-this-to-at-least-32-random-bytes"
       }
     }
@@ -70,10 +73,11 @@ Exemplo:
     "inhumas-em-foco": {
       "command": "/var/www/inhumas/bin/inhumas-mcp",
       "env": {
-        "DATABASE_URL": "/var/www/inhumas/inhumas.db",
-        "DB_DRIVER": "sqlite",
+        "DATABASE_URL": "postgres://usuario:senha@localhost:5432/inhumas?sslmode=disable",
+        "DB_DRIVER": "postgres",
         "PROJECT_ROOT": "/var/www/inhumas",
         "MIGRATIONS_DIR": "/var/www/inhumas/migrations",
+        "MCP_TENANT_SLUG": "default",
         "SESSION_SECRET": "change-this-to-at-least-32-random-bytes"
       }
     }

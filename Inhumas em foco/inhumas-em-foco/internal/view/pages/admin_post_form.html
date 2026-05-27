@@ -3,6 +3,7 @@
     <div>
         <p class="admin-kicker">Editorial</p>
         <h1>{{if .IsEditing}}Editar{{else}}Nova{{end}} Noticia</h1>
+        <p class="admin-page-lead">Escreva, revise SEO, defina fluxo editorial e prepare a publicacao sem perder contexto.</p>
     </div>
     <div class="admin-row-actions">
         {{if .IsEditing}}<a href="{{.AdminPath}}/posts/{{.Post.ID}}/preview" class="btn btn-sm">Preview</a>{{end}}
@@ -17,21 +18,37 @@
 <form class="admin-form admin-post-editor" method="POST" action="{{if .IsEditing}}{{.AdminPath}}/posts/{{.Post.ID}}{{else}}{{.AdminPath}}/posts{{end}}" enctype="multipart/form-data">
     <input type="hidden" name="csrf_token" value="{{$.CSRFToken}}">
 
+    <section class="admin-form-section admin-editor-brief">
+        <div>
+            <span class="admin-kicker">Fluxo editorial</span>
+            <h2>{{if .IsEditing}}{{postStatusLabel .Post.Status}}{{else}}Rascunho inicial{{end}}</h2>
+            <p>Complete titulo, resumo, conteudo, categoria, imagem e SEO antes de enviar para revisao ou publicar.</p>
+        </div>
+        <div class="admin-editor-brief-steps" aria-label="Checklist rapido">
+            <span class="status-pill {{if .Post}}{{if .Post.Title}}status-approved{{else}}status-muted{{end}}{{else}}status-muted{{end}}">Titulo</span>
+            <span class="status-pill {{if .Post}}{{if .Post.Excerpt}}status-approved{{else}}status-muted{{end}}{{else}}status-muted{{end}}">Resumo</span>
+            <span class="status-pill {{if .Post}}{{if .Post.CoverImageKey}}status-approved{{else}}status-muted{{end}}{{else}}status-muted{{end}}">Imagem</span>
+            <span class="status-pill {{if .Post}}{{if .Post.MetaDescription}}status-approved{{else}}status-muted{{end}}{{else}}status-muted{{end}}">SEO</span>
+        </div>
+    </section>
+
     <section class="admin-form-section admin-form-section-main">
         <div class="form-group form-group-title">
-            <label>Titulo</label>
-            <input type="text" name="title" class="form-control form-control-title" value="{{if .Post}}{{.Post.Title}}{{end}}" required>
+            <label for="post-title">Titulo</label>
+            <input id="post-title" type="text" name="title" class="form-control form-control-title" value="{{if .Post}}{{.Post.Title}}{{end}}" required>
+            <small class="form-hint">Use um titulo direto, local e compreensivel fora de contexto.</small>
         </div>
 
         <div class="form-group">
-            <label>Resumo</label>
-            <textarea name="excerpt" class="form-control" rows="4">{{if .Post}}{{.Post.Excerpt}}{{end}}</textarea>
+            <label for="post-excerpt">Resumo</label>
+            <textarea id="post-excerpt" name="excerpt" class="form-control" rows="4">{{if .Post}}{{.Post.Excerpt}}{{end}}</textarea>
             <small class="form-hint">Tambem e usado como descricao de SEO quando a descricao especifica estiver vazia.</small>
         </div>
 
         <div class="form-group">
-            <label>Conteudo (HTML permitido)</label>
-            <textarea name="content" class="form-control form-control-editor" rows="20" required>{{if .Post}}{{.Post.Content}}{{end}}</textarea>
+            <label for="post-content">Conteudo (HTML permitido)</label>
+            <textarea id="post-content" name="content" class="form-control form-control-editor" rows="20" required>{{if .Post}}{{.Post.Content}}{{end}}</textarea>
+            <small class="form-hint">Estruture com subtitulos, paragrafos curtos e contexto local quando fizer sentido.</small>
         </div>
     </section>
 
@@ -98,21 +115,21 @@
         </div>
         <div class="admin-form-grid">
             <div class="form-group">
-                <label>Titulo SEO</label>
-                <input type="text" name="meta_title" class="form-control" maxlength="70" value="{{if .Post}}{{.Post.MetaTitle}}{{end}}" placeholder="Opcional; se vazio, usa o titulo da noticia">
+                <label for="post-meta-title">Titulo SEO</label>
+                <input id="post-meta-title" type="text" name="meta_title" class="form-control" maxlength="70" value="{{if .Post}}{{.Post.MetaTitle}}{{end}}" placeholder="Opcional; se vazio, usa o titulo da noticia">
                 <small class="form-hint">Ideal entre 45 e 65 caracteres.</small>
             </div>
             <div class="form-group">
-                <label>Palavra-chave principal</label>
-                <input type="text" name="seo_keyword" class="form-control" value="{{if .Post}}{{.Post.SEOKeyword}}{{end}}" placeholder="Ex: noticias de Inhumas">
+                <label for="post-seo-keyword">Palavra-chave principal</label>
+                <input id="post-seo-keyword" type="text" name="seo_keyword" class="form-control" value="{{if .Post}}{{.Post.SEOKeyword}}{{end}}" placeholder="Ex: noticias de Inhumas">
             </div>
             <div class="form-group">
-                <label>Canonical URL</label>
-                <input type="url" name="canonical_url" class="form-control" value="{{if .Post}}{{.Post.CanonicalURL}}{{end}}" placeholder="Opcional; se vazio, usa a URL da noticia">
+                <label for="post-canonical">Canonical URL</label>
+                <input id="post-canonical" type="url" name="canonical_url" class="form-control" value="{{if .Post}}{{.Post.CanonicalURL}}{{end}}" placeholder="Opcional; se vazio, usa a URL da noticia">
             </div>
             <div class="form-group form-group-wide">
-                <label>Descricao SEO</label>
-                <textarea name="meta_description" class="form-control" maxlength="170" rows="3" placeholder="Opcional; se vazio, usa o resumo">{{if .Post}}{{.Post.MetaDescription}}{{end}}</textarea>
+                <label for="post-meta-description">Descricao SEO</label>
+                <textarea id="post-meta-description" name="meta_description" class="form-control" maxlength="170" rows="3" placeholder="Opcional; se vazio, usa o resumo">{{if .Post}}{{.Post.MetaDescription}}{{end}}</textarea>
                 <small class="form-hint">Ideal entre 120 e 160 caracteres, com contexto local de Inhumas GO.</small>
             </div>
         </div>
@@ -131,8 +148,8 @@
     <section class="admin-form-section">
         <div class="admin-form-grid">
             <div class="form-group">
-                <label>Categoria</label>
-                <select name="category_id" class="form-control" required>
+                <label for="post-category-id">Categoria</label>
+                <select id="post-category-id" name="category_id" class="form-control" required>
                     {{range .Categories}}
                     <option value="{{.ID}}" {{if and $.Post (idPtrEq $.Post.CategoryID .ID)}}selected{{end}}>{{.Name}}</option>
                     {{end}}
@@ -140,8 +157,8 @@
             </div>
 
             <div class="form-group">
-                <label>Status</label>
-                <select name="status" class="form-control">
+                <label for="post-status">Status</label>
+                <select id="post-status" name="status" class="form-control">
                     <option value="draft" {{if .Post}}{{if eq .Post.Status "draft"}}selected{{end}}{{end}}>Rascunho</option>
                     <option value="review" {{if .Post}}{{if eq .Post.Status "review"}}selected{{end}}{{end}}>Em revisao</option>
                     {{if .CanApprove}}
@@ -173,23 +190,25 @@
             </div>
 
             <div class="form-group">
-                <label>Data de publicacao</label>
-                <input type="datetime-local" name="publish_at" class="form-control" value="{{if and .Post .Post.PublishAt}}{{.Post.PublishAt.Format "2006-01-02T15:04"}}{{end}}">
+                <label for="post-publish-at">Data de publicacao</label>
+                <input id="post-publish-at" type="datetime-local" name="publish_at" class="form-control" value="{{if and .Post .Post.PublishAt}}{{.Post.PublishAt.Format "2006-01-02T15:04"}}{{end}}">
+                <small class="form-hint">Use para agendar; deixe vazio para publicar manualmente depois.</small>
             </div>
 
             <div class="form-group">
-                <label>Imagem de capa</label>
+                <label for="post-cover-image">Imagem de capa</label>
                 {{if and .Post .Post.CoverImageKey}}
-                <img class="admin-cover-preview" src="{{imageURL .Post.CoverImageKey}}">
+                <img class="admin-cover-preview" src="{{imageURL .Post.CoverImageKey}}" alt="Imagem de capa atual">
                 <label class="checkbox-control">
                     <input type="checkbox" name="remove_cover_image">
                     <span>Remover imagem atual</span>
                 </label>
                 {{end}}
-                <input type="file" name="cover_image" class="form-control" accept="image/*">
+                <input id="post-cover-image" type="file" name="cover_image" class="form-control" accept="image/*">
+                <small class="form-hint">Prefira imagem horizontal, nitida e com relacao direta com a materia.</small>
                 {{if .MediaAssets}}
-                <label>Ou escolher da biblioteca</label>
-                <select name="cover_image_media_key" class="form-control">
+                <label for="post-cover-media">Ou escolher da biblioteca</label>
+                <select id="post-cover-media" name="cover_image_media_key" class="form-control">
                     <option value="">Manter / nenhum</option>
                     {{range .MediaAssets}}
                     <option value="{{.Key}}" {{if and $.Post (eq $.Post.CoverImageKey .Key)}}selected{{end}}>{{if .Title}}{{.Title}}{{else}}{{.OriginalName}}{{end}}</option>

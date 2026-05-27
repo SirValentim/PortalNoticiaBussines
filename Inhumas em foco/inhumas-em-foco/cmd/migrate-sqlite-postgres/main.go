@@ -16,7 +16,11 @@ import (
 )
 
 var orderedTables = []string{
+	"tenants",
+	"tenant_domains",
+	"tenant_features",
 	"users",
+	"tenant_users",
 	"password_reset_tokens",
 	"categories",
 	"tags",
@@ -45,7 +49,10 @@ var orderedTables = []string{
 }
 
 var booleanColumns = map[string]map[string]bool{
+	"tenant_domains":        {"is_primary": true},
+	"tenant_features":       {"enabled": true},
 	"users":                 {"active": true},
+	"tenant_users":          {"active": true},
 	"categories":            {"active": true, "requires_editorial_notes": true},
 	"tags":                  {"active": true},
 	"posts":                 {"is_sponsored": true, "is_featured": true, "is_pinned": true},
@@ -73,6 +80,14 @@ func main() {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
+
+	sqliteRepo, err := repository.Open("sqlite", sqliteURL, migrationsDir)
+	if err != nil {
+		log.Fatal(err)
+	}
+	if err := sqliteRepo.Close(); err != nil {
+		log.Fatal(err)
+	}
 
 	sqliteDB, err := sql.Open("sqlite", sqliteURL+"?_pragma=query_only(1)")
 	if err != nil {

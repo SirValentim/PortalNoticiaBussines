@@ -27,7 +27,7 @@
     <meta name="twitter:title" content="{{.SEO.Title}}">
     <meta name="twitter:description" content="{{.SEO.Description}}">
     {{if .JSONLD}}<script type="application/ld+json">{{.JSONLD}}</script>{{end}}
-    <link rel="stylesheet" href="/static/css/style.css?v=20260430-public-v1">
+    <link rel="stylesheet" href="/static/css/style.css?v=20260526-public-experience-v3">
     <script defer src="/static/js/htmx-lite.js?v=20260429-frontend-fix"></script>
     <link rel="icon" href="{{if .PortalSettings.FaviconKey}}{{imageURL .PortalSettings.FaviconKey}}{{else}}{{.Branding.FaviconPath}}{{end}}">
     <style>
@@ -55,7 +55,7 @@
 <body>
     {{template "header.html" .}}
     
-    <main>
+    <main id="main-content" tabindex="-1">
         {{template "content" .}}
     </main>
     

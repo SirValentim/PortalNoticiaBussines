@@ -1,17 +1,17 @@
 <header class="site-header">
     <div class="container">
-        <a href="/" class="site-logo" aria-label="{{.Branding.PortalName}}">
-            <img src="{{if .PortalSettings.LogoKey}}{{imageURL .PortalSettings.LogoKey}}{{else}}{{.Branding.LogoPath}}{{end}}" alt="{{.Branding.LogoAltText}}" class="brand-logo-img" width="190" height="46" style="display:block;width:auto;max-width:190px;height:46px;object-fit:contain;">
+        <a class="skip-link" href="#main-content">Pular para o conteudo</a>
+        <a href="/" class="site-logo" aria-label="{{if .Branding.PortalName}}{{.Branding.PortalName}}{{else}}Inhumas em Foco{{end}}">
+            <img src="{{if .PortalSettings.LogoKey}}{{imageURL .PortalSettings.LogoKey}}{{else}}{{if .Branding.LogoPath}}{{.Branding.LogoPath}}{{else}}/static/images/logo.png{{end}}{{end}}" alt="{{if .Branding.LogoAltText}}{{.Branding.LogoAltText}}{{else}}Inhumas em Foco{{end}}" class="brand-logo-img" width="190" height="46" style="display:block;width:auto;max-width:190px;height:46px;object-fit:contain;">
         </a>
-        <nav class="site-nav">
+        <nav class="site-nav" aria-label="Navegacao principal">
             <a href="/">Home</a>
             <a href="/noticias">Noticias</a>
             <a href="/lojas">Lojas</a>
-            <a href="/influencers">Influencers</a>
             <a href="/promocoes">Promocoes</a>
             <a href="/eventos">Eventos</a>
             <a href="/classificados">Classificados</a>
-            <a href="/busca" aria-label="Busca">Buscar</a>
+            <a href="/busca" aria-label="Buscar noticias e servicos">Buscar</a>
             {{if .User}}
             <a href="{{.AdminPath}}" class="nav-panel">Painel</a>
             <a href="/logout">Sair</a>
