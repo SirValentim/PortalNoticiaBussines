@@ -585,11 +585,6 @@ CREATE TABLE IF NOT EXISTS login_attempts (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
-INSERT OR IGNORE INTO categories (tenant_id, slug, name, requires_editorial_notes) VALUES
-(1, 'noticias', 'Noticias', false),
-(1, 'politica-bastidores', 'Politica & Bastidores', true),
-(1, 'influencers', 'Influencers da Cidade', false),
-(1, 'eventos', 'Eventos', false);
 `
 	if _, err := r.db.Exec(schema); err != nil {
 		return err
@@ -597,7 +592,21 @@ INSERT OR IGNORE INTO categories (tenant_id, slug, name, requires_editorial_note
 	if err := r.ensureSQLiteColumns(); err != nil {
 		return err
 	}
+	if err := r.seedSQLiteDefaultCategories(); err != nil {
+		return err
+	}
 	return r.markSQLiteSchemaVersion()
+}
+
+func (r *Repository) seedSQLiteDefaultCategories() error {
+	_, err := r.db.Exec(`
+INSERT OR IGNORE INTO categories (tenant_id, slug, name, requires_editorial_notes) VALUES
+(1, 'noticias', 'Noticias', false),
+(1, 'politica-bastidores', 'Politica & Bastidores', true),
+(1, 'influencers', 'Influencers da Cidade', false),
+(1, 'eventos', 'Eventos', false);
+`)
+	return err
 }
 
 func (r *Repository) ensureSQLiteColumns() error {

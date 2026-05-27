@@ -2,6 +2,8 @@ package repository
 
 import (
 	"context"
+	"database/sql"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -62,6 +64,56 @@ func TestOpenSQLiteMarksSchemaMigration(t *testing.T) {
 	}
 	if count != 1 {
 		t.Fatalf("schema migration count = %d, want 1", count)
+	}
+}
+
+func TestOpenSQLiteMigratesLegacyCategoriesBeforeDefaultSeed(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "legacy.db")
+	db, err := sql.Open("sqlite", dbPath)
+	if err != nil {
+		t.Fatalf("open legacy sqlite failed: %v", err)
+	}
+	_, err = db.Exec(`
+		CREATE TABLE categories (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			slug TEXT UNIQUE NOT NULL,
+			name TEXT NOT NULL,
+			description TEXT,
+			requires_editorial_notes BOOLEAN DEFAULT false,
+			image_key TEXT DEFAULT '',
+			sort_order INTEGER DEFAULT 0,
+			active BOOLEAN DEFAULT true,
+			meta_title TEXT DEFAULT '',
+			meta_description TEXT DEFAULT ''
+		);
+		INSERT INTO categories (slug, name) VALUES ('legado', 'Categoria Legada');
+	`)
+	if err != nil {
+		t.Fatalf("seed legacy schema failed: %v", err)
+	}
+	if err := db.Close(); err != nil {
+		t.Fatalf("close legacy sqlite failed: %v", err)
+	}
+
+	repo, err := Open("sqlite", dbPath, "")
+	if err != nil {
+		t.Fatalf("Open sqlite with legacy categories failed: %v", err)
+	}
+	defer repo.Close()
+
+	var tenantID int64
+	if err := repo.DB().QueryRow(`SELECT tenant_id FROM categories WHERE slug = 'legado'`).Scan(&tenantID); err != nil {
+		t.Fatalf("legacy category lookup failed: %v", err)
+	}
+	if tenantID != 1 {
+		t.Fatalf("legacy category tenant_id = %d, want 1", tenantID)
+	}
+	var seeded int
+	if err := repo.DB().QueryRow(`SELECT COUNT(*) FROM categories WHERE tenant_id = 1 AND slug = 'noticias'`).Scan(&seeded); err != nil {
+		t.Fatalf("default category lookup failed: %v", err)
+	}
+	if seeded != 1 {
+		t.Fatalf("seeded default categories = %d, want 1", seeded)
 	}
 }
 
