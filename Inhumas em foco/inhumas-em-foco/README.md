@@ -1,6 +1,8 @@
-# Inhumas em Foco - Backend Go
+# NewsCore CMS - Backend Go SSR
 
-Backend principal da plataforma CMS Inhumas em Foco. A aplicacao oficial usa Go, templates HTML server-side, storage local e SQLite no runtime inicial, com base multiportal persistente e suporte configuravel a PostgreSQL.
+Backend principal do NewsCore CMS, uma plataforma premium multiportal para gestao profissional de portais de noticias. A aplicacao oficial usa Go, templates HTML server-side, storage local e SQLite no runtime inicial, com base multiportal persistente e suporte configuravel a PostgreSQL.
+
+O Inhumas em Foco continua existindo como primeiro portal/tenant cadastrado. Ele nao e a marca principal do sistema administrativo.
 
 ## Estado Atual
 
@@ -8,7 +10,7 @@ Backend principal da plataforma CMS Inhumas em Foco. A aplicacao oficial usa Go,
 - Worker de jobs em `cmd/worker`.
 - Servidor MCP em `cmd/mcp` para integracao editorial controlada com clientes compativeis.
 - Base multiportal persistente com tenants, dominios, features, usuarios por portal e dados por `tenant_id`.
-- Painel admin protegido por `ADMIN_PATH_PREFIX`.
+- Painel admin NewsCore CMS protegido por `ADMIN_PATH_PREFIX`.
 - Auth com bcrypt, sessoes HttpOnly/SameSiteStrict, CSRF e RBAC editorial/comercial.
 - Upload local com validacao de MIME, limite de corpo e protecao contra path traversal.
 - O limite de upload tambem e aplicado durante a validacao CSRF de formularios multipart.

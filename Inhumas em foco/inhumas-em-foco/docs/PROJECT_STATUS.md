@@ -1,4 +1,4 @@
-# Project Status - Marco Multiportal
+# Project Status - NewsCore CMS Multiportal
 
 Data: 2026-05-26
 
@@ -6,9 +6,9 @@ Este documento resume, de forma direta, o que o projeto e hoje, o que ele faz de
 
 ## O Que O Projeto E
 
-O Inhumas em Foco deixou de ser apenas um portal local isolado. O projeto agora e uma plataforma CMS editorial em Go, com base multiportal persistente, capaz de operar diferentes portais no mesmo binario, separando conteudo, configuracoes, usuarios, features e jobs por tenant.
+O NewsCore CMS e uma plataforma CMS editorial em Go, com base multiportal persistente, capaz de operar diferentes portais no mesmo binario, separando conteudo, configuracoes, usuarios, features e jobs por tenant.
 
-O primeiro portal continua sendo o Inhumas em Foco, mas a arquitetura ja prepara a plataforma para outros portais locais, editoriais ou comerciais, como LaMafiaMusic, GoiasNews e futuros produtos SaaS editoriais.
+O primeiro portal continua sendo o Inhumas em Foco, mas ele e tratado como tenant inicial da plataforma, nao como a marca principal do painel administrativo.
 
 ## O Que O Projeto Faz Hoje
 
