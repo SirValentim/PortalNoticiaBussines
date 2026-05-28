@@ -124,7 +124,7 @@ func (h *Handler) funcMap() template.FuncMap {
 				if h.cfg != nil && h.cfg.Branding != nil {
 					return h.cfg.Branding.SEODefaultImage
 				}
-				return "/static/branding/og-default.jpg"
+				return "/static/images/inhumas-hero.png"
 			}
 			return h.storage.URL(context.Background(), key)
 		},
@@ -305,14 +305,14 @@ func (h *Handler) branding(ctx context.Context) *config.TenantBrandingConfig {
 		PortalCategory:    "news",
 		SiteURL:           siteURL,
 		AdminPathPrefix:   adminPath,
-		LogoPath:          "/static/branding/logo.svg",
+		LogoPath:          "/static/images/logo.png",
 		LogoAltText:       "Portal",
-		FaviconPath:       "/static/branding/favicon.ico",
+		FaviconPath:       "/static/images/logo.png",
 		PrimaryColor:      "#1a4a3a",
 		SecondaryColor:    "#f5c518",
 		AccentColor:       "#2d6a52",
 		SEOTitleSuffix:    " | Portal",
-		SEODefaultImage:   strings.TrimRight(siteURL, "/") + "/static/branding/og-default.jpg",
+		SEODefaultImage:   strings.TrimRight(siteURL, "/") + "/static/images/inhumas-hero.png",
 		ContactCountry:    "BR",
 		ArticlesPerPage:   12,
 		FeaturedTagSlug:   "destaque",

@@ -83,15 +83,15 @@ func LoadTenantBrandingConfig() (*TenantBrandingConfig, error) {
 	cfg.PortalCategory = envOrDefault("PORTAL_CATEGORY", "news")
 	cfg.AdminPathPrefix = envOrDefault("ADMIN_PATH_PREFIX", "/painel")
 
-	cfg.LogoPath = envOrDefault("PORTAL_LOGO_PATH", "/static/branding/logo.svg")
+	cfg.LogoPath = envOrDefault("PORTAL_LOGO_PATH", "/static/images/logo.png")
 	cfg.LogoAltText = envOrDefault("PORTAL_LOGO_ALT", cfg.PortalName)
-	cfg.FaviconPath = envOrDefault("PORTAL_FAVICON_PATH", "/static/branding/favicon.ico")
+	cfg.FaviconPath = envOrDefault("PORTAL_FAVICON_PATH", "/static/images/logo.png")
 	cfg.PrimaryColor = envOrDefault("PORTAL_PRIMARY_COLOR", "#1a4a3a")
 	cfg.SecondaryColor = envOrDefault("PORTAL_SECONDARY_COLOR", "#f5c518")
 	cfg.AccentColor = envOrDefault("PORTAL_ACCENT_COLOR", "#2d6a52")
 
 	cfg.SEOTitleSuffix = envOrDefault("PORTAL_SEO_TITLE_SUFFIX", " | "+cfg.PortalName)
-	cfg.SEODefaultImage = envOrDefault("PORTAL_SEO_DEFAULT_IMAGE", cfg.SiteURL+"/static/branding/og-default.jpg")
+	cfg.SEODefaultImage = envOrDefault("PORTAL_SEO_DEFAULT_IMAGE", cfg.SiteURL+"/static/images/inhumas-hero.png")
 	cfg.TwitterHandle = envOrDefault("PORTAL_TWITTER_HANDLE", "")
 	cfg.FacebookPageURL = envOrDefault("PORTAL_FACEBOOK_PAGE_URL", "")
 	cfg.InstagramHandle = envOrDefault("PORTAL_INSTAGRAM_HANDLE", "")
